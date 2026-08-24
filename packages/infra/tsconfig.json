@@ -1,4 +1,4 @@
 {
-  "extends": "@ai-lab-tycoon/config/tsconfig.base.json",
-  "include": ["alchemy.run.ts"]
+	"extends": "@ai-lab-tycoon/config/tsconfig.base.json",
+	"include": ["alchemy.run.ts"]
 }
