@@ -3,20 +3,42 @@ import type { Project } from "../components/projects.js";
 import type { Fact } from "../components/reports.js";
 import { BALANCE } from "../data/balance.js";
 import { assertGameState } from "../invariants.js";
-import { deriveEstimateBands, generateTrueScores } from "../model-design.js";
+import { generateTrueScores } from "../model-design.js";
 import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
 /**
- * Progress active training projects and reveal their hidden scores exactly on
- * completion. Training owns this project kind so it is not double-progressed
- * by the generic project phase.
+ * Progress active training projects and reveal hidden scores with a separate
+ * noisy estimate exactly on completion. Training owns this project kind so it
+ * is not double-progressed by the generic project phase.
  */
 export const trainingSystem: GameSystem = (state, context) => {
 	assertGameState(state);
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
+	const trainingDemand = state.projects.items.reduce((total, project) => {
+		if (project.kind !== "training" || project.status !== "active") {
+			return total;
+		}
+		const model = state.models.items.find(
+			(candidate) => candidate.id === project.modelId,
+		);
+		if (model?.tier === undefined) {
+			return total;
+		}
+		return total + BALANCE.modelTiers[model.tier].trainingCompute;
+	}, 0);
+	const availableTrainingCapacity = Math.max(
+		0,
+		state.compute.capacity - state.compute.allocated,
+	);
+	// V1 pressure rule: an overloaded training run makes no progress. The
+	// later pressure economy can replace this stall with a graduated slowdown.
+	const trainingProgressRate =
+		trainingDemand > availableTrainingCapacity
+			? 0
+			: BALANCE.projectProgressPerWeek.training;
 	let nextRng = state.rng;
 	const nextModels = state.models.items.map(cloneModel);
 	const nextProjects: Project[] = state.projects.items.map((project) => {
@@ -34,7 +56,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 		}
 		const nextProgress = Math.min(
 			project.duration,
-			project.progress + BALANCE.projectProgressPerWeek.training,
+			project.progress + trainingProgressRate,
 		);
 		const progressedBy = nextProgress - project.progress;
 		if (progressedBy > 0) {
@@ -63,7 +85,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 		model.status = "ready";
 		model.projectId = null;
 		model.trueScores = generated.trueScores;
-		model.estimates = deriveEstimateBands(generated.trueScores);
+		model.estimates = generated.estimates;
 		completedProjectIds.add(project.id);
 		facts.push(
 			{
@@ -85,7 +107,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 		};
 	});
 
-	const trainingDemand = nextProjects.reduce((total, project) => {
+	const nextTrainingDemand = nextProjects.reduce((total, project) => {
 		if (project.kind !== "training" || project.status !== "active") {
 			return total;
 		}
@@ -103,7 +125,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 		rng: nextRng,
 		compute: {
 			...state.compute,
-			trainingDemand,
+			trainingDemand: nextTrainingDemand,
 		},
 		models: {
 			items: nextModels,

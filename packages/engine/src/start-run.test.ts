@@ -124,6 +124,8 @@ describe("startRun", () => {
 			researchInsightPerWeek: 1,
 			researchProjectDuration: 1,
 			modelTiers: BALANCE.modelTiers,
+			modelFoundations: BALANCE.modelFoundations,
+			modelScore: BALANCE.modelScore,
 			modelEmphasisPoints: BALANCE.modelEmphasisPoints,
 			defaultEstimateBandWidth: BALANCE.defaultEstimateBandWidth,
 		});

@@ -120,10 +120,12 @@ export function designModel(
 	}
 
 	validateFoundation(state, normalized);
+	const foundationBalance = BALANCE.modelFoundations[normalized.foundation];
+	const totalCost = tier.cost + foundationBalance.cost;
 	const team = selectTeam(state, normalized.teamId);
-	if (state.company.cash < tier.cost) {
+	if (state.company.cash < totalCost) {
 		throw new Error(
-			`Insufficient cash for ${normalized.tier} model design cost ${tier.cost}`,
+			`Insufficient cash for ${normalized.tier} ${normalized.foundation} model design cost ${totalCost}`,
 		);
 	}
 
@@ -154,13 +156,13 @@ export function designModel(
 		modelId,
 		status: "active" as const,
 		progress: BALANCE.startingProjectProgress,
-		duration: tier.duration,
+		duration: tier.duration + foundationBalance.duration,
 	};
 	const nextState: GameState = {
 		...allocated.state,
 		company: {
 			...allocated.state.company,
-			cash: allocated.state.company.cash - tier.cost,
+			cash: allocated.state.company.cash - totalCost,
 		},
 		compute: {
 			...allocated.state.compute,
@@ -210,67 +212,152 @@ export function designModel(
 	return { state: nextState, facts: [], pending: [] };
 }
 
-/** Generate hidden scores only when the training system calls this function. */
+/** Generate hidden scores and separate noisy estimates at training completion. */
 export function generateTrueScores(
 	rng: RngState,
 	model: Model,
 	parent?: Model,
-): { rng: RngState; trueScores: ModelTrueScores } {
+): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
 	const dataMix = model.dataMix ?? DEFAULT_DATA_MIX;
 	const emphasis = model.emphasis ?? DEFAULT_EMPHASIS;
+	if (
+		model.foundation !== "fresh" &&
+		(parent === undefined ||
+			(parent.status !== "ready" && parent.status !== "launched") ||
+			parent.trueScores === undefined)
+	) {
+		throw new Error(
+			`The ${model.foundation} foundation requires a ready or launched scored parent model`,
+		);
+	}
+
 	let nextRng = rng;
 	const trueScores = {} as Record<(typeof MODEL_DIMENSIONS)[number], number>;
+	const estimateScores = {} as Record<
+		(typeof MODEL_DIMENSIONS)[number],
+		number
+	>;
 
 	for (const dimension of MODEL_DIMENSIONS) {
-		const draw = nextInt(nextRng, "training", -8, 8);
-		nextRng = draw.rng;
-		const randomJitter = draw.value;
+		const scoreDraw = nextInt(
+			nextRng,
+			"training",
+			BALANCE.modelScore.trainingJitterMin,
+			BALANCE.modelScore.trainingJitterMax,
+		);
+		nextRng = scoreDraw.rng;
 		const profileHint = family.baseScoreProfile[dimension];
 		const dataContribution = dataContributionFor(dimension, dataMix);
 		const emphasisContribution = emphasisContributionFor(dimension, emphasis);
-		const tierContribution = Math.trunc((tier.scoreCeiling - 60) / 2);
-		const foundationContribution = foundationContributionFor(
+		const tierContribution = Math.trunc(
+			(tier.scoreCeiling - BALANCE.modelScore.tierBaseline) /
+				BALANCE.modelScore.tierDivisor,
+		);
+		const rawScore =
+			BALANCE.modelScore.base +
+			profileHint * BALANCE.modelScore.profileWeight +
+			Math.trunc(
+				dataContribution / BALANCE.modelScore.dataContributionDivisor,
+			) +
+			emphasisContribution * BALANCE.modelScore.emphasisWeight +
+			tierContribution +
+			scoreDraw.value;
+		const floor = foundationFloorFor(
 			model.foundation,
 			parent?.trueScores?.[dimension],
 		);
-		const rawScore =
-			35 +
-			profileHint * 4 +
-			Math.trunc(dataContribution / 4) +
-			emphasisContribution * 5 +
-			tierContribution +
-			foundationContribution +
-			randomJitter;
-		trueScores[dimension] = clamp(rawScore, 0, tier.scoreCeiling);
+		trueScores[dimension] = clamp(
+			Math.max(rawScore, floor),
+			0,
+			tier.scoreCeiling,
+		);
+
+		const estimateDraw = nextInt(
+			nextRng,
+			"training",
+			BALANCE.modelScore.estimateNoiseMin,
+			BALANCE.modelScore.estimateNoiseMax,
+		);
+		nextRng = estimateDraw.rng;
+		const noisyEstimate = clamp(
+			trueScores[dimension] +
+				BALANCE.modelScore.estimateBias +
+				estimateDraw.value,
+			0,
+			100,
+		);
+		estimateScores[dimension] =
+			noisyEstimate === trueScores[dimension]
+				? clamp(
+						trueScores[dimension] < 100
+							? trueScores[dimension] +
+									BALANCE.modelScore.minimumEstimateBandWidth
+							: trueScores[dimension] -
+									BALANCE.modelScore.minimumEstimateBandWidth,
+						0,
+						100,
+					)
+				: noisyEstimate;
 	}
 
-	return { rng: nextRng, trueScores };
+	return {
+		rng: nextRng,
+		trueScores,
+		estimates: deriveEstimateBands(trueScores, 0, estimateScores),
+	};
 }
 
-/** Turn hidden scores into the public estimate bands for a given coverage. */
+/**
+ * Turn hidden scores into public estimate bands. Point estimates are kept
+ * separate from true scores so the band center cannot reveal the hidden value.
+ */
 export function deriveEstimateBands(
 	trueScores: ModelTrueScores,
 	evaluationCoverage = 0,
+	estimateScores?: ModelTrueScores,
 ): ModelEstimates {
+	if (estimateScores === undefined) {
+		throw new Error("Separate noisy estimate scores are required");
+	}
+	const normalizedCoverage = normalizeEvaluationCoverage(evaluationCoverage);
 	const width = Math.max(
-		1,
-		BALANCE.defaultEstimateBandWidth - Math.max(0, evaluationCoverage) * 4,
+		BALANCE.modelScore.minimumEstimateBandWidth,
+		BALANCE.defaultEstimateBandWidth -
+			normalizedCoverage *
+				BALANCE.modelScore.estimateBandWidthReductionPerCoverage,
 	);
 	const estimates = {} as Record<
 		(typeof MODEL_DIMENSIONS)[number],
 		{ estimate: number; lower: number; upper: number }
 	>;
 	for (const dimension of MODEL_DIMENSIONS) {
-		const score = trueScores[dimension];
+		const trueScore = trueScores[dimension];
+		if (!Number.isInteger(trueScore) || trueScore < 0 || trueScore > 100) {
+			throw new Error(
+				`True score for ${dimension} must be an integer between 0 and 100`,
+			);
+		}
+		const pointEstimate = estimateScores[dimension];
+		if (!Number.isFinite(pointEstimate)) {
+			throw new Error(`Estimate for ${dimension} must be finite`);
+		}
+		const estimate = clamp(Math.trunc(pointEstimate), 0, 100);
 		estimates[dimension] = {
-			estimate: score,
-			lower: Math.max(0, score - width),
-			upper: Math.min(100, score + width),
+			estimate,
+			lower: Math.max(0, estimate - width),
+			upper: Math.min(100, estimate + width),
 		};
 	}
 	return estimates;
+}
+
+function normalizeEvaluationCoverage(value: number): number {
+	if (!Number.isFinite(value)) {
+		throw new Error("Evaluation coverage must be finite");
+	}
+	return Math.max(0, Math.trunc(value));
 }
 
 function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
@@ -485,6 +572,11 @@ function validateFoundation(
 			`Parent model ${parent.id} must be ready or launched before it can be used`,
 		);
 	}
+	if (parent.trueScores === undefined) {
+		throw new Error(
+			`Parent model ${parent.id} must have true scores before it can be used`,
+		);
+	}
 	if (!isCompatibleParent(parent, spec.family)) {
 		throw new Error(
 			`Parent model ${parent.id} is not compatible with ${spec.family} foundation`,
@@ -538,52 +630,40 @@ function dataContributionFor(
 	dimension: (typeof MODEL_DIMENSIONS)[number],
 	dataMix: DataMix,
 ): number {
-	switch (dimension) {
-		case "capability":
-			return dataMix.general + dataMix.code;
-		case "coding":
-			return dataMix.code * 2;
-		case "reliability":
-			return dataMix.general + dataMix.multimodal;
-		case "safety":
-			return dataMix.general + dataMix.multimodal * 2;
-		case "efficiency":
-			return dataMix.general + dataMix.code;
-		case "multimodal":
-			return dataMix.multimodal * 3;
-	}
+	const weights = BALANCE.modelScore.dataMixWeights[dimension];
+	return DATA_MIX_DIMENSIONS.reduce(
+		(total, dataDimension) =>
+			total + dataMix[dataDimension] * weights[dataDimension],
+		0,
+	);
 }
 
 function emphasisContributionFor(
 	dimension: (typeof MODEL_DIMENSIONS)[number],
 	emphasis: ModelEmphasis,
 ): number {
-	switch (dimension) {
-		case "capability":
-			return emphasis.capability;
-		case "reliability":
-			return emphasis.reliability;
-		case "safety":
-			return emphasis.safety;
-		case "efficiency":
-			return emphasis.efficiency;
-		case "coding":
-		case "multimodal":
-			return 0;
-	}
+	const weights = BALANCE.modelScore.emphasisWeights[dimension];
+	return MODEL_EMPHASIS_DIMENSIONS.reduce(
+		(total, emphasisDimension) =>
+			total + emphasis[emphasisDimension] * weights[emphasisDimension],
+		0,
+	);
 }
 
-function foundationContributionFor(
+function foundationFloorFor(
 	foundation: ModelFoundation,
 	parentScore: number | undefined,
 ): number {
-	if (foundation === "fresh" || parentScore === undefined) {
-		return foundation === "fresh" ? 0 : 2;
+	const floorPercent = BALANCE.modelFoundations[foundation].floorPercent;
+	if (floorPercent === 0) {
+		return 0;
 	}
-	if (foundation === "continued") {
-		return 5 + Math.trunc((parentScore - 50) / 4);
+	if (parentScore === undefined) {
+		throw new Error(
+			`The ${foundation} foundation requires a scored parent model`,
+		);
 	}
-	return 3 + Math.trunc((parentScore - 50) / 6);
+	return Math.ceil((parentScore * floorPercent) / 100);
 }
 
 function clamp(value: number, lower: number, upper: number): number {

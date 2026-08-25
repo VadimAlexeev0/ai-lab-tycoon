@@ -61,6 +61,7 @@ export type Model = {
 	emphasis?: ModelEmphasis;
 	/** Hidden until training completes; never project this field to a selector. */
 	trueScores?: ModelTrueScores;
+	/** Public uncertainty bands backed by an independently generated estimate. */
 	estimates?: ModelEstimates;
 };
 
@@ -137,10 +138,48 @@ export function assertModelsState(
 		}
 	}
 
+	assertFoundationParentReferences(value.items as Model[]);
+
 	if (value.activeModelId !== null) {
 		assertIdentifier(value.activeModelId, "Active model id");
 		if (!ids.includes(value.activeModelId)) {
 			throw new Error("Active model must belong to the models component");
+		}
+	}
+}
+
+function assertFoundationParentReferences(items: readonly Model[]): void {
+	for (const model of items) {
+		if (model.foundation === "fresh") {
+			if (model.parentModelId !== undefined && model.parentModelId !== null) {
+				throw new Error(`Fresh model ${model.id} cannot reference a parent`);
+			}
+			continue;
+		}
+
+		if (model.parentModelId === undefined || model.parentModelId === null) {
+			throw new Error(
+				`${model.foundation} model ${model.id} must reference a parent model`,
+			);
+		}
+		if (model.parentModelId === model.id) {
+			throw new Error(`Model ${model.id} cannot be its own foundation parent`);
+		}
+		const parent = items.find(
+			(candidate) => candidate.id === model.parentModelId,
+		);
+		if (parent === undefined) {
+			throw new Error(
+				`${model.foundation} model ${model.id} references an unknown parent model`,
+			);
+		}
+		if (parent.status !== "ready" && parent.status !== "launched") {
+			throw new Error(
+				`Parent model ${parent.id} must be ready or launched before it can be used`,
+			);
+		}
+		if (parent.trueScores === undefined) {
+			throw new Error(`Parent model ${parent.id} must have true scores`);
 		}
 	}
 }

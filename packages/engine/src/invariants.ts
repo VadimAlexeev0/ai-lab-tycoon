@@ -313,7 +313,10 @@ function assertQueueConsistency(state: GameState): void {
 
 function assertCommandLog(
 	value: unknown,
-	state: Pick<GameState, "meta" | "rng" | "company">,
+	state: Pick<
+		GameState,
+		"meta" | "rng" | "company" | "models" | "projects" | "teams"
+	>,
 ): void {
 	assertArray(value, "Command log");
 	if (value.length === 0) {
@@ -425,6 +428,7 @@ function assertCommandLog(
 				assertEnum(item.tier, MODEL_TIERS, "Design model compute tier");
 				assertDesignMix(item.dataMix);
 				assertDesignEmphasis(item.emphasis);
+				assertDesignCommandReferences(item, state);
 				break;
 		}
 	}
@@ -432,6 +436,92 @@ function assertCommandLog(
 	if (!startRunSeen) {
 		throw new Error("Command log must start with a start_run command");
 	}
+}
+
+function assertDesignCommandReferences(
+	command: Record<string, unknown>,
+	state: Pick<GameState, "models" | "projects" | "teams">,
+): void {
+	const model = state.models.items.find((item) => item.id === command.modelId);
+	if (model === undefined) {
+		throw new Error(
+			`Design model command references an unknown model: ${String(command.modelId)}`,
+		);
+	}
+	const project = state.projects.items.find(
+		(item) => item.id === command.projectId,
+	);
+	if (project === undefined) {
+		throw new Error(
+			`Design model command references an unknown project: ${String(command.projectId)}`,
+		);
+	}
+	const team = state.teams.items.find((item) => item.id === command.teamId);
+	if (team === undefined) {
+		throw new Error(
+			`Design model command references an unknown team: ${String(command.teamId)}`,
+		);
+	}
+	if (project.kind !== "training" || project.modelId !== model.id) {
+		throw new Error(
+			`Design model command project ${project.id} must be the model's training project`,
+		);
+	}
+	if (
+		project.status === "active" &&
+		(project.teamId !== team.id || team.activeProjectId !== project.id)
+	) {
+		throw new Error(
+			`Active design model project ${project.id} must be owned by its logged team`,
+		);
+	}
+	if (
+		model.name !== command.name ||
+		model.family !== command.family ||
+		model.foundation !== command.foundation ||
+		model.parentModelId !== command.parentModelId ||
+		model.tier !== command.tier ||
+		!matchesDesignMix(model.dataMix, command.dataMix) ||
+		!matchesDesignEmphasis(model.emphasis, command.emphasis)
+	) {
+		throw new Error(
+			`Design model command payload does not match model ${model.id}`,
+		);
+	}
+}
+
+function matchesDesignMix(
+	modelMix: GameState["models"]["items"][number]["dataMix"],
+	commandMix: unknown,
+): boolean {
+	if (
+		modelMix === undefined ||
+		commandMix === null ||
+		typeof commandMix !== "object"
+	) {
+		return false;
+	}
+	const mix = commandMix as Record<string, unknown>;
+	return DATA_MIX_DIMENSIONS.every(
+		(dimension) => modelMix[dimension] === mix[dimension],
+	);
+}
+
+function matchesDesignEmphasis(
+	modelEmphasis: GameState["models"]["items"][number]["emphasis"],
+	commandEmphasis: unknown,
+): boolean {
+	if (
+		modelEmphasis === undefined ||
+		commandEmphasis === null ||
+		typeof commandEmphasis !== "object"
+	) {
+		return false;
+	}
+	const emphasis = commandEmphasis as Record<string, unknown>;
+	return MODEL_EMPHASIS_DIMENSIONS.every(
+		(dimension) => modelEmphasis[dimension] === emphasis[dimension],
+	);
 }
 
 function assertWarnings(value: unknown): asserts value is Warning[] {

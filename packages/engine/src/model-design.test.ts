@@ -217,6 +217,14 @@ describe("model designer", () => {
 			foundation: "fresh",
 			status: "ready",
 			projectId: null,
+			trueScores: {
+				capability: 70,
+				coding: 70,
+				reliability: 70,
+				safety: 70,
+				efficiency: 70,
+				multimodal: 70,
+			},
 		});
 		compatible.counters.model = 2;
 		const continued = designModel(

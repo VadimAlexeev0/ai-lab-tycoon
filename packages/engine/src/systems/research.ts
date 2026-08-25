@@ -3,8 +3,9 @@ import type { ResearchEra, ResearchState } from "../components/research.js";
 import { BALANCE } from "../data/balance.js";
 import {
 	ASSISTANT_ERA,
+	ASSISTANT_MODELS_KEYSTONE_ID,
+	MULTIMODAL_ERA,
 	RESEARCH_ERAS,
-	TEXT_ERA,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "../data/research.js";
 import { allocateId } from "../ids.js";
@@ -15,6 +16,7 @@ import type { GameSystem } from "./types.js";
 const RESEARCH_ERA_ORDER: readonly ResearchEra[] = RESEARCH_ERAS;
 const ERA_ENTRY_KEYSTONE_IDS: Readonly<Partial<Record<ResearchEra, string>>> = {
 	[ASSISTANT_ERA]: TEXT_MODELS_KEYSTONE_ID,
+	[MULTIMODAL_ERA]: ASSISTANT_MODELS_KEYSTONE_ID,
 };
 
 /**
@@ -201,15 +203,19 @@ function advanceEraIfUnlocked(
 	currentEra: ResearchEra,
 	completedNodeIds: ReadonlySet<string>,
 ): ResearchEra {
-	// Task 5 intentionally gates only on the Text node keystone; model proof
-	// is deferred to Task 6.
-	if (
-		currentEra === TEXT_ERA &&
-		completedNodeIds.has(TEXT_MODELS_KEYSTONE_ID)
-	) {
-		return ASSISTANT_ERA;
+	let currentIndex = RESEARCH_ERA_ORDER.indexOf(currentEra);
+	while (currentIndex >= 0 && currentIndex + 1 < RESEARCH_ERA_ORDER.length) {
+		const nextEra = RESEARCH_ERA_ORDER[currentIndex + 1];
+		if (nextEra === undefined) {
+			break;
+		}
+		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[nextEra];
+		if (keystoneId === undefined || !completedNodeIds.has(keystoneId)) {
+			break;
+		}
+		currentIndex += 1;
 	}
-	return currentEra;
+	return RESEARCH_ERA_ORDER[currentIndex] ?? currentEra;
 }
 
 function isEraAtLeast(

@@ -1,4 +1,5 @@
 import type { ResearchEra } from "../components/research.js";
+import { MULTIMODAL_MODELS_FUSION_ID } from "./research.js";
 
 export const MODEL_DIMENSIONS = [
 	"capability",
@@ -86,7 +87,7 @@ export const MODEL_FAMILIES = [
 			multimodal: 5,
 		},
 		dataMixRequirements: { general: 20, code: 5, multimodal: 20 },
-		unlockedByResearchNodeId: "assistant_models_tool_use",
+		unlockedByResearchNodeId: MULTIMODAL_MODELS_FUSION_ID,
 	},
 ] as const satisfies readonly ModelFamilyDefinition[];
 

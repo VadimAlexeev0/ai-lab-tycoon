@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
 import {
 	ASSISTANT_ERA,
+	ASSISTANT_MODELS_KEYSTONE_ID,
 	assertResearchDefinitions,
 	MODELS_BRANCH,
+	MULTIMODAL_MODELS_FUSION_ID,
 	RESEARCH_BRANCHES,
 	RESEARCH_NODES,
 	TEXT_ERA,
@@ -28,10 +30,10 @@ function getInsightCost(node: unknown): number {
 }
 
 describe("V1 research data", () => {
-	it("contains the typed Text and Assistant tree with real node ids", () => {
-		expect(RESEARCH_NODES).toHaveLength(12);
+	it("contains typed Text, Assistant, and Multimodal research gates", () => {
+		expect(RESEARCH_NODES).toHaveLength(14);
 		expect(new Set(RESEARCH_NODES.map((node) => node.era))).toEqual(
-			new Set([TEXT_ERA, ASSISTANT_ERA]),
+			new Set([TEXT_ERA, ASSISTANT_ERA, "multimodal"]),
 		);
 		expect(new Set(RESEARCH_NODES.map((node) => node.branch)).size).toBe(3);
 		for (const branch of RESEARCH_BRANCHES) {
@@ -44,8 +46,11 @@ describe("V1 research data", () => {
 				RESEARCH_NODES.filter(
 					(node) => node.era === ASSISTANT_ERA && node.branch === branch,
 				),
-			).toHaveLength(2);
+			).toHaveLength(branch === MODELS_BRANCH ? 3 : 2);
 		}
+		expect(
+			RESEARCH_NODES.filter((node) => node.era === "multimodal"),
+		).toHaveLength(1);
 		expect(
 			RESEARCH_NODES.every((node) => !node.id.startsWith("node_text_")),
 		).toBe(true);
@@ -59,6 +64,12 @@ describe("V1 research data", () => {
 			branch: MODELS_BRANCH,
 		});
 		expect(keystone?.prerequisites.length).toBeGreaterThan(0);
+		expect(
+			RESEARCH_NODES.find((node) => node.id === ASSISTANT_MODELS_KEYSTONE_ID),
+		).toMatchObject({ era: ASSISTANT_ERA, branch: MODELS_BRANCH });
+		expect(
+			RESEARCH_NODES.find((node) => node.id === MULTIMODAL_MODELS_FUSION_ID),
+		).toMatchObject({ era: "multimodal", branch: MODELS_BRANCH });
 		expect(
 			RESEARCH_NODES.every((node) => {
 				const cost = getInsightCost(node);

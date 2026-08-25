@@ -22,10 +22,11 @@ export type ResearchDefinition = Readonly<{
 
 export const TEXT_ERA = "text" as const;
 export const ASSISTANT_ERA = "assistant" as const;
+export const MULTIMODAL_ERA = "multimodal" as const;
 export const MODELS_BRANCH = "models" as const;
 export const INFRASTRUCTURE_BRANCH = "infrastructure" as const;
 export const PRODUCTS_SAFETY_BRANCH = "products_safety" as const;
-export const RESEARCH_ERAS = [TEXT_ERA, ASSISTANT_ERA, "multimodal"] as const;
+export const RESEARCH_ERAS = [TEXT_ERA, ASSISTANT_ERA, MULTIMODAL_ERA] as const;
 export const RESEARCH_BRANCHES = [
 	MODELS_BRANCH,
 	INFRASTRUCTURE_BRANCH,
@@ -39,11 +40,15 @@ export const RESEARCH_NODE_STATUSES = [
 
 /** The Text-era Models keystone gates entry into the Assistant era. */
 export const TEXT_MODELS_KEYSTONE_ID = "text_models_keystone";
+/** The Assistant-era Models keystone gates entry into the Multimodal era. */
+export const ASSISTANT_MODELS_KEYSTONE_ID = "assistant_models_keystone";
+/** The first Multimodal-era model research node gates the model family. */
+export const MULTIMODAL_MODELS_FUSION_ID = "multimodal_models_fusion";
 
 /**
- * Compact V1 research tree: two nodes per branch in each of the first two
- * eras. The content is intentionally data-only; systems decide when a node
- * becomes available and create projects for newly available nodes.
+ * Compact V1 research tree. The content is intentionally data-only; systems
+ * decide when a node becomes available and create projects for newly
+ * available nodes.
  */
 export const RESEARCH_NODES = [
 	{
@@ -111,6 +116,18 @@ export const RESEARCH_NODES = [
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "assistant_models_reasoning"],
 	},
 	{
+		id: ASSISTANT_MODELS_KEYSTONE_ID,
+		era: ASSISTANT_ERA,
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 5,
+		prerequisites: [
+			TEXT_MODELS_KEYSTONE_ID,
+			"assistant_models_reasoning",
+			"assistant_models_tool_use",
+		],
+	},
+	{
 		id: "assistant_infrastructure_orchestration",
 		era: ASSISTANT_ERA,
 		branch: INFRASTRUCTURE_BRANCH,
@@ -144,6 +161,14 @@ export const RESEARCH_NODES = [
 		status: "locked",
 		insightCost: 4,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "assistant_products_safety"],
+	},
+	{
+		id: MULTIMODAL_MODELS_FUSION_ID,
+		era: MULTIMODAL_ERA,
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 5,
+		prerequisites: [ASSISTANT_MODELS_KEYSTONE_ID],
 	},
 ] as const satisfies readonly ResearchDefinition[];
 
@@ -214,6 +239,14 @@ export function assertResearchDefinitions(
 		) {
 			throw new Error(
 				`Assistant research definition ${definition.id} must require the Text Models keystone`,
+			);
+		}
+		if (
+			definition.era === MULTIMODAL_ERA &&
+			!definition.prerequisites.includes(ASSISTANT_MODELS_KEYSTONE_ID)
+		) {
+			throw new Error(
+				`Multimodal research definition ${definition.id} must require the Assistant Models keystone`,
 			);
 		}
 	}
