@@ -705,6 +705,7 @@ describe("hardened component contract", () => {
 			"selectResourceBar",
 			"selectRivals",
 			"selectTeams",
+			"selectVisibleModels",
 			"selectVisibleState",
 			"startRun",
 		]);

@@ -1,3 +1,4 @@
+import type { Model } from "./components/models.js";
 import type { Project } from "./components/projects.js";
 import type { Rival } from "./components/rivals.js";
 import type { GameState } from "./state.js";
@@ -23,6 +24,20 @@ export type VisibleTeam = {
 	name: string;
 	status: TeamStatus;
 	activeProjectId: string | null;
+};
+
+export type VisibleEstimateBand = {
+	estimate: number;
+	lower: number;
+	upper: number;
+};
+
+export type VisibleModelEstimate = {
+	id: string;
+	name: string;
+	brand?: string;
+	family?: string;
+	estimates?: Readonly<Record<string, VisibleEstimateBand>>;
 };
 
 type VisibleProjectBase = {
@@ -126,14 +141,23 @@ export function selectAvailableProjects(
 }
 
 export function selectRivals(state: DeepReadonly<GameState>): VisibleRival[] {
-	return state.rivals.items.map((rival) => ({
-		id: rival.id,
-		name: rival.name,
-		archetype: rival.archetype,
-		focus: rival.focus,
-		progress: rival.progress,
-		active: rival.active,
-	}));
+	return state.rivals.items
+		.filter((rival) => state.meta.era !== "text" || rival.active)
+		.map((rival) => ({
+			id: rival.id,
+			name: rival.name,
+			archetype: rival.archetype,
+			focus: rival.focus,
+			progress: rival.progress,
+			active: rival.active,
+		}));
+}
+
+/** Project only the model facts that the player is allowed to see. */
+export function selectVisibleModels(
+	state: DeepReadonly<GameState>,
+): VisibleModelEstimate[] {
+	return state.models.items.map(modelToVisible);
 }
 
 export function selectNextObjective(
@@ -245,4 +269,48 @@ function projectToVisible(
 				channel: project.channel,
 			};
 	}
+}
+
+type ModelWithVisibleFields = Model & {
+	brand?: string;
+	family?: string;
+	estimates?: Readonly<Record<string, VisibleEstimateBand>>;
+};
+
+function modelToVisible(model: DeepReadonly<Model>): VisibleModelEstimate {
+	const candidate = model as DeepReadonly<ModelWithVisibleFields>;
+	const visible: VisibleModelEstimate = {
+		id: candidate.id,
+		name: candidate.name,
+	};
+
+	if (candidate.brand !== undefined) {
+		visible.brand = candidate.brand;
+	}
+	if (candidate.family !== undefined) {
+		visible.family = candidate.family;
+	}
+	if (candidate.estimates !== undefined) {
+		visible.estimates = projectEstimateBands(candidate.estimates);
+	}
+
+	return visible;
+}
+
+function projectEstimateBands(
+	estimates: DeepReadonly<Readonly<Record<string, VisibleEstimateBand>>>,
+): Readonly<Record<string, VisibleEstimateBand>> {
+	const visible: Record<string, VisibleEstimateBand> = {};
+	for (const dimension of Object.keys(estimates)) {
+		const band = estimates[dimension];
+		if (band === undefined) {
+			continue;
+		}
+		visible[dimension] = {
+			estimate: band.estimate,
+			lower: band.lower,
+			upper: band.upper,
+		};
+	}
+	return visible;
 }

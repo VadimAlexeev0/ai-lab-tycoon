@@ -188,6 +188,7 @@ describe("startRun", () => {
 		const first = startRun({ companyName: "Acme Labs" }, 42);
 		const second = startRun({ companyName: "Acme Labs" }, 42);
 
+		expect(JSON.stringify(second)).toBe(JSON.stringify(first));
 		expect(second).toEqual(first);
 	});
 

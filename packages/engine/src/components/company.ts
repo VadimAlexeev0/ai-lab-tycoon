@@ -1,3 +1,4 @@
+import { STARTING_TRUST } from "../data/balance.js";
 import {
 	assertExactObject,
 	assertNonNegativeInteger,
@@ -20,7 +21,7 @@ export function createCompanyState(
 	resources: CompanyResources = {
 		cash: 0,
 		insight: 0,
-		trust: 60,
+		trust: STARTING_TRUST,
 		hype: 0,
 	},
 ): CompanyState {

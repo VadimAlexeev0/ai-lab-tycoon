@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { startRun } from "./index.js";
+import type { VisibleModelEstimate } from "./selectors.js";
 import {
 	selectAvailableProjects,
 	selectNextObjective,
 	selectResourceBar,
 	selectRivals,
 	selectTeams,
+	selectVisibleModels,
 	selectVisibleState,
 } from "./selectors.js";
 import type { GameState } from "./state.js";
@@ -80,7 +82,7 @@ describe("visible selectors", () => {
 		]);
 	});
 
-	it("projects only public rival progress and activation state", () => {
+	it("projects only public active rival progress and activation state", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 
 		expect(selectRivals(state)).toEqual([
@@ -100,14 +102,23 @@ describe("visible selectors", () => {
 				progress: 0,
 				active: true,
 			},
-			{
-				id: "rival_003",
-				name: "LeanForge",
-				archetype: "efficiency",
-				focus: "reliability",
-				progress: 0,
-				active: false,
-			},
+		]);
+	});
+
+	it("hides dormant rivals during Text and reveals them in Assistant", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+
+		expect(selectRivals(state).map((rival) => rival.id)).toEqual([
+			"rival_001",
+			"rival_002",
+		]);
+
+		state.meta.era = "assistant";
+		state.research.currentEra = "assistant";
+		expect(selectRivals(state).map((rival) => rival.id)).toEqual([
+			"rival_001",
+			"rival_002",
+			"rival_003",
 		]);
 	});
 
@@ -120,8 +131,37 @@ describe("visible selectors", () => {
 		});
 	});
 
-	it("composes visible projections without exposing hidden model data", () => {
+	it("prioritizes resolving a blocking decision", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.decisions.pending = [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				blocking: true,
+			},
+		];
+
+		expect(selectNextObjective(state)).toEqual({
+			kind: "resolve_decision",
+			decisionId: "decision_001",
+		});
+	});
+
+	it("selects advancing the week when no project is available", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.projects.items = [];
+
+		expect(selectNextObjective(state)).toEqual({
+			kind: "advance_week",
+			week: 1,
+		});
+	});
+
+	it("projects model estimates without exposing hidden model data", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		expect(selectVisibleModels(state)).toEqual([]);
+
 		const stateWithHiddenFields = JSON.parse(
 			JSON.stringify(state),
 		) as GameState;
@@ -131,11 +171,60 @@ describe("visible selectors", () => {
 			foundation: "fresh",
 			status: "ready",
 			projectId: null,
+			brand: "Hidden Brand",
+			family: "assistant",
+			estimates: {
+				reasoning: { estimate: 72, lower: 54, upper: 90 },
+			},
 			trueScores: { capability: 99 },
 		};
 		(stateWithHiddenFields.models.items as Array<unknown>).push(
 			modelWithHiddenScores,
 		);
+
+		const visibleModels = selectVisibleModels(stateWithHiddenFields);
+		expect(visibleModels).toEqual([
+			{
+				id: "model_001",
+				name: "Hidden Fixture",
+				brand: "Hidden Brand",
+				family: "assistant",
+				estimates: {
+					reasoning: { estimate: 72, lower: 54, upper: 90 },
+				},
+			},
+		]);
+		expect(JSON.stringify(visibleModels)).not.toContain("trueScores");
+		expect(JSON.stringify(visibleModels)).not.toContain("foundation");
+		expect(JSON.stringify(visibleModels)).not.toContain("projectId");
+		expect(JSON.stringify(visibleModels)).not.toContain("status");
+
+		const publicProjection: VisibleModelEstimate = {
+			id: "model_001",
+			name: "Aurora-1",
+			brand: "Aurora",
+			family: "assistant",
+			estimates: {
+				reasoning: { estimate: 72, lower: 54, upper: 90 },
+			},
+		};
+		expect(publicProjection).toEqual({
+			id: "model_001",
+			name: "Aurora-1",
+			brand: "Aurora",
+			family: "assistant",
+			estimates: {
+				reasoning: { estimate: 72, lower: 54, upper: 90 },
+			},
+		});
+		const leakedProjection: VisibleModelEstimate = {
+			id: "model_001",
+			name: "Aurora-1",
+			// @ts-expect-error Visible model projections must never expose true scores.
+			trueScores: { capability: 99 },
+		};
+		void leakedProjection;
+
 		(
 			stateWithHiddenFields.rivals.items[0] as unknown as Record<
 				string,

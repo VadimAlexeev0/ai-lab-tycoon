@@ -74,7 +74,9 @@ export type {
 	ResourceBarSummary,
 	TeamStatus,
 	VisibleAvailableProject,
+	VisibleEstimateBand,
 	VisibleGameState,
+	VisibleModelEstimate,
 	VisibleRival,
 	VisibleTeam,
 } from "./selectors.js";
@@ -84,6 +86,7 @@ export {
 	selectResourceBar,
 	selectRivals,
 	selectTeams,
+	selectVisibleModels,
 	selectVisibleState,
 } from "./selectors.js";
 export type {
