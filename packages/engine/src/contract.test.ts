@@ -700,6 +700,12 @@ describe("hardened component contract", () => {
 			"advanceWeek",
 			"applyDecision",
 			"assertGameState",
+			"selectAvailableProjects",
+			"selectNextObjective",
+			"selectResourceBar",
+			"selectRivals",
+			"selectTeams",
+			"selectVisibleState",
 			"startRun",
 		]);
 	});

@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { allocateId, type CounterKind } from "./ids.js";
-import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
-import type { GameState } from "./state.js";
+import { createInitialGameState, type GameState } from "./state.js";
 
 const EXPECTED_FIRST_IDS = {
 	team: "team_001",
@@ -32,7 +31,7 @@ function allocateInOrder(
 
 describe("deterministic per-kind ID allocation", () => {
 	it("allocates every supported prefix from its next available counter", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 
 		for (const kind of Object.keys(EXPECTED_FIRST_IDS) as CounterKind[]) {
 			const result = allocateId(state, kind);
@@ -42,7 +41,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("continues command IDs after the initial command log anchor", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		const result = allocateId(state, "command");
 
 		expect(result.id).toBe("command_002");
@@ -59,11 +58,11 @@ describe("deterministic per-kind ID allocation", () => {
 			"command",
 		];
 		const first = allocateInOrder(
-			startRun({ companyName: "Acme Labs" }, 42),
+			createInitialGameState({ companyName: "Acme Labs" }, 42),
 			order,
 		);
 		const second = allocateInOrder(
-			startRun({ companyName: "Acme Labs" }, 42),
+			createInitialGameState({ companyName: "Acme Labs" }, 42),
 			order,
 		);
 
@@ -80,7 +79,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("does not shift an unrelated counter", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		const baselineModel = allocateId(state, "model");
 		const team = allocateId(state, "team");
 		const modelAfterTeam = allocateId(team.state, "model");
@@ -93,7 +92,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("does not mutate the input state", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		const before = JSON.parse(JSON.stringify(state)) as GameState;
 		const result = allocateId(state, "project");
 
@@ -103,7 +102,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("rejects an unsupported counter kind at runtime", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 
 		expect(() => allocateId(state, "unsupported" as CounterKind)).toThrow(
 			/counter|kind/i,
@@ -111,7 +110,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("throws before a counter would exceed the safe integer range", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		state.counters.model = Number.MAX_SAFE_INTEGER;
 		const before = JSON.parse(JSON.stringify(state)) as GameState;
 
@@ -120,7 +119,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("allocates at the last safe counter value and rejects the next one", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		state.counters.model = Number.MAX_SAFE_INTEGER - 1;
 
 		const first = allocateId(state, "model");
@@ -131,7 +130,7 @@ describe("deterministic per-kind ID allocation", () => {
 	});
 
 	it("keeps numeric suffixes beyond the pad width intact", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		state.counters.rival = 1000;
 
 		const result = allocateId(state, "rival");

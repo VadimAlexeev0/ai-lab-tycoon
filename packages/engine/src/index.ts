@@ -4,18 +4,12 @@ import {
 	type PendingDecision,
 } from "./components/decisions.js";
 import { assertGameState } from "./invariants.js";
-import {
-	createInitialGameState,
-	type EngineResult,
-	type GameState,
-	type RunSetup,
-} from "./state.js";
+import { startRun } from "./start-run.js";
+import type { EngineResult, GameState } from "./state.js";
 
 export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
 
-export function startRun(setup: RunSetup, seed: number): GameState {
-	return createInitialGameState(setup, seed);
-}
+export { startRun };
 
 export function applyDecision(
 	state: GameState,
@@ -75,6 +69,23 @@ export type {
 } from "./components/decisions.js";
 export type { Fact } from "./components/reports.js";
 export { assertGameState } from "./invariants.js";
+export type {
+	NextObjective,
+	ResourceBarSummary,
+	TeamStatus,
+	VisibleAvailableProject,
+	VisibleGameState,
+	VisibleRival,
+	VisibleTeam,
+} from "./selectors.js";
+export {
+	selectAvailableProjects,
+	selectNextObjective,
+	selectResourceBar,
+	selectRivals,
+	selectTeams,
+	selectVisibleState,
+} from "./selectors.js";
 export type {
 	EngineResult,
 	GameState,
