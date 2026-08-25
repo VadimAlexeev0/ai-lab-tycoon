@@ -40,7 +40,41 @@ export const OPENING_RIVALS = [
 	},
 ] as const satisfies readonly RivalDefinition[];
 
+export type RivalMilestoneDefinition = Readonly<{
+	id: string;
+	threshold: number;
+}>;
+
+/** Public rival milestones. The rival RNG chooses which milestone label lands. */
+export const RIVAL_MILESTONES = [
+	{ id: "prototype", threshold: 25 },
+	{ id: "launch", threshold: 50 },
+	{ id: "scale", threshold: 75 },
+	{ id: "category_lead", threshold: 100 },
+] as const satisfies readonly RivalMilestoneDefinition[];
+
 assertRivalDefinitions(OPENING_RIVALS);
+assertRivalMilestones(RIVAL_MILESTONES);
+
+function assertRivalMilestones(
+	milestones: readonly RivalMilestoneDefinition[],
+): void {
+	const ids = new Set<string>();
+	let previousThreshold = 0;
+	for (const milestone of milestones) {
+		assertExactObject(milestone, ["id", "threshold"], "rival milestone");
+		assertString(milestone.id, "Rival milestone id");
+		if (milestone.id.trim().length === 0 || ids.has(milestone.id)) {
+			throw new Error("Rival milestone ids must be non-empty and unique");
+		}
+		ids.add(milestone.id);
+		assertNonNegativeInteger(milestone.threshold, "Rival milestone threshold");
+		if (milestone.threshold <= previousThreshold || milestone.threshold > 100) {
+			throw new Error("Rival milestone thresholds must increase up to 100");
+		}
+		previousThreshold = milestone.threshold;
+	}
+}
 
 /** Fail fast if opening rival content is malformed or accidentally duplicated. */
 export function assertRivalDefinitions(

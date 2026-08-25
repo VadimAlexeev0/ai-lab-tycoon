@@ -3,6 +3,8 @@ import {
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
+	assertNonNegativeInteger,
+	assertObject,
 } from "../validation.js";
 
 export type ProductChannel = "chat" | "developer_api" | "enterprise";
@@ -16,6 +18,12 @@ export type Product = {
 	channel: ProductChannel;
 	modelId: string;
 	status: ProductStatus;
+	/** Operational metrics are present for products created by the V1 commands. */
+	users?: number;
+	lastRevenue?: number;
+	cumulativeRevenue?: number;
+	servingDemand?: number;
+	effectiveQuality?: number;
 };
 
 export type ProductsState = {
@@ -36,14 +44,60 @@ export function assertProductsState(
 
 	const ids: string[] = [];
 	for (const item of value.items) {
-		assertExactObject(item, ["id", "channel", "modelId", "status"], "product");
-		assertIdentifier(item.id, "Product id");
-		if (ids.includes(item.id)) {
-			throw new Error(`Duplicate product id: ${item.id}`);
+		assertObject(item, "product");
+		const product = item as unknown as Product;
+		for (const key of ["id", "channel", "modelId", "status"] as const) {
+			if (!Object.hasOwn(item, key)) {
+				throw new Error(`product is missing required field: ${key}`);
+			}
 		}
-		ids.push(item.id);
-		assertEnum(item.channel, PRODUCT_CHANNELS, "Product channel");
-		assertIdentifier(item.modelId, "Product model id");
-		assertEnum(item.status, PRODUCT_STATUSES, "Product status");
+		for (const key of Reflect.ownKeys(item)) {
+			if (
+				typeof key !== "string" ||
+				![
+					"id",
+					"channel",
+					"modelId",
+					"status",
+					"users",
+					"lastRevenue",
+					"cumulativeRevenue",
+					"servingDemand",
+					"effectiveQuality",
+				].includes(key)
+			) {
+				throw new Error(`product contains an unexpected field: ${String(key)}`);
+			}
+		}
+		assertIdentifier(product.id, "Product id");
+		if (ids.includes(product.id)) {
+			throw new Error(`Duplicate product id: ${product.id}`);
+		}
+		ids.push(product.id);
+		assertEnum(product.channel, PRODUCT_CHANNELS, "Product channel");
+		assertIdentifier(product.modelId, "Product model id");
+		assertEnum(product.status, PRODUCT_STATUSES, "Product status");
+		for (const metric of [
+			"users",
+			"lastRevenue",
+			"cumulativeRevenue",
+			"servingDemand",
+			"effectiveQuality",
+		] as const) {
+			if (Object.hasOwn(item, metric)) {
+				assertNonNegativeInteger(
+					product[metric],
+					`Product ${product.id} ${metric}`,
+				);
+			}
+		}
+		if (
+			Object.hasOwn(item, "effectiveQuality") &&
+			(product.effectiveQuality as number) > 100
+		) {
+			throw new Error(
+				`Product ${product.id} effective quality must be at most 100`,
+			);
+		}
 	}
 }

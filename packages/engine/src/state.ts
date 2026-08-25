@@ -77,7 +77,9 @@ export type CommandKind =
 	| "advance_week"
 	| "assign_project"
 	| "cancel_project"
-	| "design_model";
+	| "design_model"
+	| "run_evaluation"
+	| "launch_product";
 
 type CommandLogBase = {
 	id: string;
@@ -119,6 +121,17 @@ export type CommandLogEntry =
 			tier: ModelTier;
 			dataMix: DataMix;
 			emphasis: ModelEmphasis;
+	  })
+	| (CommandLogBase & {
+			kind: "run_evaluation";
+			modelId: string;
+			evaluation: "capability" | "safety_reliability";
+	  })
+	| (CommandLogBase & {
+			kind: "launch_product";
+			productId: string;
+			modelId: string;
+			channel: "chat" | "developer_api" | "enterprise";
 	  });
 
 export type WarningCode =

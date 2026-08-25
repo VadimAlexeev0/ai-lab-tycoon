@@ -5,6 +5,7 @@ import {
 	assertExactObject,
 	assertIdentifier,
 	assertInteger,
+	assertNonNegativeInteger,
 	assertObject,
 	assertPositiveInteger,
 } from "../validation.js";
@@ -20,8 +21,11 @@ const FACT_KINDS = [
 	"project_completed",
 	"research_completed",
 	"model_trained",
+	"evaluation_completed",
 	"product_launched",
+	"revenue",
 	"rival_progressed",
+	"rival_milestone",
 	"funding_resolved",
 	"incident_occurred",
 	"milestone_reached",
@@ -76,15 +80,36 @@ export type Fact =
 			week: number;
 	  }
 	| {
+			kind: "evaluation_completed";
+			modelId: string;
+			evaluation: "capability" | "safety_reliability";
+			coverage: number;
+			week: number;
+	  }
+	| {
 			kind: "product_launched";
 			productId: string;
 			channel: ProductChannel;
 			week: number;
 	  }
 	| {
+			kind: "revenue";
+			productId: string;
+			channel: ProductChannel;
+			amount: number;
+			effectiveQuality: number;
+			week: number;
+	  }
+	| {
 			kind: "rival_progressed";
 			rivalId: string;
 			amount: number;
+			week: number;
+	  }
+	| {
+			kind: "rival_milestone";
+			rivalId: string;
+			milestone: string;
 			week: number;
 	  }
 	| {
@@ -208,6 +233,24 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.modelId, "Trained model id");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "evaluation_completed":
+			assertExactObject(
+				value,
+				["kind", "modelId", "evaluation", "coverage", "week"],
+				"evaluation completed fact",
+			);
+			assertIdentifier(value.modelId, "Evaluated model id");
+			assertEnum(
+				value.evaluation,
+				["capability", "safety_reliability"],
+				"Evaluation fact kind",
+			);
+			assertInteger(value.coverage, "Evaluation fact coverage");
+			if (value.coverage < 0 || value.coverage > 100) {
+				throw new Error("Evaluation fact coverage must be between 0 and 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "product_launched":
 			assertExactObject(
 				value,
@@ -218,6 +261,21 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertEnum(value.channel, PRODUCT_CHANNELS, "Launched product channel");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "revenue":
+			assertExactObject(
+				value,
+				["kind", "productId", "channel", "amount", "effectiveQuality", "week"],
+				"revenue fact",
+			);
+			assertIdentifier(value.productId, "Revenue product id");
+			assertEnum(value.channel, PRODUCT_CHANNELS, "Revenue channel");
+			assertNonNegativeInteger(value.amount, "Revenue amount");
+			assertInteger(value.effectiveQuality, "Revenue effective quality");
+			if (value.effectiveQuality < 0 || value.effectiveQuality > 100) {
+				throw new Error("Revenue effective quality must be between 0 and 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "rival_progressed":
 			assertExactObject(
 				value,
@@ -226,6 +284,16 @@ export function assertFact(value: unknown): asserts value is Fact {
 			);
 			assertIdentifier(value.rivalId, "Rival progress fact id");
 			assertInteger(value.amount, "Rival progress fact amount");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "rival_milestone":
+			assertExactObject(
+				value,
+				["kind", "rivalId", "milestone", "week"],
+				"rival milestone fact",
+			);
+			assertIdentifier(value.rivalId, "Rival milestone fact id");
+			assertIdentifier(value.milestone, "Rival milestone name");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "funding_resolved":

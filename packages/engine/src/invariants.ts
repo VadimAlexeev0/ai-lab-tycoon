@@ -49,6 +49,8 @@ const COMMAND_KINDS = [
 	"assign_project",
 	"cancel_project",
 	"design_model",
+	"run_evaluation",
+	"launch_product",
 ] as const;
 const MODEL_FOUNDATIONS = ["fresh", "continued", "distilled"] as const;
 const WARNING_CODES = [
@@ -79,7 +81,15 @@ const GAME_STATE_KEYS = [
 	"terminal",
 ] as const;
 
-export function assertGameState(value: unknown): asserts value is GameState {
+export type GameStateValidationOptions = Readonly<{
+	/** Permit a negative cash balance while a weekly loss is being finalized. */
+	allowNegativeCash?: boolean;
+}>;
+
+export function assertGameState(
+	value: unknown,
+	options: GameStateValidationOptions = {},
+): asserts value is GameState {
 	assertJsonCompatible(value);
 	assertExactObject(value, GAME_STATE_KEYS, "game state");
 
@@ -87,7 +97,12 @@ export function assertGameState(value: unknown): asserts value is GameState {
 	assertMeta(state.meta, state.research);
 	assertRngState(state.rng);
 	assertCounters(state.counters);
-	assertCompanyState(state.company);
+	assertCompanyState(
+		state.company,
+		options.allowNegativeCash === true ||
+			(state.terminal.status === "lost" &&
+				state.terminal.reason === "cash_depleted"),
+	);
 	assertTeamsState(state.teams);
 	assertProjectsState(state.projects);
 	assertComputeState(state.compute);
@@ -429,6 +444,43 @@ function assertCommandLog(
 				assertDesignMix(item.dataMix);
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
+				break;
+			case "run_evaluation":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "modelId", "evaluation"],
+					"run_evaluation command",
+				);
+				assertIdentifier(item.modelId, "Evaluation command model id");
+				assertEnum(
+					item.evaluation,
+					["capability", "safety_reliability"],
+					"Evaluation command kind",
+				);
+				if (!state.models.items.some((model) => model.id === item.modelId)) {
+					throw new Error(
+						`Evaluation command references an unknown model: ${String(item.modelId)}`,
+					);
+				}
+				break;
+			case "launch_product":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "productId", "modelId", "channel"],
+					"launch_product command",
+				);
+				assertIdentifier(item.productId, "Launch command product id");
+				assertIdentifier(item.modelId, "Launch command model id");
+				assertEnum(
+					item.channel,
+					["chat", "developer_api", "enterprise"],
+					"Launch command channel",
+				);
+				if (!state.models.items.some((model) => model.id === item.modelId)) {
+					throw new Error(
+						`Launch command references an unknown model: ${String(item.modelId)}`,
+					);
+				}
 				break;
 		}
 	}

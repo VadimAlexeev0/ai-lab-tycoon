@@ -9,9 +9,6 @@ export const upkeepSystem: GameSystem = (state, context) => {
 
 	const weeklyCost =
 		BALANCE.upkeep + state.teams.items.length * BALANCE.salaries.foundingTeam;
-	if (state.company.cash < weeklyCost) {
-		throw new Error("Insufficient cash to pay weekly upkeep");
-	}
 
 	const nextState = {
 		...state,
@@ -29,6 +26,6 @@ export const upkeepSystem: GameSystem = (state, context) => {
 		},
 	];
 
-	assertGameState(nextState);
+	assertGameState(nextState, { allowNegativeCash: true });
 	return { state: nextState, facts, pending: [] };
 };

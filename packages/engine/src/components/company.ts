@@ -1,6 +1,7 @@
 import { STARTING_TRUST } from "../data/balance.js";
 import {
 	assertExactObject,
+	assertInteger,
 	assertNonNegativeInteger,
 	assertString,
 } from "../validation.js";
@@ -36,6 +37,7 @@ export function createCompanyState(
 
 export function assertCompanyState(
 	value: unknown,
+	allowNegativeCash = false,
 ): asserts value is CompanyState {
 	assertExactObject(
 		value,
@@ -46,7 +48,11 @@ export function assertCompanyState(
 	if (value.name.trim().length === 0) {
 		throw new Error("Company name must not be empty");
 	}
-	assertNonNegativeInteger(value.cash, "Company cash");
+	if (allowNegativeCash) {
+		assertInteger(value.cash, "Company cash");
+	} else {
+		assertNonNegativeInteger(value.cash, "Company cash");
+	}
 	assertNonNegativeInteger(value.insight, "Company insight");
 	assertNonNegativeInteger(value.trust, "Company trust");
 	assertNonNegativeInteger(value.hype, "Company hype");

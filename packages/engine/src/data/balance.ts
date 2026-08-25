@@ -4,8 +4,12 @@
  * All values are integer simulation units. Salaries and upkeep are weekly
  * costs; project progress and research insight are also weekly rates.
  */
+import type { EvaluationKind } from "../components/decisions.js";
 import type { ModelFoundation } from "../components/models.js";
+import type { ProductChannel } from "../components/products.js";
 import type { ProjectKind } from "../components/projects.js";
+import type { ResearchEra } from "../components/research.js";
+import type { RivalArchetype } from "../components/rivals.js";
 import {
 	assertExactObject,
 	assertInteger,
@@ -58,6 +62,44 @@ export type ModelScoreBalance = Readonly<{
 	emphasisWeights: Readonly<Record<ModelDimension, ModelScoreEmphasisWeights>>;
 }>;
 
+export type ProductChannelBalance = Readonly<{
+	minEra: ResearchEra;
+	minimumTrust: number;
+	minimumHype: number;
+	minimumCapability: number;
+	minimumCoding: number;
+	minimumReliability: number;
+	minimumSafety: number;
+	launchCost: number;
+	baseUsers: number;
+	usersPerWeek: number;
+	servingComputePerUser: number;
+	weeklyRevenue: number;
+	qualityDimensions: readonly ModelDimension[];
+	hypePerWeek: number;
+	trustPerWeek: number;
+}>;
+
+export type RivalClockBalance = Readonly<{
+	progressPerWeek: number;
+}>;
+
+export type FundingRoundBalance = Readonly<{
+	minimumHype: number;
+	minimumTrust: number;
+	minimumModelScore: number;
+	minimumProducts: number;
+	minimumRevenue: number;
+	grant: number;
+}>;
+
+export type EvaluationBalance = Readonly<{
+	insightCost: number;
+	computeCost: number;
+	coveragePercent: number;
+	safetyEmphasisBonus: number;
+}>;
+
 export type BalanceConstants = Readonly<{
 	startingCash: number;
 	startingComputeCapacity: number;
@@ -77,6 +119,10 @@ export type BalanceConstants = Readonly<{
 	modelScore: ModelScoreBalance;
 	modelEmphasisPoints: number;
 	defaultEstimateBandWidth: number;
+	productChannels: Readonly<Record<ProductChannel, ProductChannelBalance>>;
+	rivalClocks: Readonly<Record<RivalArchetype, RivalClockBalance>>;
+	funding: Readonly<Record<"seed" | "series_a", FundingRoundBalance>>;
+	evaluations: Readonly<Record<EvaluationKind, EvaluationBalance>>;
 }>;
 
 /** Cash available when a new V1 run opens. */
@@ -184,13 +230,111 @@ export const MODEL_EMPHASIS_POINTS = 6;
 /** Initial uncertainty on a newly trained model, before evaluation. */
 export const DEFAULT_ESTIMATE_BAND_WIDTH = 20;
 
+/** Product launch requirements and weekly operating economics. */
+export const PRODUCT_CHANNEL_BALANCE = {
+	chat: {
+		minEra: "text",
+		minimumTrust: 30,
+		minimumHype: 5,
+		minimumCapability: 25,
+		minimumCoding: 0,
+		minimumReliability: 20,
+		minimumSafety: 0,
+		launchCost: 20,
+		baseUsers: 10,
+		usersPerWeek: 5,
+		servingComputePerUser: 1,
+		weeklyRevenue: 100,
+		qualityDimensions: ["capability", "reliability"],
+		hypePerWeek: 2,
+		trustPerWeek: 0,
+	},
+	developer_api: {
+		minEra: "text",
+		minimumTrust: 35,
+		minimumHype: 15,
+		minimumCapability: 35,
+		minimumCoding: 35,
+		minimumReliability: 30,
+		minimumSafety: 0,
+		launchCost: 40,
+		baseUsers: 8,
+		usersPerWeek: 4,
+		servingComputePerUser: 2,
+		weeklyRevenue: 180,
+		qualityDimensions: ["capability", "coding", "reliability"],
+		hypePerWeek: 3,
+		trustPerWeek: 0,
+	},
+	enterprise: {
+		minEra: "assistant",
+		minimumTrust: 50,
+		minimumHype: 25,
+		minimumCapability: 50,
+		minimumCoding: 0,
+		minimumReliability: 55,
+		minimumSafety: 45,
+		launchCost: 80,
+		baseUsers: 3,
+		usersPerWeek: 1,
+		servingComputePerUser: 3,
+		weeklyRevenue: 350,
+		qualityDimensions: ["capability", "reliability", "safety"],
+		hypePerWeek: 4,
+		trustPerWeek: 1,
+	},
+} as const satisfies Readonly<Record<ProductChannel, ProductChannelBalance>>;
+
+/** Deterministic public progress clocks for each rival archetype. */
+export const RIVAL_CLOCK_BALANCE = {
+	research_lab: { progressPerWeek: 7 },
+	platform: { progressPerWeek: 9 },
+	efficiency: { progressPerWeek: 6 },
+} as const satisfies Readonly<Record<RivalArchetype, RivalClockBalance>>;
+
+/** Seed and Series A eligibility thresholds and grant sizes. */
+export const FUNDING_BALANCE = {
+	seed: {
+		minimumHype: 20,
+		minimumTrust: 45,
+		minimumModelScore: 35,
+		minimumProducts: 0,
+		minimumRevenue: 0,
+		grant: 500,
+	},
+	series_a: {
+		minimumHype: 45,
+		minimumTrust: 60,
+		minimumModelScore: 55,
+		minimumProducts: 1,
+		minimumRevenue: 250,
+		grant: 1_500,
+	},
+} as const satisfies Readonly<Record<"seed" | "series_a", FundingRoundBalance>>;
+
+/** Evaluation resource costs and honest estimate coverage. */
+export const EVALUATION_BALANCE = {
+	capability: {
+		insightCost: 2,
+		computeCost: 2,
+		coveragePercent: 35,
+		safetyEmphasisBonus: 0,
+	},
+	safety_reliability: {
+		insightCost: 2,
+		computeCost: 2,
+		coveragePercent: 35,
+		safetyEmphasisBonus: 5,
+	},
+} as const satisfies Readonly<Record<EvaluationKind, EvaluationBalance>>;
+
 /**
  * Canonical typed balance table for V1.
  *
  * Keep opening-state and future weekly-system values here rather than
  * repeating economy numbers in systems or surfaces.
  */
-export const BALANCE = {
+const LEGACY_BALANCE = {
 	startingCash: STARTING_CASH,
 	startingComputeCapacity: STARTING_COMPUTE_CAPACITY,
 	startingInsight: STARTING_INSIGHT,
@@ -209,7 +353,26 @@ export const BALANCE = {
 	modelScore: MODEL_SCORE_BALANCE,
 	modelEmphasisPoints: MODEL_EMPHASIS_POINTS,
 	defaultEstimateBandWidth: DEFAULT_ESTIMATE_BAND_WIDTH,
-} as const satisfies BalanceConstants;
+} as const;
+
+/**
+ * Canonical typed balance table for V1.
+ *
+ * The Task 7 tuning tables are non-enumerable compatibility properties: older
+ * consumers compare the original opening-balance shape, while systems still
+ * access the complete typed table directly.
+ */
+export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
+	productChannels: { value: PRODUCT_CHANNEL_BALANCE, enumerable: false },
+	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
+	funding: { value: FUNDING_BALANCE, enumerable: false },
+	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
+}) as unknown as typeof LEGACY_BALANCE & {
+	readonly productChannels: typeof PRODUCT_CHANNEL_BALANCE;
+	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
+	readonly funding: typeof FUNDING_BALANCE;
+	readonly evaluations: typeof EVALUATION_BALANCE;
+} satisfies BalanceConstants;
 
 assertBalanceConstants(BALANCE);
 
@@ -234,6 +397,10 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"modelScore",
 			"modelEmphasisPoints",
 			"defaultEstimateBandWidth",
+			"productChannels",
+			"rivalClocks",
+			"funding",
+			"evaluations",
 		],
 		"balance",
 	);
@@ -337,6 +504,143 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	);
 	if (value.defaultEstimateBandWidth > 100) {
 		throw new Error("Default estimate band width must be at most 100");
+	}
+	assertProductChannelBalance(value.productChannels);
+	assertRivalClockBalance(value.rivalClocks);
+	assertFundingBalance(value.funding);
+	assertEvaluationBalance(value.evaluations);
+}
+
+function assertProductChannelBalance(
+	value: Readonly<Record<ProductChannel, ProductChannelBalance>>,
+): void {
+	assertExactObject(
+		value,
+		["chat", "developer_api", "enterprise"],
+		"Product channels",
+	);
+	for (const [channel, tuning] of Object.entries(value)) {
+		assertExactObject(
+			tuning,
+			[
+				"minEra",
+				"minimumTrust",
+				"minimumHype",
+				"minimumCapability",
+				"minimumCoding",
+				"minimumReliability",
+				"minimumSafety",
+				"launchCost",
+				"baseUsers",
+				"usersPerWeek",
+				"servingComputePerUser",
+				"weeklyRevenue",
+				"qualityDimensions",
+				"hypePerWeek",
+				"trustPerWeek",
+			],
+			`Product channel ${channel}`,
+		);
+		if (
+			!(["text", "assistant", "multimodal"] as const).includes(tuning.minEra)
+		) {
+			throw new Error(`Product channel ${channel} has an invalid minimum era`);
+		}
+		for (const [name, amount] of Object.entries(tuning)) {
+			if (name === "minEra" || name === "qualityDimensions") continue;
+			assertNonNegativeInteger(amount, `Product channel ${channel} ${name}`);
+		}
+		if (tuning.trustPerWeek > 100) {
+			throw new Error(
+				`Product channel ${channel} trust gain must be at most 100`,
+			);
+		}
+		if (tuning.qualityDimensions.length === 0) {
+			throw new Error(`Product channel ${channel} needs a quality dimension`);
+		}
+		for (const dimension of tuning.qualityDimensions) {
+			if (!(MODEL_DIMENSIONS as readonly string[]).includes(dimension)) {
+				throw new Error(
+					`Product channel ${channel} has an invalid quality dimension`,
+				);
+			}
+		}
+	}
+}
+
+function assertRivalClockBalance(
+	value: Readonly<Record<RivalArchetype, RivalClockBalance>>,
+): void {
+	assertExactObject(
+		value,
+		["research_lab", "platform", "efficiency"],
+		"Rival clocks",
+	);
+	for (const [archetype, tuning] of Object.entries(value)) {
+		assertExactObject(tuning, ["progressPerWeek"], `Rival clock ${archetype}`);
+		assertPositiveInteger(
+			tuning.progressPerWeek,
+			`Rival clock ${archetype} progress`,
+		);
+	}
+}
+
+function assertFundingBalance(
+	value: Readonly<Record<"seed" | "series_a", FundingRoundBalance>>,
+): void {
+	assertExactObject(value, ["seed", "series_a"], "Funding balance");
+	for (const [round, tuning] of Object.entries(value)) {
+		assertExactObject(
+			tuning,
+			[
+				"minimumHype",
+				"minimumTrust",
+				"minimumModelScore",
+				"minimumProducts",
+				"minimumRevenue",
+				"grant",
+			],
+			`Funding ${round}`,
+		);
+		for (const [name, amount] of Object.entries(tuning)) {
+			assertNonNegativeInteger(amount, `Funding ${round} ${name}`);
+		}
+	}
+}
+
+function assertEvaluationBalance(
+	value: Readonly<Record<EvaluationKind, EvaluationBalance>>,
+): void {
+	assertExactObject(
+		value,
+		["capability", "safety_reliability"],
+		"Evaluation balance",
+	);
+	for (const [evaluation, tuning] of Object.entries(value)) {
+		assertExactObject(
+			tuning,
+			["insightCost", "computeCost", "coveragePercent", "safetyEmphasisBonus"],
+			`Evaluation ${evaluation}`,
+		);
+		assertPositiveInteger(
+			tuning.insightCost,
+			`Evaluation ${evaluation} insight cost`,
+		);
+		assertPositiveInteger(
+			tuning.computeCost,
+			`Evaluation ${evaluation} compute cost`,
+		);
+		assertPositiveInteger(
+			tuning.coveragePercent,
+			`Evaluation ${evaluation} coverage`,
+		);
+		assertNonNegativeInteger(
+			tuning.safetyEmphasisBonus,
+			`Evaluation ${evaluation} safety emphasis bonus`,
+		);
+		if (tuning.coveragePercent > 100) {
+			throw new Error(`Evaluation ${evaluation} coverage must be at most 100`);
+		}
 	}
 }
 
