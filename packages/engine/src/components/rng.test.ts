@@ -9,11 +9,11 @@ it("owns the serializable RNG initializer and invariant in the component", () =>
 	expect(state).toEqual({
 		seed: 42,
 		streams: {
-			training: 42,
-			incidents: 42,
-			products: 42,
-			rivals: 42,
-			funding: 42,
+			training: 0xfd3c8198,
+			incidents: 0xa44b9d55,
+			products: 0xb86a46c7,
+			rivals: 0x9c46990d,
+			funding: 0x29e6ce50,
 		},
 	});
 	expect(() => assertRngState(state)).not.toThrow();
