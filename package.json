@@ -10,6 +10,7 @@
 		"dev": "turbo run dev",
 		"build": "turbo run build",
 		"check-types": "turbo run check-types",
+		"test": "turbo run test",
 		"dev:web": "turbo run dev -F web --",
 		"dev:server": "turbo run dev -F server --",
 		"db:generate": "turbo run db:generate -F @ai-lab-tycoon/db --",
@@ -28,7 +29,8 @@
 		"@cloudflare/workers-types": "catalog:",
 		"@types/node": "catalog:",
 		"turbo": "^2.10.7",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "^4.1.11"
 	},
 	"packageManager": "pnpm@11.23.0"
 }

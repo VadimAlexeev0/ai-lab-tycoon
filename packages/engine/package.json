@@ -1,0 +1,24 @@
+{
+	"name": "@ai-lab-tycoon/engine",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		},
+		"./*": {
+			"default": "./src/*.ts"
+		}
+	},
+	"scripts": {
+		"test": "vitest",
+		"check-types": "tsc --noEmit",
+		"build": "tsc -b"
+	},
+	"devDependencies": {
+		"@ai-lab-tycoon/config": "workspace:*",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	}
+}
