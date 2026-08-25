@@ -1,3 +1,9 @@
+import {
+	assertExactObject,
+	assertNonNegativeInteger,
+	assertString,
+} from "../validation.js";
+
 export type CompanyResources = {
 	cash: number;
 	insight: number;
@@ -27,23 +33,24 @@ export function createCompanyState(
 	};
 }
 
-export function assertCompanyState(state: CompanyState): void {
-	if (state.name.trim().length === 0) {
+export function assertCompanyState(
+	value: unknown,
+): asserts value is CompanyState {
+	assertExactObject(
+		value,
+		["name", "cash", "insight", "trust", "hype"],
+		"company",
+	);
+	assertString(value.name, "Company name");
+	if (value.name.trim().length === 0) {
 		throw new Error("Company name must not be empty");
 	}
+	assertNonNegativeInteger(value.cash, "Company cash");
+	assertNonNegativeInteger(value.insight, "Company insight");
+	assertNonNegativeInteger(value.trust, "Company trust");
+	assertNonNegativeInteger(value.hype, "Company hype");
 
-	assertNonNegativeInteger(state.cash, "cash");
-	assertNonNegativeInteger(state.insight, "insight");
-	assertNonNegativeInteger(state.trust, "trust");
-	assertNonNegativeInteger(state.hype, "hype");
-
-	if (state.trust > 100) {
+	if (value.trust > 100) {
 		throw new Error("Company trust must be at most 100");
-	}
-}
-
-function assertNonNegativeInteger(value: number, name: string): void {
-	if (!Number.isInteger(value) || value < 0) {
-		throw new Error(`Company ${name} must be a non-negative integer`);
 	}
 }

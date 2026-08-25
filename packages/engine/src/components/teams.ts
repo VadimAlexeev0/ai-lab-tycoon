@@ -1,3 +1,11 @@
+import {
+	assertArray,
+	assertExactObject,
+	assertIdentifier,
+	assertNullableString,
+	assertString,
+} from "../validation.js";
+
 export type Team = {
 	id: string;
 	name: string;
@@ -14,30 +22,29 @@ export function createTeamsState(items: Team[] = []): TeamsState {
 	};
 }
 
-export function assertTeamsState(state: TeamsState): void {
-	if (state.items.length > 3) {
+export function assertTeamsState(value: unknown): asserts value is TeamsState {
+	assertExactObject(value, ["items"], "teams");
+	assertArray(value.items, "Teams items");
+	if (value.items.length > 3) {
 		throw new Error("Teams must contain at most three teams");
 	}
 
 	const ids: string[] = [];
-	for (const team of state.items) {
-		assertIdentifier(team.id, "team id");
-		if (ids.includes(team.id)) {
-			throw new Error(`Duplicate team id: ${team.id}`);
+	for (const item of value.items) {
+		assertExactObject(item, ["id", "name", "activeProjectId"], "team");
+		assertIdentifier(item.id, "Team id");
+		if (ids.includes(item.id)) {
+			throw new Error(`Duplicate team id: ${item.id}`);
 		}
-		ids.push(team.id);
+		ids.push(item.id);
 
-		if (team.name.trim().length === 0) {
-			throw new Error(`Team ${team.id} must have a name`);
+		assertString(item.name, `Team ${item.id} name`);
+		if (item.name.trim().length === 0) {
+			throw new Error(`Team ${item.id} must have a name`);
 		}
-		if (team.activeProjectId !== null) {
-			assertIdentifier(team.activeProjectId, "active project id");
+		assertNullableString(item.activeProjectId, "Team active project id");
+		if (item.activeProjectId !== null) {
+			assertIdentifier(item.activeProjectId, "Team active project id");
 		}
-	}
-}
-
-function assertIdentifier(value: string, name: string): void {
-	if (value.trim().length === 0) {
-		throw new Error(`${name} must not be empty`);
 	}
 }

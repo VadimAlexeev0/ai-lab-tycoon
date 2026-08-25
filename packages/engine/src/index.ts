@@ -1,4 +1,8 @@
-import { assertDecisionChoice } from "./components/decisions.js";
+import {
+	assertDecisionChoice,
+	type DecisionChoice,
+	type PendingDecision,
+} from "./components/decisions.js";
 import { assertGameState } from "./invariants.js";
 import {
 	createInitialGameState,
@@ -15,23 +19,23 @@ export function startRun(setup: RunSetup, seed: number): GameState {
 
 export function applyDecision(
 	state: GameState,
-	choice: import("./components/decisions.js").DecisionChoice,
+	choice: DecisionChoice,
 ): EngineResult {
 	assertGameState(state);
 	assertDecisionChoice(choice);
-	if (
-		!state.decisions.pending.some(
-			(decision) => decision.id === choice.decisionId,
-		)
-	) {
+	const pending = state.decisions.pending.find(
+		(decision) => decision.id === choice.decisionId,
+	);
+	if (pending === undefined) {
 		throw new Error(`Cannot apply unknown decision: ${choice.decisionId}`);
 	}
+	if (!isChoiceCompatible(pending, choice)) {
+		throw new Error(
+			`Decision choice ${choice.kind} is not compatible with ${pending.kind} decision ${pending.id}`,
+		);
+	}
 
-	return {
-		state,
-		facts: [],
-		pending: [...state.decisions.pending],
-	};
+	throw new Error("applyDecision is not implemented until Task 7");
 }
 
 export function advanceWeek(state: GameState): EngineResult {
@@ -40,137 +44,40 @@ export function advanceWeek(state: GameState): EngineResult {
 		throw new Error("Cannot advance week while a blocking decision is pending");
 	}
 
-	return {
-		state,
-		facts: [],
-		pending: [...state.decisions.pending],
-	};
+	throw new Error("advanceWeek is not implemented until Task 5");
+}
+
+function isChoiceCompatible(
+	decision: PendingDecision,
+	choice: DecisionChoice,
+): boolean {
+	if (choice.kind === "shelve") {
+		return decision.kind === "launch" || decision.kind === "evaluation";
+	}
+
+	switch (decision.kind) {
+		case "launch":
+			return choice.kind === "launch";
+		case "evaluation":
+			return (
+				choice.kind === "evaluate" && choice.evaluation === decision.evaluation
+			);
+		case "funding":
+			return choice.kind === "funding" && choice.round === decision.round;
+		case "incident":
+			return choice.kind === "incident";
+	}
 }
 
 export type {
-	CompanyResources,
-	CompanyState,
-} from "./components/company.js";
-export {
-	assertCompanyState,
-	createCompanyState,
-} from "./components/company.js";
-export type { ComputeState } from "./components/compute.js";
-export {
-	assertComputeState,
-	createComputeState,
-} from "./components/compute.js";
-export type {
 	DecisionChoice,
-	DecisionsState,
-	EvaluationKind,
-	IncidentResponse,
-	IncidentType,
 	PendingDecision,
 } from "./components/decisions.js";
-export {
-	assertDecisionChoice,
-	assertDecisionsState,
-	createDecisionsState,
-} from "./components/decisions.js";
-export type {
-	FundingRound,
-	FundingRoundState,
-	FundingState,
-	FundingStatus,
-} from "./components/funding.js";
-export {
-	assertFundingState,
-	createFundingState,
-} from "./components/funding.js";
-export type {
-	Model,
-	ModelFoundation,
-	ModelStatus,
-	ModelsState,
-} from "./components/models.js";
-export { assertModelsState, createModelsState } from "./components/models.js";
-export type {
-	Product,
-	ProductChannel,
-	ProductStatus,
-	ProductsState,
-} from "./components/products.js";
-export {
-	assertProductsState,
-	createProductsState,
-} from "./components/products.js";
-export type {
-	Project,
-	ProjectBase,
-	ProjectStatus,
-	ProjectsState,
-} from "./components/projects.js";
-export {
-	assertProjectsState,
-	createProjectsState,
-} from "./components/projects.js";
-export type {
-	Fact,
-	Report,
-	ReportPriority,
-	ReportsState,
-	ResourceName,
-} from "./components/reports.js";
-export {
-	assertFact,
-	assertReportsState,
-	createReportsState,
-} from "./components/reports.js";
-export type {
-	ResearchBranch,
-	ResearchEra,
-	ResearchNode,
-	ResearchNodeStatus,
-	ResearchState,
-} from "./components/research.js";
-export {
-	assertResearchState,
-	createResearchState,
-} from "./components/research.js";
-export type {
-	Rival,
-	RivalArchetype,
-	RivalFocus,
-	RivalsState,
-} from "./components/rivals.js";
-export { assertRivalsState, createRivalsState } from "./components/rivals.js";
-export type { Team, TeamsState } from "./components/teams.js";
-export { assertTeamsState, createTeamsState } from "./components/teams.js";
-export type {
-	TerminalReason,
-	TerminalState,
-	TerminalStatus,
-} from "./components/terminal.js";
-export {
-	assertTerminalState,
-	createTerminalState,
-} from "./components/terminal.js";
+export type { Fact } from "./components/reports.js";
 export { assertGameState } from "./invariants.js";
 export type {
-	CommandKind,
-	CommandLogEntry,
-	CountersState,
 	EngineResult,
 	GameState,
-	MetaState,
-	QueueState,
-	RngState,
-	RngStreams,
 	RunSetup,
-	Warning,
-	WarningCode,
-	WarningSeverity,
 } from "./state.js";
-export { createInitialGameState, GAME_STATE_SCHEMA_VERSION } from "./state.js";
-export type {
-	GameSystem,
-	SystemContext,
-	SystemPhase,
-	SystemResult,
-} from "./systems/types.js";
+export { GAME_STATE_SCHEMA_VERSION } from "./state.js";

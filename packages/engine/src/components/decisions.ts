@@ -1,3 +1,11 @@
+import {
+	assertArray,
+	assertBoolean,
+	assertEnum,
+	assertExactObject,
+	assertIdentifier,
+	assertObject,
+} from "../validation.js";
 import type { FundingRound } from "./funding.js";
 import type { ProductChannel } from "./products.js";
 
@@ -10,6 +18,27 @@ export type IncidentType =
 	| "enterprise_sla_breach"
 	| "data_privacy_incident";
 export type IncidentResponse = "repair" | "reduce_scope" | "disclose";
+
+const DECISION_KINDS = ["launch", "evaluation", "funding", "incident"] as const;
+const CHOICE_KINDS = [
+	"launch",
+	"evaluate",
+	"funding",
+	"incident",
+	"shelve",
+] as const;
+const EVALUATION_KINDS = ["capability", "safety_reliability"] as const;
+const INCIDENT_TYPES = [
+	"outage",
+	"latency_degradation",
+	"quality_safety_scandal",
+	"compute_cost_overrun",
+	"enterprise_sla_breach",
+	"data_privacy_incident",
+] as const;
+const INCIDENT_RESPONSES = ["repair", "reduce_scope", "disclose"] as const;
+const FUNDING_ROUNDS = ["seed", "series_a"] as const;
+const PRODUCT_CHANNELS = ["chat", "developer_api", "enterprise"] as const;
 
 export type PendingDecision =
 	| {
@@ -77,72 +106,130 @@ export function createDecisionsState(
 	};
 }
 
-export function assertDecisionsState(state: DecisionsState): void {
+export function assertDecisionsState(
+	value: unknown,
+): asserts value is DecisionsState {
+	assertExactObject(value, ["pending"], "decisions");
+	assertArray(value.pending, "Pending decisions");
+
 	const ids: string[] = [];
-	for (const decision of state.pending) {
-		assertIdentifier(decision.id, "decision id");
-		if (ids.includes(decision.id)) {
-			throw new Error(`Duplicate decision id: ${decision.id}`);
+	for (const item of value.pending) {
+		assertObject(item, "pending decision");
+		assertEnum(item.kind, DECISION_KINDS, "Pending decision kind");
+		assertIdentifier(item.id, "Decision id");
+		if (ids.includes(item.id)) {
+			throw new Error(`Duplicate decision id: ${item.id}`);
 		}
-		ids.push(decision.id);
-		assertPendingDecision(decision);
+		ids.push(item.id);
+		assertPendingDecision(item);
 	}
 }
 
-export function assertDecisionChoice(choice: DecisionChoice): void {
-	assertIdentifier(choice.decisionId, "decision choice id");
+export function assertDecisionChoice(
+	value: unknown,
+): asserts value is DecisionChoice {
+	assertObject(value, "decision choice");
+	assertEnum(value.kind, CHOICE_KINDS, "Decision choice kind");
+	assertIdentifier(value.decisionId, "Decision choice id");
 
-	switch (choice.kind) {
+	switch (value.kind) {
 		case "launch":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "channel"],
+				"launch decision choice",
+			);
+			assertEnum(value.channel, PRODUCT_CHANNELS, "Launch channel");
 			return;
 		case "evaluate":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "evaluation"],
+				"evaluation decision choice",
+			);
+			assertEnum(value.evaluation, EVALUATION_KINDS, "Evaluation kind");
 			return;
 		case "funding":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "round", "accept"],
+				"funding decision choice",
+			);
+			assertEnum(value.round, FUNDING_ROUNDS, "Funding round");
+			assertBoolean(value.accept, "Funding acceptance");
 			return;
 		case "incident":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "response"],
+				"incident decision choice",
+			);
+			assertEnum(value.response, INCIDENT_RESPONSES, "Incident response");
 			return;
 		case "shelve":
+			assertExactObject(
+				value,
+				["kind", "decisionId"],
+				"shelve decision choice",
+			);
 			return;
-		default:
-			assertNever(choice);
 	}
 }
 
-function assertPendingDecision(decision: PendingDecision): void {
-	switch (decision.kind) {
+function assertPendingDecision(value: Record<string, unknown>): void {
+	switch (value.kind) {
 		case "launch":
-			assertIdentifier(decision.modelId, "launch model id");
-			if (decision.blocking !== true) {
+			assertExactObject(
+				value,
+				["kind", "id", "modelId", "blocking"],
+				"launch decision",
+			);
+			assertIdentifier(value.modelId, "Launch model id");
+			assertBoolean(value.blocking, "Launch decision blocking");
+			if (value.blocking !== true) {
 				throw new Error("Launch decisions must be blocking");
 			}
 			return;
 		case "evaluation":
-			assertIdentifier(decision.modelId, "evaluation model id");
-			if (decision.blocking !== true) {
+			assertExactObject(
+				value,
+				["kind", "id", "modelId", "evaluation", "blocking"],
+				"evaluation decision",
+			);
+			assertIdentifier(value.modelId, "Evaluation model id");
+			assertEnum(
+				value.evaluation,
+				EVALUATION_KINDS,
+				"Decision evaluation kind",
+			);
+			assertBoolean(value.blocking, "Evaluation decision blocking");
+			if (value.blocking !== true) {
 				throw new Error("Evaluation decisions must be blocking");
 			}
 			return;
 		case "funding":
-			if (decision.blocking !== false) {
+			assertExactObject(
+				value,
+				["kind", "id", "round", "blocking"],
+				"funding decision",
+			);
+			assertEnum(value.round, FUNDING_ROUNDS, "Decision funding round");
+			assertBoolean(value.blocking, "Funding decision blocking");
+			if (value.blocking !== false) {
 				throw new Error("Funding decisions must be non-blocking");
 			}
 			return;
 		case "incident":
-			if (decision.blocking !== true) {
+			assertExactObject(
+				value,
+				["kind", "id", "incident", "blocking"],
+				"incident decision",
+			);
+			assertEnum(value.incident, INCIDENT_TYPES, "Decision incident type");
+			assertBoolean(value.blocking, "Incident decision blocking");
+			if (value.blocking !== true) {
 				throw new Error("Incident decisions must be blocking");
 			}
 			return;
-		default:
-			assertNever(decision);
 	}
-}
-
-function assertIdentifier(value: string, name: string): void {
-	if (value.trim().length === 0) {
-		throw new Error(`${name} must not be empty`);
-	}
-}
-
-function assertNever(value: never): never {
-	throw new Error(`Unsupported decision kind: ${String(value)}`);
 }

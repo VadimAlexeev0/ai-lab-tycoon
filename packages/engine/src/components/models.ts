@@ -1,3 +1,12 @@
+import {
+	assertArray,
+	assertEnum,
+	assertExactObject,
+	assertIdentifier,
+	assertNullableString,
+	assertString,
+} from "../validation.js";
+
 export type ModelFoundation = "fresh" | "continued" | "distilled";
 export type ModelStatus =
 	| "designing"
@@ -5,6 +14,15 @@ export type ModelStatus =
 	| "ready"
 	| "launched"
 	| "shelved";
+
+const MODEL_FOUNDATIONS = ["fresh", "continued", "distilled"] as const;
+const MODEL_STATUSES = [
+	"designing",
+	"training",
+	"ready",
+	"launched",
+	"shelved",
+] as const;
 
 export type Model = {
 	id: string;
@@ -29,30 +47,42 @@ export function createModelsState(
 	};
 }
 
-export function assertModelsState(state: ModelsState): void {
+export function assertModelsState(
+	value: unknown,
+): asserts value is ModelsState {
+	assertExactObject(value, ["items", "activeModelId"], "models");
+	assertArray(value.items, "Models items");
+	assertNullableString(value.activeModelId, "Active model id");
+
 	const ids: string[] = [];
-	for (const model of state.items) {
-		assertIdentifier(model.id, "model id");
-		if (ids.includes(model.id)) {
-			throw new Error(`Duplicate model id: ${model.id}`);
+	for (const item of value.items) {
+		assertExactObject(
+			item,
+			["id", "name", "foundation", "status", "projectId"],
+			"model",
+		);
+		assertIdentifier(item.id, "Model id");
+		if (ids.includes(item.id)) {
+			throw new Error(`Duplicate model id: ${item.id}`);
 		}
-		ids.push(model.id);
+		ids.push(item.id);
 
-		if (model.name.trim().length === 0) {
-			throw new Error(`Model ${model.id} must have a name`);
+		assertString(item.name, `Model ${item.id} name`);
+		if (item.name.trim().length === 0) {
+			throw new Error(`Model ${item.id} must have a name`);
 		}
-		if (model.projectId !== null) {
-			assertIdentifier(model.projectId, "model project id");
+		assertEnum(item.foundation, MODEL_FOUNDATIONS, "Model foundation");
+		assertEnum(item.status, MODEL_STATUSES, "Model status");
+		assertNullableString(item.projectId, "Model project id");
+		if (item.projectId !== null) {
+			assertIdentifier(item.projectId, "Model project id");
 		}
 	}
 
-	if (state.activeModelId !== null && !ids.includes(state.activeModelId)) {
-		throw new Error("Active model must belong to the models component");
-	}
-}
-
-function assertIdentifier(value: string, name: string): void {
-	if (value.trim().length === 0) {
-		throw new Error(`${name} must not be empty`);
+	if (value.activeModelId !== null) {
+		assertIdentifier(value.activeModelId, "Active model id");
+		if (!ids.includes(value.activeModelId)) {
+			throw new Error("Active model must belong to the models component");
+		}
 	}
 }

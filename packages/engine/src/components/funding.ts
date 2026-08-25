@@ -1,5 +1,14 @@
+import { assertEnum, assertExactObject } from "../validation.js";
+
 export type FundingRound = "seed" | "series_a";
 export type FundingStatus = "locked" | "available" | "accepted" | "declined";
+
+const FUNDING_STATUSES = [
+	"locked",
+	"available",
+	"accepted",
+	"declined",
+] as const;
 
 export type FundingRoundState = {
 	round: FundingRound;
@@ -24,11 +33,20 @@ export function createFundingState(): FundingState {
 	};
 }
 
-export function assertFundingState(state: FundingState): void {
-	if (state.seed.round !== "seed") {
-		throw new Error("Seed funding state must identify the seed round");
-	}
-	if (state.seriesA.round !== "series_a") {
-		throw new Error("Series A funding state must identify the Series A round");
-	}
+export function assertFundingState(
+	value: unknown,
+): asserts value is FundingState {
+	assertExactObject(value, ["seed", "seriesA"], "funding");
+	assertFundingRound(value.seed, "seed", "Seed funding state");
+	assertFundingRound(value.seriesA, "series_a", "Series A funding state");
+}
+
+function assertFundingRound(
+	value: unknown,
+	round: "seed" | "series_a",
+	path: string,
+): void {
+	assertExactObject(value, ["round", "status"], path);
+	assertEnum(value.round, [round], `${path} round`);
+	assertEnum(value.status, FUNDING_STATUSES, `${path} status`);
 }

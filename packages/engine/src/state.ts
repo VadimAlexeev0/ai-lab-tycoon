@@ -1,6 +1,9 @@
 import { type CompanyState, createCompanyState } from "./components/company.js";
 import { type ComputeState, createComputeState } from "./components/compute.js";
-import type { PendingDecision } from "./components/decisions.js";
+import type {
+	DecisionChoice,
+	PendingDecision,
+} from "./components/decisions.js";
 import {
 	createDecisionsState,
 	type DecisionsState,
@@ -23,11 +26,18 @@ import {
 	type ResearchState,
 } from "./components/research.js";
 import { createRivalsState, type RivalsState } from "./components/rivals.js";
+import { createRngState, type RngState } from "./components/rng.js";
 import { createTeamsState, type TeamsState } from "./components/teams.js";
 import {
 	createTerminalState,
 	type TerminalState,
 } from "./components/terminal.js";
+import { assertGameState } from "./invariants.js";
+import {
+	assertExactObject,
+	assertString,
+	assertUnsignedInteger,
+} from "./validation.js";
 
 export const GAME_STATE_SCHEMA_VERSION = 1 as const;
 
@@ -36,19 +46,6 @@ export type MetaState = {
 	runId: string;
 	week: number;
 	era: ResearchEra;
-};
-
-export type RngStreams = {
-	training: number;
-	incidents: number;
-	products: number;
-	rivals: number;
-	funding: number;
-};
-
-export type RngState = {
-	seed: number;
-	streams: RngStreams;
 };
 
 export type CountersState = {
@@ -69,11 +66,24 @@ export type QueueState = {
 
 export type CommandKind = "start_run" | "apply_decision" | "advance_week";
 
-export type CommandLogEntry = {
+type CommandLogBase = {
 	id: string;
-	kind: CommandKind;
 	week: number;
 };
+
+export type CommandLogEntry =
+	| (CommandLogBase & {
+			kind: "start_run";
+			setup: RunSetup;
+			seed: number;
+	  })
+	| (CommandLogBase & {
+			kind: "apply_decision";
+			choice: DecisionChoice;
+	  })
+	| (CommandLogBase & {
+			kind: "advance_week";
+	  });
 
 export type WarningCode =
 	| "cash_low"
@@ -122,25 +132,17 @@ export function createInitialGameState(
 	setup: RunSetup,
 	seed: number,
 ): GameState {
-	assertSeed(seed);
+	assertRunSetup(setup);
+	assertUnsignedInteger(seed, "Seed");
 
-	return {
+	const state: GameState = {
 		meta: {
 			schemaVersion: GAME_STATE_SCHEMA_VERSION,
 			runId: `run_${seed}`,
 			week: 1,
 			era: "text",
 		},
-		rng: {
-			seed,
-			streams: {
-				training: seed,
-				incidents: seed,
-				products: seed,
-				rivals: seed,
-				funding: seed,
-			},
-		},
+		rng: createRngState(seed),
 		counters: {
 			team: 1,
 			project: 1,
@@ -166,14 +168,29 @@ export function createInitialGameState(
 			decisionIds: [],
 			reportIds: [],
 		},
-		commandLog: [],
+		commandLog: [
+			{
+				id: "command_001",
+				kind: "start_run",
+				week: 1,
+				setup: { companyName: setup.companyName },
+				seed,
+			},
+		],
 		warnings: [],
 		terminal: createTerminalState(),
 	};
+
+	assertGameState(state);
+	return state;
 }
 
-function assertSeed(seed: number): void {
-	if (!Number.isInteger(seed) || seed < 0 || seed > 4_294_967_295) {
-		throw new Error("Seed must be an unsigned 32-bit integer");
+export function assertRunSetup(value: unknown): asserts value is RunSetup {
+	assertExactObject(value, ["companyName"], "run setup");
+	assertString(value.companyName, "Run setup company name");
+	if (value.companyName.trim().length === 0) {
+		throw new Error("Run setup company name must not be empty");
 	}
 }
+
+export type { RngState, RngStreams } from "./components/rng.js";

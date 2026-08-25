@@ -1,6 +1,21 @@
+import {
+	assertArray,
+	assertEnum,
+	assertExactObject,
+	assertIdentifier,
+} from "../validation.js";
+
 export type ResearchEra = "text" | "assistant" | "multimodal";
 export type ResearchBranch = "models" | "infrastructure" | "products_safety";
 export type ResearchNodeStatus = "locked" | "available" | "completed";
+
+const RESEARCH_ERAS = ["text", "assistant", "multimodal"] as const;
+const RESEARCH_BRANCHES = [
+	"models",
+	"infrastructure",
+	"products_safety",
+] as const;
+const RESEARCH_NODE_STATUSES = ["locked", "available", "completed"] as const;
 
 export type ResearchNode = {
 	id: string;
@@ -28,33 +43,51 @@ export function createResearchState(
 	};
 }
 
-export function assertResearchState(state: ResearchState): void {
+export function assertResearchState(
+	value: unknown,
+): asserts value is ResearchState {
+	assertExactObject(value, ["currentEra", "nodes"], "research");
+	assertEnum(value.currentEra, RESEARCH_ERAS, "Research current era");
+	assertArray(value.nodes, "Research nodes");
+
 	const ids: string[] = [];
-	for (const node of state.nodes) {
-		assertIdentifier(node.id, "research node id");
-		if (ids.includes(node.id)) {
-			throw new Error(`Duplicate research node id: ${node.id}`);
+	for (const item of value.nodes) {
+		assertExactObject(
+			item,
+			["id", "era", "branch", "status", "prerequisites"],
+			"research node",
+		);
+		assertIdentifier(item.id, "Research node id");
+		if (ids.includes(item.id)) {
+			throw new Error(`Duplicate research node id: ${item.id}`);
 		}
-		ids.push(node.id);
+		ids.push(item.id);
+		assertEnum(item.era, RESEARCH_ERAS, "Research node era");
+		assertEnum(item.branch, RESEARCH_BRANCHES, "Research node branch");
+		assertEnum(item.status, RESEARCH_NODE_STATUSES, "Research node status");
+		assertArray(item.prerequisites, "Research node prerequisites");
+		for (const prerequisite of item.prerequisites) {
+			assertIdentifier(prerequisite, "Research prerequisite id");
+			if (prerequisite === item.id) {
+				throw new Error(`Research node ${item.id} cannot require itself`);
+			}
+		}
 	}
 
-	for (const node of state.nodes) {
-		for (const prerequisite of node.prerequisites) {
-			assertIdentifier(prerequisite, "research prerequisite id");
-			if (prerequisite === node.id) {
-				throw new Error(`Research node ${node.id} cannot require itself`);
-			}
+	for (const item of value.nodes) {
+		assertExactObject(
+			item,
+			["id", "era", "branch", "status", "prerequisites"],
+			"research node",
+		);
+		assertArray(item.prerequisites, "Research node prerequisites");
+		for (const prerequisite of item.prerequisites) {
+			assertIdentifier(prerequisite, "Research prerequisite id");
 			if (!ids.includes(prerequisite)) {
 				throw new Error(
-					`Research node ${node.id} references an unknown prerequisite`,
+					`Research node ${item.id} references an unknown prerequisite`,
 				);
 			}
 		}
-	}
-}
-
-function assertIdentifier(value: string, name: string): void {
-	if (value.trim().length === 0) {
-		throw new Error(`${name} must not be empty`);
 	}
 }

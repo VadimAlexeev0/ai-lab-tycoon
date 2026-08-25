@@ -2,6 +2,16 @@ import type { PendingDecision } from "../components/decisions.js";
 import type { Fact } from "../components/reports.js";
 import type { GameState } from "../state.js";
 
+export type DeepReadonly<T> = T extends (
+	...args: infer Arguments
+) => infer Result
+	? (...args: Arguments) => Result
+	: T extends readonly (infer Item)[]
+		? ReadonlyArray<DeepReadonly<Item>>
+		: T extends object
+			? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+			: T;
+
 export type SystemPhase =
 	| "upkeep"
 	| "projects"
@@ -28,6 +38,6 @@ export type SystemResult = {
 };
 
 export type GameSystem = (
-	state: Readonly<GameState>,
-	context: Readonly<SystemContext>,
+	state: DeepReadonly<GameState>,
+	context: DeepReadonly<SystemContext>,
 ) => SystemResult;

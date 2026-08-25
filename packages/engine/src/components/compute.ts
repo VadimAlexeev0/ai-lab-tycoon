@@ -1,3 +1,5 @@
+import { assertExactObject, assertNonNegativeInteger } from "../validation.js";
+
 export type ComputeState = {
 	capacity: number;
 	allocated: number;
@@ -14,19 +16,20 @@ export function createComputeState(capacity = 0): ComputeState {
 	};
 }
 
-export function assertComputeState(state: ComputeState): void {
-	assertNonNegativeInteger(state.capacity, "capacity");
-	assertNonNegativeInteger(state.allocated, "allocated compute");
-	assertNonNegativeInteger(state.trainingDemand, "training demand");
-	assertNonNegativeInteger(state.servingDemand, "serving demand");
+export function assertComputeState(
+	value: unknown,
+): asserts value is ComputeState {
+	assertExactObject(
+		value,
+		["capacity", "allocated", "trainingDemand", "servingDemand"],
+		"compute",
+	);
+	assertNonNegativeInteger(value.capacity, "Compute capacity");
+	assertNonNegativeInteger(value.allocated, "Compute allocated");
+	assertNonNegativeInteger(value.trainingDemand, "Compute training demand");
+	assertNonNegativeInteger(value.servingDemand, "Compute serving demand");
 
-	if (state.allocated > state.capacity) {
+	if (value.allocated > value.capacity) {
 		throw new Error("Allocated compute cannot exceed capacity");
-	}
-}
-
-function assertNonNegativeInteger(value: number, name: string): void {
-	if (!Number.isInteger(value) || value < 0) {
-		throw new Error(`Compute ${name} must be a non-negative integer`);
 	}
 }

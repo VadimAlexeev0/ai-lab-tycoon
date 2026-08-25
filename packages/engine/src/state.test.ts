@@ -8,9 +8,13 @@ import type { Fact } from "./components/reports.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 import { createInitialGameState, type GameState } from "./state.js";
-import type { GameSystem, SystemResult } from "./systems/types.js";
+import type {
+	DeepReadonly,
+	GameSystem,
+	SystemResult,
+} from "./systems/types.js";
 
-function cloneState(state: GameState): GameState {
+function cloneState(state: GameState | DeepReadonly<GameState>): GameState {
 	return JSON.parse(JSON.stringify(state)) as GameState;
 }
 
