@@ -1,3 +1,4 @@
+import { xoroshiro128plus } from "pure-rand/generator/xoroshiro128plus";
 import { assertExactObject, assertUnsignedInteger } from "../validation.js";
 
 export const RNG_STREAM_NAMES = [
@@ -10,12 +11,14 @@ export const RNG_STREAM_NAMES = [
 
 export type RngStream = (typeof RNG_STREAM_NAMES)[number];
 
+export type RngGeneratorState = [number, number, number, number];
+
 export type RngStreams = {
-	training: number;
-	incidents: number;
-	products: number;
-	rivals: number;
-	funding: number;
+	training: RngGeneratorState;
+	incidents: RngGeneratorState;
+	products: RngGeneratorState;
+	rivals: RngGeneratorState;
+	funding: RngGeneratorState;
 };
 
 export type RngState = {
@@ -23,42 +26,48 @@ export type RngState = {
 	streams: RngStreams;
 };
 
-const STREAM_SALTS: Record<RngStream, number> = {
-	training: 0x243f6a88,
-	incidents: 0x85a308d3,
-	products: 0x13198a2e,
-	rivals: 0x03707344,
-	funding: 0xa4093822,
-};
-const NONZERO_STATE_FALLBACK = 0x6d2b79f5;
-
 export function createRngState(seed: number): RngState {
 	assertUnsignedInteger(seed, "RNG seed");
-	return {
-		seed,
-		streams: {
-			training: deriveStreamState(seed, "training"),
-			incidents: deriveStreamState(seed, "incidents"),
-			products: deriveStreamState(seed, "products"),
-			rivals: deriveStreamState(seed, "rivals"),
-			funding: deriveStreamState(seed, "funding"),
-		},
-	};
+	const streams = {} as RngStreams;
+	const generator = xoroshiro128plus(seed);
+	for (const stream of RNG_STREAM_NAMES) {
+		generator.jump();
+		streams[stream] = serializeGeneratorState(generator.getState());
+	}
+	return { seed, streams };
 }
 
-function deriveStreamState(seed: number, stream: RngStream): number {
-	const mixed = mix32((seed + STREAM_SALTS[stream]) >>> 0);
-	return mixed === 0 ? NONZERO_STATE_FALLBACK : mixed;
-}
-
-function mix32(value: number): number {
-	let mixed = value >>> 0;
-	mixed ^= mixed >>> 16;
-	mixed = Math.imul(mixed, 0x7feb352d) >>> 0;
-	mixed ^= mixed >>> 15;
-	mixed = Math.imul(mixed, 0x846ca68b) >>> 0;
-	mixed ^= mixed >>> 16;
-	return mixed >>> 0;
+export function serializeGeneratorState(
+	state: readonly number[],
+): RngGeneratorState {
+	if (state.length !== 4) {
+		throw new Error(
+			"RNG generator state must be an array of four int32 values",
+		);
+	}
+	for (const [index, value] of state.entries()) {
+		if (
+			!Number.isInteger(value) ||
+			value < -0x8000_0000 ||
+			value > 0x7fff_ffff
+		) {
+			throw new Error(
+				`RNG generator state value ${index} must be a signed 32-bit integer`,
+			);
+		}
+	}
+	const [s0, s1, s2, s3] = state;
+	if (
+		s0 === undefined ||
+		s1 === undefined ||
+		s2 === undefined ||
+		s3 === undefined
+	) {
+		throw new Error(
+			"RNG generator state must be an array of four int32 values",
+		);
+	}
+	return [s0, s1, s2, s3];
 }
 
 export function assertRngState(value: unknown): asserts value is RngState {
@@ -66,9 +75,20 @@ export function assertRngState(value: unknown): asserts value is RngState {
 	assertUnsignedInteger(value.seed, "RNG seed");
 	assertExactObject(value.streams, RNG_STREAM_NAMES, "RNG streams");
 	for (const stream of RNG_STREAM_NAMES) {
-		assertUnsignedInteger(value.streams[stream], `RNG ${stream} stream`);
-		if (value.streams[stream] === 0) {
-			throw new Error(`RNG ${stream} stream must be nonzero`);
+		assertGeneratorState(value.streams[stream], `RNG ${stream} stream`);
+	}
+}
+
+function assertGeneratorState(value: unknown, path: string): void {
+	if (!Array.isArray(value) || value.length !== 4) {
+		throw new Error(`${path} must be an array of four int32 values`);
+	}
+	for (const item of value) {
+		if (!Number.isInteger(item) || item < -0x8000_0000 || item > 0x7fff_ffff) {
+			throw new Error(`${path} value must be a signed 32-bit integer`);
 		}
+	}
+	if (value.every((item) => item === 0)) {
+		throw new Error(`${path} state must not be all zero`);
 	}
 }

@@ -109,4 +109,33 @@ describe("deterministic per-kind ID allocation", () => {
 			/counter|kind/i,
 		);
 	});
+
+	it("throws before a counter would exceed the safe integer range", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.counters.model = Number.MAX_SAFE_INTEGER;
+		const before = JSON.parse(JSON.stringify(state)) as GameState;
+
+		expect(() => allocateId(state, "model")).toThrow(/safe/i);
+		expect(state).toEqual(before);
+	});
+
+	it("allocates at the last safe counter value and rejects the next one", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.counters.model = Number.MAX_SAFE_INTEGER - 1;
+
+		const first = allocateId(state, "model");
+		expect(first.id).toBe(`model_${Number.MAX_SAFE_INTEGER - 1}`);
+		expect(first.state.counters.model).toBe(Number.MAX_SAFE_INTEGER);
+
+		expect(() => allocateId(first.state, "model")).toThrow(/safe/i);
+	});
+
+	it("keeps numeric suffixes beyond the pad width intact", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.counters.rival = 1000;
+
+		const result = allocateId(state, "rival");
+		expect(result.id).toBe("rival_1000");
+		expect(result.state.counters.rival).toBe(1001);
+	});
 });

@@ -149,6 +149,16 @@ export function assertUnsignedInteger(
 	}
 }
 
+export function assertSafeInteger(
+	value: unknown,
+	path: string,
+): asserts value is number {
+	assertInteger(value, path);
+	if (!Number.isSafeInteger(value)) {
+		throw new Error(`${path} must be a safe integer`);
+	}
+}
+
 export function assertNullableString(
 	value: unknown,
 	path: string,

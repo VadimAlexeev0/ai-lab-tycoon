@@ -1,18 +1,19 @@
 import { assertGameState } from "./invariants.js";
 import type { CountersState, GameState } from "./state.js";
+import { assertSafeInteger } from "./validation.js";
 
-const COUNTER_KINDS = [
-	"team",
-	"project",
-	"model",
-	"product",
-	"rival",
-	"decision",
-	"report",
-	"command",
-] as const satisfies readonly (keyof CountersState)[];
+const COUNTER_PREFIXES: Record<keyof CountersState, string> = {
+	team: "team",
+	project: "project",
+	model: "model",
+	product: "product",
+	rival: "rival",
+	decision: "decision",
+	report: "report",
+	command: "command",
+};
 
-export type CounterKind = (typeof COUNTER_KINDS)[number];
+export type CounterKind = keyof CountersState;
 
 export type AllocateIdResult = {
 	state: GameState;
@@ -27,6 +28,13 @@ export function allocateId(
 	assertCounterKind(kind);
 
 	const nextAvailable = state.counters[kind];
+	assertSafeInteger(nextAvailable, `ID counter ${kind}`);
+	if (nextAvailable >= Number.MAX_SAFE_INTEGER) {
+		throw new Error(
+			`ID counter ${kind} must remain strictly below the safe integer limit`,
+		);
+	}
+
 	return {
 		state: {
 			...state,
@@ -35,12 +43,12 @@ export function allocateId(
 				[kind]: nextAvailable + 1,
 			},
 		},
-		id: `${kind}_${String(nextAvailable).padStart(3, "0")}`,
+		id: `${COUNTER_PREFIXES[kind]}_${String(nextAvailable).padStart(3, "0")}`,
 	};
 }
 
 function assertCounterKind(value: CounterKind): void {
-	if (!COUNTER_KINDS.includes(value)) {
+	if (!Object.hasOwn(COUNTER_PREFIXES, value)) {
 		throw new Error(`Unsupported ID counter kind: ${String(value)}`);
 	}
 }

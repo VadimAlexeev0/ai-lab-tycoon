@@ -14,6 +14,9 @@
 		"check-types": "tsc --noEmit",
 		"build": "tsc -b tsconfig.build.json"
 	},
+	"dependencies": {
+		"pure-rand": "8.4.2"
+	},
 	"devDependencies": {
 		"@ai-lab-tycoon/config": "workspace:*",
 		"@types/node": "catalog:",

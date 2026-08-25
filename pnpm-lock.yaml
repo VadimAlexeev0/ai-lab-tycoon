@@ -311,6 +311,10 @@ importers:
         version: 6.0.3
 
   packages/engine:
+    dependencies:
+      pure-rand:
+        specifier: 8.4.2
+        version: 8.4.2
     devDependencies:
       '@ai-lab-tycoon/config':
         specifier: workspace:*
