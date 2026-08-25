@@ -2,89 +2,29 @@ import { describe, expect, it } from "vitest";
 
 import { createRngState } from "./components/rng.js";
 import { BALANCE } from "./data/balance.js";
+import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
+import { OPENING_RIVALS } from "./data/rivals.js";
+import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 
-const EXPECTED_OPENING_NODES = [
-	{
-		id: "node_text_basic_research",
-		era: "text",
-		branch: "models",
-		status: "available",
-		prerequisites: [],
-	},
-	{
-		id: "node_text_infrastructure_setup",
-		era: "text",
-		branch: "infrastructure",
-		status: "available",
-		prerequisites: [],
-	},
-	{
-		id: "node_text_first_model_concept",
-		era: "text",
-		branch: "models",
-		status: "available",
-		prerequisites: [],
-	},
-];
+const EXPECTED_OPENING_NODES = RESEARCH_NODES;
+const EXPECTED_OPENING_PROJECTS = RESEARCH_NODES.filter(
+	(node) => node.era === TEXT_ERA && node.status === "available",
+).map((node, index) => ({
+	kind: "research",
+	id: `project_${String(index + 1).padStart(3, "0")}`,
+	teamId: null,
+	status: "available",
+	progress: BALANCE.startingProjectProgress,
+	duration: BALANCE.researchProjectDuration,
+	nodeId: node.id,
+}));
 
-const EXPECTED_OPENING_PROJECTS = [
-	{
-		kind: "research",
-		id: "project_001",
-		teamId: null,
-		status: "available",
-		progress: 0,
-		duration: 1,
-		nodeId: "node_text_basic_research",
-	},
-	{
-		kind: "research",
-		id: "project_002",
-		teamId: null,
-		status: "available",
-		progress: 0,
-		duration: 1,
-		nodeId: "node_text_infrastructure_setup",
-	},
-	{
-		kind: "research",
-		id: "project_003",
-		teamId: null,
-		status: "available",
-		progress: 0,
-		duration: 1,
-		nodeId: "node_text_first_model_concept",
-	},
-];
-
-const EXPECTED_OPENING_RIVALS = [
-	{
-		id: "rival_001",
-		name: "Northstar Labs",
-		archetype: "research_lab",
-		focus: "capability",
-		progress: 0,
-		active: true,
-	},
-	{
-		id: "rival_002",
-		name: "MarketSpring",
-		archetype: "platform",
-		focus: "distribution",
-		progress: 0,
-		active: true,
-	},
-	{
-		id: "rival_003",
-		name: "LeanForge",
-		archetype: "efficiency",
-		focus: "reliability",
-		progress: 0,
-		active: false,
-	},
-];
+const EXPECTED_OPENING_RIVALS = OPENING_RIVALS.map((rival, index) => ({
+	id: `rival_${String(index + 1).padStart(3, "0")}`,
+	...rival,
+}));
 
 describe("startRun", () => {
 	it("matches the exact deterministic week-one opening state", () => {
@@ -119,7 +59,7 @@ describe("startRun", () => {
 				items: [
 					{
 						id: "team_001",
-						name: "Founding Team",
+						name: FOUNDING_TEAM.name,
 						activeProjectId: null,
 					},
 				],
@@ -170,8 +110,19 @@ describe("startRun", () => {
 			startingInsight: 0,
 			startingTrust: 60,
 			startingHype: 10,
+			startingProjectProgress: BALANCE.startingProjectProgress,
 			salaries: { foundingTeam: 50 },
 			upkeep: 25,
+			projectProgressPerWeek: {
+				research: 1,
+				infrastructure: 1,
+				model: 1,
+				training: 1,
+				evaluation: 1,
+				product: 1,
+			},
+			researchInsightPerWeek: 1,
+			researchProjectDuration: 1,
 		});
 
 		const state = startRun({ companyName: "Acme Labs" }, 42);
@@ -204,7 +155,7 @@ describe("startRun", () => {
 		expect(state.teams.items).toEqual([
 			{
 				id: "team_001",
-				name: "Founding Team",
+				name: FOUNDING_TEAM.name,
 				activeProjectId: null,
 			},
 		]);
@@ -222,7 +173,7 @@ describe("startRun", () => {
 		expect(new Set(rivals.map((rival) => rival.focus)).size).toBe(3);
 	});
 
-	it("seeds real placeholder node references without adding Task 5 systems", () => {
+	it("seeds real era-one research project references", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		const nodeIds = new Set(state.research.nodes.map((node) => node.id));
 

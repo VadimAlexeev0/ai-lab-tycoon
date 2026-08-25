@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { BALANCE } from "./data/balance.js";
+import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
+import { OPENING_RIVALS } from "./data/rivals.js";
+import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
 import type { VisibleModelEstimate } from "./selectors.js";
 import {
@@ -44,7 +48,7 @@ describe("visible selectors", () => {
 		expect(selectTeams(state)).toEqual([
 			{
 				id: "team_001",
-				name: "Founding Team",
+				name: FOUNDING_TEAM.name,
 				status: "idle",
 				activeProjectId: null,
 			},
@@ -54,55 +58,29 @@ describe("visible selectors", () => {
 	it("projects only available opening projects with their public fields", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 
-		expect(selectAvailableProjects(state)).toEqual([
-			{
-				id: "project_001",
+		expect(selectAvailableProjects(state)).toEqual(
+			RESEARCH_NODES.filter(
+				(node) => node.era === TEXT_ERA && node.status === "available",
+			).map((node, index) => ({
+				id: `project_${String(index + 1).padStart(3, "0")}`,
 				kind: "research",
 				status: "available",
-				progress: 0,
-				duration: 1,
-				nodeId: "node_text_basic_research",
-			},
-			{
-				id: "project_002",
-				kind: "research",
-				status: "available",
-				progress: 0,
-				duration: 1,
-				nodeId: "node_text_infrastructure_setup",
-			},
-			{
-				id: "project_003",
-				kind: "research",
-				status: "available",
-				progress: 0,
-				duration: 1,
-				nodeId: "node_text_first_model_concept",
-			},
-		]);
+				progress: BALANCE.startingProjectProgress,
+				duration: BALANCE.researchProjectDuration,
+				nodeId: node.id,
+			})),
+		);
 	});
 
 	it("projects only public active rival progress and activation state", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 
-		expect(selectRivals(state)).toEqual([
-			{
-				id: "rival_001",
-				name: "Northstar Labs",
-				archetype: "research_lab",
-				focus: "capability",
-				progress: 0,
-				active: true,
-			},
-			{
-				id: "rival_002",
-				name: "MarketSpring",
-				archetype: "platform",
-				focus: "distribution",
-				progress: 0,
-				active: true,
-			},
-		]);
+		expect(selectRivals(state)).toEqual(
+			OPENING_RIVALS.filter((rival) => rival.active).map((rival, index) => ({
+				id: `rival_${String(index + 1).padStart(3, "0")}`,
+				...rival,
+			})),
+		);
 	});
 
 	it("hides dormant rivals during Text and reveals them in Assistant", () => {

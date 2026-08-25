@@ -1,3 +1,5 @@
+import { advanceWeek } from "./advance-week.js";
+import { assignProject, cancelProject } from "./commands/projects.js";
 import {
 	assertDecisionChoice,
 	type DecisionChoice,
@@ -9,7 +11,7 @@ import type { EngineResult, GameState } from "./state.js";
 
 export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
 
-export { startRun };
+export { advanceWeek, assignProject, cancelProject, startRun };
 
 export function applyDecision(
 	state: GameState,
@@ -30,15 +32,6 @@ export function applyDecision(
 	}
 
 	throw new Error("applyDecision is not implemented until Task 7");
-}
-
-export function advanceWeek(state: GameState): EngineResult {
-	assertGameState(state);
-	if (state.decisions.pending.some((decision) => decision.blocking)) {
-		throw new Error("Cannot advance week while a blocking decision is pending");
-	}
-
-	throw new Error("advanceWeek is not implemented until Task 5");
 }
 
 function isChoiceCompatible(

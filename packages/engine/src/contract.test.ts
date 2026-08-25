@@ -643,7 +643,7 @@ describe("hardened component contract", () => {
 		).toThrow(/not implemented/i);
 
 		const clean = startRun({ companyName: "Acme Labs" }, 42);
-		expect(() => advanceWeek(clean)).toThrow(/not implemented/i);
+		expect(advanceWeek(clean).state.meta.week).toBe(2);
 	});
 
 	it("validates setup and asserts the completed initial state", () => {
@@ -700,6 +700,8 @@ describe("hardened component contract", () => {
 			"advanceWeek",
 			"applyDecision",
 			"assertGameState",
+			"assignProject",
+			"cancelProject",
 			"selectAvailableProjects",
 			"selectNextObjective",
 			"selectResourceBar",

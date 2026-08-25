@@ -11,7 +11,7 @@ import type { ProductChannel } from "./products.js";
 
 export type ProjectStatus = "available" | "active" | "completed" | "cancelled";
 
-type ProjectKind =
+export type ProjectKind =
 	| "research"
 	| "infrastructure"
 	| "model"
