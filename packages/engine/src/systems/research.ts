@@ -13,6 +13,9 @@ import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
 const RESEARCH_ERA_ORDER: readonly ResearchEra[] = RESEARCH_ERAS;
+const ERA_ENTRY_KEYSTONE_IDS: Readonly<Partial<Record<ResearchEra, string>>> = {
+	[ASSISTANT_ERA]: TEXT_MODELS_KEYSTONE_ID,
+};
 
 /**
  * Return whether a research project can be assigned in the current state.
@@ -27,11 +30,7 @@ export function isResearchNodeAvailableForAssignment(
 	if (node === undefined || node.status !== "available") {
 		return false;
 	}
-	if (
-		node.era === ASSISTANT_ERA &&
-		(!isEraAtLeast(state.research.currentEra, ASSISTANT_ERA) ||
-			!hasCompletedNode(state.research, TEXT_MODELS_KEYSTONE_ID))
-	) {
+	if (!isResearchNodeEraUnlocked(state.research, node)) {
 		return false;
 	}
 	return node.prerequisites.every((prerequisiteId) =>
@@ -82,6 +81,7 @@ export const researchSystem: GameSystem = (state, context) => {
 			node === undefined ||
 			node.status !== "available" ||
 			completedNodeIds.has(node.id) ||
+			!isResearchNodeEraUnlocked(state.research, node) ||
 			!node.prerequisites.every((prerequisiteId) =>
 				completedNodeIds.has(prerequisiteId),
 			)
@@ -158,6 +158,29 @@ export const researchSystem: GameSystem = (state, context) => {
 	assertGameState(nextState);
 	return { state: nextState, facts, pending: [] };
 };
+
+function isResearchNodeEraUnlocked(
+	research: ResearchState,
+	node: { era: ResearchEra },
+): boolean {
+	const currentIndex = RESEARCH_ERA_ORDER.indexOf(research.currentEra);
+	const nodeIndex = RESEARCH_ERA_ORDER.indexOf(node.era);
+	if (currentIndex < nodeIndex) {
+		return false;
+	}
+
+	for (let index = 1; index <= nodeIndex; index += 1) {
+		const era = RESEARCH_ERA_ORDER[index];
+		if (era === undefined) {
+			return false;
+		}
+		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[era];
+		if (keystoneId !== undefined && !hasCompletedNode(research, keystoneId)) {
+			return false;
+		}
+	}
+	return true;
+}
 
 function hasResearchProject(state: GameState, nodeId: string): boolean {
 	return state.projects.items.some(

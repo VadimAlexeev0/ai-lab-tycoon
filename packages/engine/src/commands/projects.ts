@@ -1,4 +1,5 @@
 import type { Project } from "../components/projects.js";
+import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import type { EngineResult, GameState } from "../state.js";
 import { isResearchNodeAvailableForAssignment } from "../systems/research.js";
@@ -42,17 +43,36 @@ export function assignProject(
 			`Project ${storedProject.id} must be available before it can be assigned`,
 		);
 	}
-	if (
-		storedProject.kind === "research" &&
-		!isResearchNodeAvailableForAssignment(state, storedProject.nodeId)
-	) {
-		throw new Error(
-			`Research prerequisites are not met for node ${storedProject.nodeId}`,
+	let insightCost = 0;
+	if (storedProject.kind === "research") {
+		if (!isResearchNodeAvailableForAssignment(state, storedProject.nodeId)) {
+			throw new Error(
+				`Research prerequisites are not met for node ${storedProject.nodeId}`,
+			);
+		}
+		const node = state.research.nodes.find(
+			(item) => item.id === storedProject.nodeId,
 		);
+		if (node === undefined) {
+			throw new Error(
+				`Cannot assign unknown research node: ${storedProject.nodeId}`,
+			);
+		}
+		insightCost = node.insightCost;
+		if (state.company.insight < insightCost) {
+			throw new Error(
+				`Insufficient Insight to assign research node ${storedProject.nodeId}`,
+			);
+		}
 	}
 
+	const commandAllocation = allocateId(state, "command");
 	const nextState: GameState = {
-		...state,
+		...commandAllocation.state,
+		company: {
+			...state.company,
+			insight: state.company.insight - insightCost,
+		},
 		teams: {
 			items: state.teams.items.map((item) =>
 				item.id === teamId
@@ -67,6 +87,16 @@ export function assignProject(
 					: { ...item },
 			),
 		},
+		commandLog: [
+			...commandAllocation.state.commandLog,
+			{
+				id: commandAllocation.id,
+				kind: "assign_project",
+				week: state.meta.week,
+				teamId,
+				projectId: storedProject.id,
+			},
+		],
 	};
 
 	assertGameState(nextState);
@@ -76,7 +106,8 @@ export function assignProject(
 /**
  * Cancel a team's active project. The overload accepting a project is useful
  * to callers that already have the selected project card; the two-argument
- * form cancels the team's active project directly.
+ * form cancels the team's active project directly. This same-week command
+ * remains available while a blocking decision prevents week advancement.
  */
 export function cancelProject(state: GameState, teamId: string): EngineResult;
 export function cancelProject(
@@ -92,28 +123,63 @@ export function cancelProject(
 ): EngineResult {
 	assertGameState(state);
 
-	const teamCandidate =
-		typeof teamOrProject === "string"
-			? state.teams.items.find((item) => item.id === teamOrProject)
-			: undefined;
-	const requestedTeamId = teamCandidate?.id;
+	if (typeof teamOrProject !== "string" && teamOrProject.teamId === null) {
+		throw new Error(
+			`Cannot cancel project ${teamOrProject.id} without an owning team`,
+		);
+	}
+	const requestedTeamId =
+		typeof teamOrProject === "string" ? teamOrProject : teamOrProject.teamId;
+	const requestedTeam =
+		requestedTeamId === undefined
+			? undefined
+			: state.teams.items.find((item) => item.id === requestedTeamId);
+	if (requestedTeamId !== undefined && requestedTeam === undefined) {
+		throw new Error(
+			`Cannot cancel a project for unknown team: ${requestedTeamId}`,
+		);
+	}
+	const projectPayload =
+		typeof project === "object"
+			? project
+			: typeof teamOrProject === "string"
+				? undefined
+				: teamOrProject;
+	if (projectPayload !== undefined) {
+		if (projectPayload.teamId === null) {
+			throw new Error(
+				`Cannot cancel project ${projectPayload.id} without an owning team`,
+			);
+		}
+		const payloadTeam = state.teams.items.find(
+			(item) => item.id === projectPayload.teamId,
+		);
+		if (payloadTeam === undefined) {
+			throw new Error(
+				`Cannot cancel a project for unknown team: ${projectPayload.teamId}`,
+			);
+		}
+		if (requestedTeamId !== undefined && payloadTeam.id !== requestedTeamId) {
+			throw new Error(
+				`Project ${projectPayload.id} is not assigned to team ${requestedTeamId}`,
+			);
+		}
+	}
+
 	const requestedProjectId =
 		typeof teamOrProject === "string"
 			? project === undefined
-				? teamCandidate === undefined
-					? teamOrProject
-					: undefined
+				? undefined
 				: typeof project === "string"
 					? project
 					: project.id
 			: teamOrProject.id;
-	const requestedTeam = teamCandidate;
 
 	let storedProject: Project | undefined;
-	if (requestedTeam !== undefined && project === undefined) {
-		if (requestedTeam.activeProjectId === null) {
+	if (requestedProjectId === undefined) {
+		if (requestedTeam === undefined || requestedTeam.activeProjectId === null) {
 			throw new Error(
-				`Team ${requestedTeam.id} has no active project to cancel`,
+				`Team ${requestedTeamId} has no active project to cancel`,
 			);
 		}
 		storedProject = state.projects.items.find(
@@ -156,8 +222,9 @@ export function cancelProject(
 		);
 	}
 
+	const commandAllocation = allocateId(state, "command");
 	const nextState: GameState = {
-		...state,
+		...commandAllocation.state,
 		teams: {
 			items: state.teams.items.map((item) =>
 				item.id === owningTeam.id
@@ -172,6 +239,16 @@ export function cancelProject(
 					: { ...item },
 			),
 		},
+		commandLog: [
+			...commandAllocation.state.commandLog,
+			{
+				id: commandAllocation.id,
+				kind: "cancel_project",
+				week: state.meta.week,
+				teamId: owningTeam.id,
+				projectId: storedProject.id,
+			},
+		],
 	};
 
 	assertGameState(nextState);

@@ -8,6 +8,7 @@ import {
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
+	assertPositiveInteger,
 } from "../validation.js";
 
 export type ResearchDefinition = Readonly<{
@@ -15,6 +16,7 @@ export type ResearchDefinition = Readonly<{
 	era: ResearchEra;
 	branch: ResearchBranch;
 	status: ResearchNodeStatus;
+	insightCost: number;
 	prerequisites: readonly string[];
 }>;
 
@@ -49,6 +51,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: MODELS_BRANCH,
 		status: "available",
+		insightCost: 1,
 		prerequisites: [],
 	},
 	{
@@ -56,6 +59,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: MODELS_BRANCH,
 		status: "locked",
+		insightCost: 2,
 		prerequisites: ["text_models_principles"],
 	},
 	{
@@ -63,6 +67,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "available",
+		insightCost: 1,
 		prerequisites: [],
 	},
 	{
@@ -70,6 +75,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
+		insightCost: 2,
 		prerequisites: ["text_infrastructure_compute"],
 	},
 	{
@@ -77,6 +83,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "available",
+		insightCost: 1,
 		prerequisites: [],
 	},
 	{
@@ -84,6 +91,7 @@ export const RESEARCH_NODES = [
 		era: TEXT_ERA,
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
+		insightCost: 2,
 		prerequisites: ["text_products_safety_basics"],
 	},
 	{
@@ -91,6 +99,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: MODELS_BRANCH,
 		status: "locked",
+		insightCost: 3,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID],
 	},
 	{
@@ -98,6 +107,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: MODELS_BRANCH,
 		status: "locked",
+		insightCost: 4,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "assistant_models_reasoning"],
 	},
 	{
@@ -105,6 +115,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
+		insightCost: 3,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "text_infrastructure_scaling"],
 	},
 	{
@@ -112,6 +123,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
+		insightCost: 4,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"assistant_infrastructure_orchestration",
@@ -122,6 +134,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
+		insightCost: 3,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "text_products_evaluation"],
 	},
 	{
@@ -129,6 +142,7 @@ export const RESEARCH_NODES = [
 		era: ASSISTANT_ERA,
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
+		insightCost: 4,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "assistant_products_safety"],
 	},
 ] as const satisfies readonly ResearchDefinition[];
@@ -143,7 +157,7 @@ export function assertResearchDefinitions(
 	for (const definition of definitions) {
 		assertExactObject(
 			definition,
-			["id", "era", "branch", "status", "prerequisites"],
+			["id", "era", "branch", "status", "insightCost", "prerequisites"],
 			"research definition",
 		);
 		assertIdentifier(definition.id, "Research definition id");
@@ -161,6 +175,10 @@ export function assertResearchDefinitions(
 			definition.status,
 			RESEARCH_NODE_STATUSES,
 			"Research definition status",
+		);
+		assertPositiveInteger(
+			definition.insightCost,
+			`Research definition ${definition.id} insight cost`,
 		);
 		if (!Array.isArray(definition.prerequisites)) {
 			throw new Error("Research definition prerequisites must be an array");

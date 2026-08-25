@@ -3,6 +3,7 @@ import {
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
+	assertPositiveInteger,
 } from "../validation.js";
 
 export type ResearchEra = "text" | "assistant" | "multimodal";
@@ -22,6 +23,7 @@ export type ResearchNode = {
 	era: ResearchEra;
 	branch: ResearchBranch;
 	status: ResearchNodeStatus;
+	insightCost: number;
 	prerequisites: string[];
 };
 
@@ -54,7 +56,7 @@ export function assertResearchState(
 	for (const item of value.nodes) {
 		assertExactObject(
 			item,
-			["id", "era", "branch", "status", "prerequisites"],
+			["id", "era", "branch", "status", "insightCost", "prerequisites"],
 			"research node",
 		);
 		assertIdentifier(item.id, "Research node id");
@@ -65,6 +67,10 @@ export function assertResearchState(
 		assertEnum(item.era, RESEARCH_ERAS, "Research node era");
 		assertEnum(item.branch, RESEARCH_BRANCHES, "Research node branch");
 		assertEnum(item.status, RESEARCH_NODE_STATUSES, "Research node status");
+		assertPositiveInteger(
+			item.insightCost,
+			`Research node ${item.id} insight cost`,
+		);
 		assertArray(item.prerequisites, "Research node prerequisites");
 		for (const prerequisite of item.prerequisites) {
 			assertIdentifier(prerequisite, "Research prerequisite id");
@@ -77,7 +83,7 @@ export function assertResearchState(
 	for (const item of value.nodes) {
 		assertExactObject(
 			item,
-			["id", "era", "branch", "status", "prerequisites"],
+			["id", "era", "branch", "status", "insightCost", "prerequisites"],
 			"research node",
 		);
 		assertArray(item.prerequisites, "Research node prerequisites");

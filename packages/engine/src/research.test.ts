@@ -15,6 +15,18 @@ import { advanceWeek, assignProject, startRun } from "./index.js";
 import { projectsSystem } from "./systems/projects.js";
 import { researchSystem } from "./systems/research.js";
 
+function getInsightCost(node: unknown): number {
+	if (
+		typeof node !== "object" ||
+		node === null ||
+		!("insightCost" in node) ||
+		typeof node.insightCost !== "number"
+	) {
+		throw new Error("Expected research node insight cost");
+	}
+	return node.insightCost;
+}
+
 describe("V1 research data", () => {
 	it("contains the typed Text and Assistant tree with real node ids", () => {
 		expect(RESEARCH_NODES).toHaveLength(12);
@@ -47,6 +59,61 @@ describe("V1 research data", () => {
 			branch: MODELS_BRANCH,
 		});
 		expect(keystone?.prerequisites.length).toBeGreaterThan(0);
+		expect(
+			RESEARCH_NODES.every((node) => {
+				const cost = getInsightCost(node);
+				return Number.isInteger(cost) && cost > 0;
+			}),
+		).toBe(true);
+	});
+
+	it("deducts the data-defined Insight cost when assigning research", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const team = state.teams.items[0];
+		const project = state.projects.items[0];
+		if (
+			team === undefined ||
+			project === undefined ||
+			project.kind !== "research"
+		) {
+			throw new Error("Expected the opening research project");
+		}
+		const node = state.research.nodes.find(
+			(item) => item.id === project.nodeId,
+		);
+		if (node === undefined) {
+			throw new Error("Expected the research node for the opening project");
+		}
+		const insightCost = getInsightCost(node);
+		state.company.insight = insightCost + 2;
+
+		const result = assignProject(state, team.id, project);
+
+		expect(result.state.company.insight).toBe(2);
+		expect(state.company.insight).toBe(insightCost + 2);
+	});
+
+	it("rejects research assignment when Insight is below the data-defined cost", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const team = state.teams.items[0];
+		const project = state.projects.items[0];
+		if (
+			team === undefined ||
+			project === undefined ||
+			project.kind !== "research"
+		) {
+			throw new Error("Expected the opening research project");
+		}
+		const node = state.research.nodes.find(
+			(item) => item.id === project.nodeId,
+		);
+		if (node === undefined) {
+			throw new Error("Expected the research node for the opening project");
+		}
+		const insightCost = getInsightCost(node);
+		state.company.insight = Math.max(0, insightCost - 1);
+
+		expect(() => assignProject(state, team.id, project)).toThrow(/insight/i);
 	});
 
 	it("fails fast on duplicate or dangling research definitions", () => {
@@ -100,6 +167,13 @@ describe("V1 research data", () => {
 		) {
 			throw new Error("Expected the opening research project");
 		}
+		const node = state.research.nodes.find(
+			(item) => item.id === project.nodeId,
+		);
+		if (node === undefined) {
+			throw new Error("Expected the research node for the opening project");
+		}
+		state.company.insight = getInsightCost(node);
 
 		const assigned = assignProject(state, team.id, project);
 		const activeProject = assigned.state.projects.items[0];
@@ -181,6 +255,7 @@ describe("V1 research data", () => {
 		) {
 			throw new Error("Expected a research prerequisite pair");
 		}
+		state.company.insight = getInsightCost(completedDefinition);
 
 		const assigned = assignProject(state, team.id, openingProject);
 		const projectResult = projectsSystem(assigned.state, {
@@ -337,10 +412,77 @@ describe("V1 research data", () => {
 		stateNode.status = "available";
 		stateNode.prerequisites = [];
 		project.nodeId = stateNode.id;
+		state.company.insight = 100;
 
 		expect(() => assignProject(state, team.id, project)).toThrow(
 			/keystone|era|gate|prerequisite/i,
 		);
+	});
+
+	it("rejects a multimodal node while the current era is Text", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const team = state.teams.items[0];
+		const project = state.projects.items[0];
+		const node = state.research.nodes.find(
+			(item) => item.era === ASSISTANT_ERA,
+		);
+		if (
+			team === undefined ||
+			project === undefined ||
+			project.kind !== "research" ||
+			node === undefined
+		) {
+			throw new Error("Expected an opening project and Assistant node");
+		}
+
+		state.company.insight = 100;
+		node.era = "multimodal";
+		node.status = "available";
+		node.prerequisites = [];
+		project.nodeId = node.id;
+
+		expect(() => assignProject(state, team.id, project)).toThrow(
+			/era|gate|prerequisite/i,
+		);
+	});
+
+	it("does not complete an Assistant node while the current era is Text", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const project = state.projects.items[0];
+		const node = state.research.nodes.find(
+			(item) => item.era === ASSISTANT_ERA,
+		);
+		if (
+			project === undefined ||
+			project.kind !== "research" ||
+			node === undefined
+		) {
+			throw new Error("Expected an opening project and Assistant node");
+		}
+
+		state.meta.era = TEXT_ERA;
+		state.research.currentEra = TEXT_ERA;
+		node.status = "available";
+		node.prerequisites = [];
+		project.nodeId = node.id;
+		project.status = "completed";
+		project.progress = project.duration;
+		project.teamId = null;
+
+		const result = researchSystem(state, {
+			phase: "research",
+			week: 2,
+		});
+
+		expect(result.state.research.nodes).toContainEqual({
+			...node,
+			status: "available",
+		});
+		expect(result.facts).not.toContainEqual({
+			kind: "research_completed",
+			nodeId: node.id,
+			week: 2,
+		});
 	});
 
 	it("enters the Assistant era from the node gate without a shipped model", () => {
@@ -380,6 +522,13 @@ describe("V1 research data", () => {
 			) {
 				throw new Error("Expected the opening team and project");
 			}
+			const node = state.research.nodes.find(
+				(item) => item.id === project.nodeId,
+			);
+			if (node === undefined) {
+				throw new Error("Expected the research node for the opening project");
+			}
+			state.company.insight = getInsightCost(node);
 			state = assignProject(state, team.id, project).state;
 			const facts = [] as ReturnType<typeof advanceWeek>["facts"];
 			for (const _week of [1, 2, 3, 4]) {
@@ -395,8 +544,9 @@ describe("V1 research data", () => {
 
 		expect(JSON.stringify(second)).toBe(JSON.stringify(first));
 		expect(first.state.meta.week).toBe(5);
-		expect(first.state.commandLog).toHaveLength(5);
+		expect(first.state.commandLog).toHaveLength(6);
 		expect(first.state.commandLog.slice(1).map((entry) => entry.kind)).toEqual([
+			"assign_project",
 			"advance_week",
 			"advance_week",
 			"advance_week",

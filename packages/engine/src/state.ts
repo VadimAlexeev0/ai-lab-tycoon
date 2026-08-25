@@ -64,7 +64,12 @@ export type QueueState = {
 	reportIds: string[];
 };
 
-export type CommandKind = "start_run" | "apply_decision" | "advance_week";
+export type CommandKind =
+	| "start_run"
+	| "apply_decision"
+	| "advance_week"
+	| "assign_project"
+	| "cancel_project";
 
 type CommandLogBase = {
 	id: string;
@@ -83,6 +88,16 @@ export type CommandLogEntry =
 	  })
 	| (CommandLogBase & {
 			kind: "advance_week";
+	  })
+	| (CommandLogBase & {
+			kind: "assign_project";
+			teamId: string;
+			projectId: string;
+	  })
+	| (CommandLogBase & {
+			kind: "cancel_project";
+			teamId: string;
+			projectId: string;
 	  });
 
 export type WarningCode =

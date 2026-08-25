@@ -224,6 +224,7 @@ describe("hardened component contract", () => {
 							era: "text",
 							branch: "invalid" as never,
 							status: "available",
+							insightCost: 1,
 							prerequisites: [],
 						},
 					];
@@ -239,6 +240,7 @@ describe("hardened component contract", () => {
 							era: "text",
 							branch: "models",
 							status: "invalid" as never,
+							insightCost: 1,
 							prerequisites: [],
 						},
 					];
@@ -688,6 +690,26 @@ describe("hardened component contract", () => {
 			{ id: "command_002", kind: "advance_week", week: 1 },
 		];
 		expect(() => assertGameState(advanceEntry)).not.toThrow();
+
+		const projectEntries = cloneState(state);
+		projectEntries.commandLog = [
+			...state.commandLog,
+			{
+				id: "command_002",
+				kind: "assign_project",
+				week: 1,
+				teamId: "team_001",
+				projectId: "project_001",
+			},
+			{
+				id: "command_003",
+				kind: "cancel_project",
+				week: 1,
+				teamId: "team_001",
+				projectId: "project_001",
+			},
+		];
+		expect(() => assertGameState(projectEntries)).not.toThrow();
 
 		const invalidEntry = cloneState(state);
 		(asRecord(invalidEntry.commandLog[0]) as StateRecord).seed = 1.5;

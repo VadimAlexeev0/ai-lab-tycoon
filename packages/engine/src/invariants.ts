@@ -32,7 +32,13 @@ import {
 } from "./validation.js";
 
 const RESEARCH_ERAS = ["text", "assistant", "multimodal"] as const;
-const COMMAND_KINDS = ["start_run", "apply_decision", "advance_week"] as const;
+const COMMAND_KINDS = [
+	"start_run",
+	"apply_decision",
+	"advance_week",
+	"assign_project",
+	"cancel_project",
+] as const;
 const WARNING_CODES = [
 	"cash_low",
 	"compute_shortage",
@@ -356,6 +362,16 @@ function assertCommandLog(
 				break;
 			case "advance_week":
 				assertExactObject(item, ["id", "kind", "week"], "advance_week command");
+				break;
+			case "assign_project":
+			case "cancel_project":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "teamId", "projectId"],
+					`${item.kind} command`,
+				);
+				assertIdentifier(item.teamId, `${item.kind} team id`);
+				assertIdentifier(item.projectId, `${item.kind} project id`);
 				break;
 		}
 	}
