@@ -72,6 +72,22 @@ describe("GameState", () => {
 		expect(state.meta.week).toBe(1);
 	});
 
+	it("initializes counters at the next available entity IDs", () => {
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
+
+		expect(state.commandLog[0]?.id).toBe("command_001");
+		expect(state.counters).toEqual({
+			team: 1,
+			project: 1,
+			model: 1,
+			product: 1,
+			rival: 1,
+			decision: 1,
+			report: 1,
+			command: 2,
+		});
+	});
+
 	it("composes component invariants for resources, ownership, IDs, and queue references", () => {
 		const invalidCash = cloneState(
 			createInitialGameState({ companyName: "Acme Labs" }, 42),
@@ -151,12 +167,35 @@ describe("GameState", () => {
 		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
 		const result = system(state, {
 			phase: "upkeep",
-			seed: 42,
 			week: state.meta.week,
 		});
 
 		expect(result.state).toEqual(state);
 		expect(result.facts).toEqual([]);
 		expect(result.pending).toEqual([]);
+	});
+
+	it("keeps raw seeds out of the system context at compile and runtime", () => {
+		let receivedContext: unknown;
+		const system: GameSystem = (_state, context) => {
+			receivedContext = context;
+			// @ts-expect-error SystemContext must not expose the raw run seed
+			const rawSeed = context.seed;
+			void rawSeed;
+			return {
+				state: createInitialGameState({ companyName: "Acme Labs" }, 42),
+				facts: [],
+				pending: [],
+			};
+		};
+		const state = createInitialGameState({ companyName: "Acme Labs" }, 42);
+		const context = {
+			phase: "upkeep" as const,
+			week: state.meta.week,
+		};
+
+		expect(system(state, context).state).toEqual(state);
+		expect(receivedContext).toEqual(context);
+		expect(receivedContext).not.toHaveProperty("seed");
 	});
 });

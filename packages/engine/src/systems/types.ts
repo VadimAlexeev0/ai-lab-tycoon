@@ -27,7 +27,6 @@ export type SystemPhase =
 
 export type SystemContext = {
 	readonly phase: SystemPhase;
-	readonly seed: number;
 	readonly week: number;
 };
 

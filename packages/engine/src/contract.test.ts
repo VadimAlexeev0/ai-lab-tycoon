@@ -668,6 +668,7 @@ describe("hardened component contract", () => {
 
 		const applyEntry = cloneState(state);
 		applyEntry.commandLog = [
+			...state.commandLog,
 			{
 				id: "command_002",
 				kind: "apply_decision",
@@ -683,6 +684,7 @@ describe("hardened component contract", () => {
 
 		const advanceEntry = cloneState(state);
 		advanceEntry.commandLog = [
+			...state.commandLog,
 			{ id: "command_002", kind: "advance_week", week: 1 },
 		];
 		expect(() => assertGameState(advanceEntry)).not.toThrow();
@@ -700,6 +702,90 @@ describe("hardened component contract", () => {
 			"assertGameState",
 			"startRun",
 		]);
+	});
+
+	it("requires a non-empty command log replay anchor", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.commandLog = [];
+
+		expect(() => assertGameState(state)).toThrow(
+			/non-empty|command log|start_run/i,
+		);
+	});
+
+	it("requires the start_run command at index zero", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const anchor = state.commandLog[0];
+		if (anchor === undefined || anchor.kind !== "start_run") {
+			throw new Error("Expected the initial start_run command");
+		}
+		state.commandLog = [
+			{ id: "command_002", kind: "advance_week", week: 1 },
+			anchor,
+		];
+
+		expect(() => assertGameState(state)).toThrow(/first|index|start_run/i);
+	});
+
+	it("requires the start_run command at week one", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const anchor = state.commandLog[0];
+		if (anchor === undefined || anchor.kind !== "start_run") {
+			throw new Error("Expected the initial start_run command");
+		}
+		state.meta.week = 2;
+		anchor.week = 2;
+
+		expect(() => assertGameState(state)).toThrow(/start_run|week|anchor/i);
+	});
+
+	it("rejects later start_run commands", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.commandLog.push({
+			id: "command_002",
+			kind: "start_run",
+			week: 1,
+			setup: { companyName: "Acme Labs" },
+			seed: 42,
+		});
+
+		expect(() => assertGameState(state)).toThrow(/only|later|start_run/i);
+	});
+
+	it("requires the start_run seed to match the state RNG seed", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.rng.seed = 43;
+
+		expect(() => assertGameState(state)).toThrow(/seed/i);
+	});
+
+	it("requires the start_run setup name to match the company state", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.company.name = "Other Labs";
+
+		expect(() => assertGameState(state)).toThrow(/company|setup|name/i);
+	});
+
+	it("requires command weeks to be non-decreasing in log order", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.week = 2;
+		state.commandLog.push(
+			{ id: "command_002", kind: "advance_week", week: 2 },
+			{ id: "command_003", kind: "advance_week", week: 1 },
+		);
+
+		expect(() => assertGameState(state)).toThrow(/non-decreasing|order|week/i);
+	});
+
+	it("rejects command weeks beyond the current meta week", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.commandLog.push({
+			id: "command_002",
+			kind: "advance_week",
+			week: 2,
+		});
+
+		expect(() => assertGameState(state)).toThrow(/future week|meta week/i);
 	});
 
 	it("declares deeply readonly system inputs", () => {

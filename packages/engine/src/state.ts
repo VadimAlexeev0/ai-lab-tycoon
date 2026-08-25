@@ -151,7 +151,7 @@ export function createInitialGameState(
 			rival: 1,
 			decision: 1,
 			report: 1,
-			command: 1,
+			command: 2,
 		},
 		company: createCompanyState(setup.companyName),
 		teams: createTeamsState(),

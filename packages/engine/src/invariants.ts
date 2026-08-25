@@ -65,26 +65,26 @@ export function assertGameState(value: unknown): asserts value is GameState {
 	assertJsonCompatible(value);
 	assertExactObject(value, GAME_STATE_KEYS, "game state");
 
-	assertMeta(value.meta, value.research);
-	assertRngState(value.rng);
-	assertCounters(value.counters);
-	assertCompanyState(value.company);
-	assertTeamsState(value.teams);
-	assertProjectsState(value.projects);
-	assertComputeState(value.compute);
-	assertResearchState(value.research);
-	assertModelsState(value.models);
-	assertProductsState(value.products);
-	assertRivalsState(value.rivals);
-	assertFundingState(value.funding);
-	assertDecisionsState(value.decisions);
-	assertReportsState(value.reports);
-	assertTerminalState(value.terminal);
-	assertQueueShape(value.queue);
-	assertCommandLog(value.commandLog, value.meta);
-	assertWarnings(value.warnings);
-
 	const state = value as unknown as GameState;
+	assertMeta(state.meta, state.research);
+	assertRngState(state.rng);
+	assertCounters(state.counters);
+	assertCompanyState(state.company);
+	assertTeamsState(state.teams);
+	assertProjectsState(state.projects);
+	assertComputeState(state.compute);
+	assertResearchState(state.research);
+	assertModelsState(state.models);
+	assertProductsState(state.products);
+	assertRivalsState(state.rivals);
+	assertFundingState(state.funding);
+	assertDecisionsState(state.decisions);
+	assertReportsState(state.reports);
+	assertTerminalState(state.terminal);
+	assertQueueShape(state.queue);
+	assertCommandLog(state.commandLog, state);
+	assertWarnings(state.warnings);
+
 	assertUniqueStateIds(state);
 	assertComponentOwnership(state);
 	assertQueueConsistency(state);
@@ -293,21 +293,43 @@ function assertQueueConsistency(state: GameState): void {
 	}
 }
 
-function assertCommandLog(value: unknown, meta: unknown): void {
+function assertCommandLog(
+	value: unknown,
+	state: Pick<GameState, "meta" | "rng" | "company">,
+): void {
 	assertArray(value, "Command log");
-	assertExactObject(meta, ["schemaVersion", "runId", "week", "era"], "meta");
-	assertPositiveInteger(meta.week, "Meta week");
-	for (const item of value) {
+	if (value.length === 0) {
+		throw new Error("Command log must be non-empty");
+	}
+
+	assertPositiveInteger(state.meta.week, "Meta week");
+	let previousWeek: number | undefined;
+	let startRunSeen = false;
+	for (const [index, item] of value.entries()) {
 		assertObject(item, "command log entry");
 		assertEnum(item.kind, COMMAND_KINDS, "Command log kind");
 		assertIdentifier(item.id, "Command id");
 		assertPositiveInteger(item.week, "Command week");
-		if (item.week > meta.week) {
+		if (item.week > state.meta.week) {
 			throw new Error(`Command ${item.id} cannot be from a future week`);
 		}
+		if (previousWeek !== undefined && item.week < previousWeek) {
+			throw new Error("Command weeks must be non-decreasing");
+		}
+		previousWeek = item.week;
 
 		switch (item.kind) {
 			case "start_run":
+				if (startRunSeen) {
+					throw new Error("Only one start_run command is allowed");
+				}
+				if (index !== 0) {
+					throw new Error("start_run command must be the first command");
+				}
+				if (item.week !== 1) {
+					throw new Error("start_run command must be from week 1");
+				}
+				startRunSeen = true;
 				assertExactObject(
 					item,
 					["id", "kind", "week", "setup", "seed"],
@@ -315,6 +337,14 @@ function assertCommandLog(value: unknown, meta: unknown): void {
 				);
 				assertRunSetup(item.setup);
 				assertUnsignedInteger(item.seed, "Start command seed");
+				if (item.seed !== state.rng.seed) {
+					throw new Error("Start command seed must match the state RNG seed");
+				}
+				if (item.setup.companyName !== state.company.name) {
+					throw new Error(
+						"Start command setup company name must match the company name",
+					);
+				}
 				break;
 			case "apply_decision":
 				assertExactObject(
@@ -328,6 +358,10 @@ function assertCommandLog(value: unknown, meta: unknown): void {
 				assertExactObject(item, ["id", "kind", "week"], "advance_week command");
 				break;
 		}
+	}
+
+	if (!startRunSeen) {
+		throw new Error("Command log must start with a start_run command");
 	}
 }
 
