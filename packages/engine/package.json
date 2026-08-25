@@ -6,15 +6,13 @@
 	"exports": {
 		".": {
 			"default": "./src/index.ts"
-		},
-		"./*": {
-			"default": "./src/*.ts"
 		}
 	},
 	"scripts": {
-		"test": "vitest",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"check-types": "tsc --noEmit",
-		"build": "tsc -b"
+		"build": "tsc -b tsconfig.build.json"
 	},
 	"devDependencies": {
 		"@ai-lab-tycoon/config": "workspace:*",
