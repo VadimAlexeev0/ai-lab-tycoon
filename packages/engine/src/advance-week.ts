@@ -5,6 +5,7 @@ import { assertGameState } from "./invariants.js";
 import type { EngineResult, GameState } from "./state.js";
 import { projectsSystem } from "./systems/projects.js";
 import { researchSystem } from "./systems/research.js";
+import { trainingSystem } from "./systems/training.js";
 import type { GameSystem, SystemPhase } from "./systems/types.js";
 import { upkeepSystem } from "./systems/upkeep.js";
 
@@ -15,6 +16,7 @@ const WEEKLY_SYSTEMS: readonly {
 	{ phase: "upkeep", system: upkeepSystem },
 	{ phase: "projects", system: projectsSystem },
 	{ phase: "research", system: researchSystem },
+	{ phase: "training", system: trainingSystem },
 ];
 
 /** Advance one player-controlled week through the implemented V1 phases. */

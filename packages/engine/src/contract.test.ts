@@ -724,6 +724,7 @@ describe("hardened component contract", () => {
 			"assertGameState",
 			"assignProject",
 			"cancelProject",
+			"designModel",
 			"selectAvailableProjects",
 			"selectNextObjective",
 			"selectResourceBar",

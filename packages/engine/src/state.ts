@@ -9,6 +9,7 @@ import {
 	type DecisionsState,
 } from "./components/decisions.js";
 import { createFundingState, type FundingState } from "./components/funding.js";
+import type { ModelFoundation } from "./components/models.js";
 import { createModelsState, type ModelsState } from "./components/models.js";
 import {
 	createProductsState,
@@ -32,6 +33,12 @@ import {
 	createTerminalState,
 	type TerminalState,
 } from "./components/terminal.js";
+import type {
+	DataMix,
+	ModelEmphasis,
+	ModelFamilyId,
+	ModelTier,
+} from "./data/model-families.js";
 import { assertGameState } from "./invariants.js";
 import {
 	assertExactObject,
@@ -69,7 +76,8 @@ export type CommandKind =
 	| "apply_decision"
 	| "advance_week"
 	| "assign_project"
-	| "cancel_project";
+	| "cancel_project"
+	| "design_model";
 
 type CommandLogBase = {
 	id: string;
@@ -98,6 +106,19 @@ export type CommandLogEntry =
 			kind: "cancel_project";
 			teamId: string;
 			projectId: string;
+	  })
+	| (CommandLogBase & {
+			kind: "design_model";
+			modelId: string;
+			projectId: string;
+			teamId: string;
+			name: string;
+			family: ModelFamilyId;
+			foundation: ModelFoundation;
+			parentModelId: string | null;
+			tier: ModelTier;
+			dataMix: DataMix;
+			emphasis: ModelEmphasis;
 	  });
 
 export type WarningCode =

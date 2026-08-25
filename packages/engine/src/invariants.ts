@@ -14,6 +14,13 @@ import { assertRivalsState } from "./components/rivals.js";
 import { assertRngState } from "./components/rng.js";
 import { assertTeamsState } from "./components/teams.js";
 import { assertTerminalState } from "./components/terminal.js";
+import { BALANCE } from "./data/balance.js";
+import {
+	DATA_MIX_DIMENSIONS,
+	MODEL_EMPHASIS_DIMENSIONS,
+	MODEL_FAMILY_IDS,
+	MODEL_TIERS,
+} from "./data/model-families.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -26,8 +33,11 @@ import {
 	assertExactObject,
 	assertIdentifier,
 	assertJsonCompatible,
+	assertNonNegativeInteger,
+	assertNullableString,
 	assertObject,
 	assertPositiveInteger,
+	assertString,
 	assertUnsignedInteger,
 } from "./validation.js";
 
@@ -38,7 +48,9 @@ const COMMAND_KINDS = [
 	"advance_week",
 	"assign_project",
 	"cancel_project",
+	"design_model",
 ] as const;
+const MODEL_FOUNDATIONS = ["fresh", "continued", "distilled"] as const;
 const WARNING_CODES = [
 	"cash_low",
 	"compute_shortage",
@@ -373,6 +385,47 @@ function assertCommandLog(
 				assertIdentifier(item.teamId, `${item.kind} team id`);
 				assertIdentifier(item.projectId, `${item.kind} project id`);
 				break;
+			case "design_model":
+				assertExactObject(
+					item,
+					[
+						"id",
+						"kind",
+						"week",
+						"modelId",
+						"projectId",
+						"teamId",
+						"name",
+						"family",
+						"foundation",
+						"parentModelId",
+						"tier",
+						"dataMix",
+						"emphasis",
+					],
+					"design_model command",
+				);
+				assertIdentifier(item.modelId, "Design model id");
+				assertIdentifier(item.projectId, "Design project id");
+				assertIdentifier(item.teamId, "Design team id");
+				assertString(item.name, "Design model name");
+				if (item.name.trim().length === 0) {
+					throw new Error("Design model name must not be empty");
+				}
+				assertEnum(item.family, MODEL_FAMILY_IDS, "Design model family");
+				assertEnum(
+					item.foundation,
+					MODEL_FOUNDATIONS,
+					"Design model foundation",
+				);
+				assertNullableString(item.parentModelId, "Design parent model id");
+				if (item.parentModelId !== null) {
+					assertIdentifier(item.parentModelId, "Design parent model id");
+				}
+				assertEnum(item.tier, MODEL_TIERS, "Design model compute tier");
+				assertDesignMix(item.dataMix);
+				assertDesignEmphasis(item.emphasis);
+				break;
 		}
 	}
 
@@ -398,5 +451,50 @@ function assertUniqueReferences(values: unknown[], name: string): void {
 			throw new Error(`Duplicate ${name} reference: ${value}`);
 		}
 		seen.add(value);
+	}
+}
+
+function assertDesignMix(value: unknown): void {
+	assertExactObject(value, DATA_MIX_DIMENSIONS, "Design model data mix");
+	for (const dimension of DATA_MIX_DIMENSIONS) {
+		assertNonNegativeInteger(
+			value[dimension],
+			`Design model data mix ${dimension}`,
+		);
+	}
+	const dataMix = value as {
+		general: number;
+		code: number;
+		multimodal: number;
+	};
+	if (dataMix.general + dataMix.code + dataMix.multimodal !== 100) {
+		throw new Error("Design model data mix must total exactly 100");
+	}
+}
+
+function assertDesignEmphasis(value: unknown): void {
+	assertExactObject(value, MODEL_EMPHASIS_DIMENSIONS, "Design model emphasis");
+	for (const dimension of MODEL_EMPHASIS_DIMENSIONS) {
+		assertNonNegativeInteger(
+			value[dimension],
+			`Design model emphasis ${dimension}`,
+		);
+	}
+	const emphasis = value as {
+		capability: number;
+		reliability: number;
+		safety: number;
+		efficiency: number;
+	};
+	if (
+		emphasis.capability +
+			emphasis.reliability +
+			emphasis.safety +
+			emphasis.efficiency !==
+		BALANCE.modelEmphasisPoints
+	) {
+		throw new Error(
+			`Design model emphasis must total exactly ${BALANCE.modelEmphasisPoints}`,
+		);
 	}
 }

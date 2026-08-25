@@ -271,14 +271,12 @@ function projectToVisible(
 	}
 }
 
-type ModelWithVisibleFields = Model & {
+type ModelWithLegacyVisibleBrand = Model & {
 	brand?: string;
-	family?: string;
-	estimates?: Readonly<Record<string, VisibleEstimateBand>>;
 };
 
 function modelToVisible(model: DeepReadonly<Model>): VisibleModelEstimate {
-	const candidate = model as DeepReadonly<ModelWithVisibleFields>;
+	const candidate = model as DeepReadonly<ModelWithLegacyVisibleBrand>;
 	const visible: VisibleModelEstimate = {
 		id: candidate.id,
 		name: candidate.name,

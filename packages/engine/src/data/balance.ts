@@ -10,6 +10,7 @@ import {
 	assertNonNegativeInteger,
 	assertPositiveInteger,
 } from "../validation.js";
+import type { ModelTier } from "./model-families.js";
 
 export type BalanceConstants = Readonly<{
 	startingCash: number;
@@ -25,6 +26,16 @@ export type BalanceConstants = Readonly<{
 	projectProgressPerWeek: Readonly<Record<ProjectKind, number>>;
 	researchInsightPerWeek: number;
 	researchProjectDuration: number;
+	modelTiers: Readonly<Record<ModelTier, ModelTierBalance>>;
+	modelEmphasisPoints: number;
+	defaultEstimateBandWidth: number;
+}>;
+
+export type ModelTierBalance = Readonly<{
+	duration: number;
+	cost: number;
+	trainingCompute: number;
+	scoreCeiling: number;
 }>;
 
 /** Cash available when a new V1 run opens. */
@@ -56,6 +67,31 @@ export const PROJECT_PROGRESS_PER_WEEK = {
 export const RESEARCH_INSIGHT_PER_WEEK = 1;
 /** Duration of each initial research project in weeks. */
 export const RESEARCH_PROJECT_DURATION = 1;
+/** Compute-tier tuning for model design and training. */
+export const MODEL_TIER_BALANCE = {
+	lean: {
+		duration: 2,
+		cost: 80,
+		trainingCompute: 3,
+		scoreCeiling: 72,
+	},
+	standard: {
+		duration: 3,
+		cost: 160,
+		trainingCompute: 5,
+		scoreCeiling: 88,
+	},
+	aggressive: {
+		duration: 4,
+		cost: 280,
+		trainingCompute: 8,
+		scoreCeiling: 100,
+	},
+} as const satisfies Readonly<Record<ModelTier, ModelTierBalance>>;
+/** The number of designer emphasis points available in V1. */
+export const MODEL_EMPHASIS_POINTS = 6;
+/** Initial uncertainty on a newly trained model, before evaluation. */
+export const DEFAULT_ESTIMATE_BAND_WIDTH = 20;
 
 /**
  * Canonical typed balance table for V1.
@@ -77,6 +113,9 @@ export const BALANCE = {
 	projectProgressPerWeek: PROJECT_PROGRESS_PER_WEEK,
 	researchInsightPerWeek: RESEARCH_INSIGHT_PER_WEEK,
 	researchProjectDuration: RESEARCH_PROJECT_DURATION,
+	modelTiers: MODEL_TIER_BALANCE,
+	modelEmphasisPoints: MODEL_EMPHASIS_POINTS,
+	defaultEstimateBandWidth: DEFAULT_ESTIMATE_BAND_WIDTH,
 } as const satisfies BalanceConstants;
 
 assertBalanceConstants(BALANCE);
@@ -97,6 +136,9 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"projectProgressPerWeek",
 			"researchInsightPerWeek",
 			"researchProjectDuration",
+			"modelTiers",
+			"modelEmphasisPoints",
+			"defaultEstimateBandWidth",
 		],
 		"balance",
 	);
@@ -138,6 +180,39 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		value.researchProjectDuration,
 		"Research project duration",
 	);
+	assertExactObject(
+		value.modelTiers,
+		["lean", "standard", "aggressive"],
+		"Model tiers",
+	);
+	for (const [tier, tuning] of Object.entries(value.modelTiers)) {
+		assertExactObject(
+			tuning,
+			["duration", "cost", "trainingCompute", "scoreCeiling"],
+			`Model tier ${tier}`,
+		);
+		assertPositiveInteger(tuning.duration, `Model tier ${tier} duration`);
+		assertPositiveInteger(tuning.cost, `Model tier ${tier} cost`);
+		assertPositiveInteger(
+			tuning.trainingCompute,
+			`Model tier ${tier} training compute`,
+		);
+		assertPositiveInteger(
+			tuning.scoreCeiling,
+			`Model tier ${tier} score ceiling`,
+		);
+		if (tuning.scoreCeiling > 100) {
+			throw new Error(`Model tier ${tier} score ceiling must be at most 100`);
+		}
+	}
+	assertPositiveInteger(value.modelEmphasisPoints, "Model emphasis points");
+	assertPositiveInteger(
+		value.defaultEstimateBandWidth,
+		"Default estimate band width",
+	);
+	if (value.defaultEstimateBandWidth > 100) {
+		throw new Error("Default estimate band width must be at most 100");
+	}
 }
 
 export type V1Balance = typeof BALANCE;

@@ -6,12 +6,13 @@ import {
 	type PendingDecision,
 } from "./components/decisions.js";
 import { assertGameState } from "./invariants.js";
+import { designModel } from "./model-design.js";
 import { startRun } from "./start-run.js";
 import type { EngineResult, GameState } from "./state.js";
 
 export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
 
-export { advanceWeek, assignProject, cancelProject, startRun };
+export { advanceWeek, assignProject, cancelProject, designModel, startRun };
 
 export function applyDecision(
 	state: GameState,
@@ -60,8 +61,24 @@ export type {
 	DecisionChoice,
 	PendingDecision,
 } from "./components/decisions.js";
+export type {
+	Model,
+	ModelEstimateBand,
+	ModelEstimates,
+	ModelFoundation,
+	ModelStatus,
+	ModelTrueScores,
+} from "./components/models.js";
 export type { Fact } from "./components/reports.js";
+export type {
+	DataMix,
+	ModelDimension,
+	ModelEmphasis,
+	ModelFamilyId,
+	ModelTier,
+} from "./data/model-families.js";
 export { assertGameState } from "./invariants.js";
+export type { ModelDesignSpec } from "./model-design.js";
 export type {
 	NextObjective,
 	ResourceBarSummary,

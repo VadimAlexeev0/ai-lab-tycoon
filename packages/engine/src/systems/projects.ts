@@ -13,8 +13,9 @@ export const projectsSystem: GameSystem = (state, context) => {
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
+	const completedModelProjectIds = new Set<string>();
 	const nextProjects: Project[] = state.projects.items.map((project) => {
-		if (project.status !== "active") {
+		if (project.status !== "active" || project.kind === "training") {
 			return { ...project };
 		}
 
@@ -32,6 +33,9 @@ export const projectsSystem: GameSystem = (state, context) => {
 
 		if (nextProgress === project.duration) {
 			completedProjectIds.add(project.id);
+			if (project.kind === "model") {
+				completedModelProjectIds.add(project.id);
+			}
 			facts.push({
 				kind: "project_completed",
 				projectId: project.id,
@@ -60,6 +64,15 @@ export const projectsSystem: GameSystem = (state, context) => {
 					? { ...team, activeProjectId: null }
 					: { ...team },
 			),
+		},
+		models: {
+			items: state.models.items.map((model) =>
+				model.projectId !== null &&
+				completedModelProjectIds.has(model.projectId)
+					? { ...model, projectId: null }
+					: { ...model },
+			),
+			activeModelId: state.models.activeModelId,
 		},
 		projects: { items: nextProjects },
 	};

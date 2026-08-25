@@ -87,6 +87,15 @@ export function assignProject(
 					: { ...item },
 			),
 		},
+		models: {
+			items: state.models.items.map((model) =>
+				isTrainingOrModelProject(storedProject) &&
+				model.id === storedProject.modelId
+					? { ...model, projectId: storedProject.id }
+					: { ...model },
+			),
+			activeModelId: state.models.activeModelId,
+		},
 		commandLog: [
 			...commandAllocation.state.commandLog,
 			{
@@ -239,6 +248,21 @@ export function cancelProject(
 					: { ...item },
 			),
 		},
+		models: {
+			items: state.models.items.map((model) =>
+				storedProject.kind === "training" && model.id === storedProject.modelId
+					? {
+							...model,
+							projectId: null,
+							status:
+								model.status === "designing" || model.status === "training"
+									? "shelved"
+									: model.status,
+						}
+					: { ...model },
+			),
+			activeModelId: state.models.activeModelId,
+		},
 		commandLog: [
 			...commandAllocation.state.commandLog,
 			{
@@ -253,4 +277,10 @@ export function cancelProject(
 
 	assertGameState(nextState);
 	return { state: nextState, facts: [], pending: [] };
+}
+
+function isTrainingOrModelProject(
+	project: Project,
+): project is Extract<Project, { modelId: string }> {
+	return project.kind === "model" || project.kind === "training";
 }

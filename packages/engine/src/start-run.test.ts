@@ -123,6 +123,9 @@ describe("startRun", () => {
 			},
 			researchInsightPerWeek: 1,
 			researchProjectDuration: 1,
+			modelTiers: BALANCE.modelTiers,
+			modelEmphasisPoints: BALANCE.modelEmphasisPoints,
+			defaultEstimateBandWidth: BALANCE.defaultEstimateBandWidth,
 		});
 
 		const state = startRun({ companyName: "Acme Labs" }, 42);
