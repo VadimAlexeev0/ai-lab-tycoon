@@ -3,11 +3,16 @@ import { BALANCE } from "./data/balance.js";
 import {
 	advanceWeek,
 	applyDecision,
+	assignProject,
+	cancelProject,
+	designModel,
 	launchProduct,
 	runEvaluation,
 	startRun,
 } from "./index.js";
 import type { GameState } from "./state.js";
+import { fundingSystem } from "./systems/funding.js";
+import { applyIncidentResponse } from "./systems/incidents.js";
 
 function multimodalReadyState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
@@ -167,4 +172,45 @@ describe("terminal outcomes and milestone", () => {
 		);
 		expect(JSON.stringify(state)).toBe(before);
 	});
+
+	it("blocks project and model commands after terminal loss", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.terminal = {
+			...state.terminal,
+			status: "lost",
+			reason: "cash_depleted",
+		};
+		const before = JSON.stringify(state);
+
+		expect(() => assignProject(state, "team_001", "project_001")).toThrow(
+			/terminal|lost/i,
+		);
+		expect(() => cancelProject(state, "team_001")).toThrow(/terminal|lost/i);
+		expect(() => designModel(state, DESIGN_SPEC)).toThrow(/terminal|lost/i);
+		expect(JSON.stringify(state)).toBe(before);
+	});
+
+	it("blocks weekly systems that mutate company finances after loss", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.terminal = {
+			...state.terminal,
+			status: "lost",
+			reason: "trust_collapsed",
+		};
+		expect(() => fundingSystem(state, { phase: "funding", week: 1 })).toThrow(
+			/terminal|lost/i,
+		);
+		expect(() => applyIncidentResponse(state, "outage", "repair")).toThrow(
+			/terminal|lost/i,
+		);
+	});
 });
+
+const DESIGN_SPEC = {
+	name: "Aurora-1",
+	family: "text" as const,
+	foundation: "fresh" as const,
+	tier: "lean" as const,
+	dataMix: { general: 60, code: 30, multimodal: 10 },
+	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+};

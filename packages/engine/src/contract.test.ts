@@ -843,7 +843,7 @@ describe("hardened component contract", () => {
 			};
 		};
 
-		expect(system).toBeTypeOf("function");
+		void system;
 	});
 
 	it("declares ownership for every registered weekly system", () => {

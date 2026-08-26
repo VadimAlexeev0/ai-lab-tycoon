@@ -252,4 +252,171 @@ describe("incidents", () => {
 			reason: "cash_depleted",
 		});
 	});
+
+	it("rejects malformed incident roll fixtures", () => {
+		const state = forcedState("outage");
+		expect(() => advanceWeek(state, { incidentRoll: -1 })).toThrow(
+			/0 through 99/i,
+		);
+		expect(() => advanceWeek(state, { incidentRoll: 100 })).toThrow(
+			/0 through 99/i,
+		);
+		expect(() => advanceWeek(state, { incidentRoll: 1.5 })).toThrow(
+			/0 through 99/i,
+		);
+		expect(() => advanceWeek(state, { incidentRolls: [0, 50] })).not.toThrow();
+	});
+
+	it("hits exactly below the base probability and misses at or above it", () => {
+		const state = forcedState("outage");
+		expect(incidentDefinition("outage").baseProbability).toBe(2);
+
+		expect(
+			incidentsSystem(state, { phase: "incidents", week: 1, incidentRoll: 1 })
+				.pending,
+		).toHaveLength(1);
+		expect(
+			incidentsSystem(state, { phase: "incidents", week: 1, incidentRoll: 2 })
+				.pending,
+		).toHaveLength(0);
+		expect(
+			incidentsSystem(state, { phase: "incidents", week: 1, incidentRoll: 99 })
+				.pending,
+		).toHaveLength(0);
+	});
+
+	it("pins exact incident severity amounts and clamps trust at zero", () => {
+		const state = forcedState("outage");
+		state.company.trust = 3;
+		state.company.hype = 2;
+		const beforeCash = state.company.cash;
+		const result = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRoll: 0,
+		});
+
+		expect(result.state.company.cash).toBe(beforeCash - 80);
+		expect(result.state.company.trust).toBe(0);
+		expect(result.state.company.hype).toBe(0);
+		expect(result.facts).toContainEqual(
+			expect.objectContaining({
+				kind: "incident_occurred",
+				incident: "outage",
+				metric: "servingDemand",
+				threshold: 12,
+				severity: -88,
+			}),
+		);
+		expect(result.facts).toContainEqual({
+			kind: "resource_changed",
+			resource: "cash",
+			amount: -80,
+			week: 1,
+		});
+		expect(result.facts).toContainEqual({
+			kind: "resource_changed",
+			resource: "trust",
+			amount: -5,
+			week: 1,
+		});
+		expect(result.facts).toContainEqual({
+			kind: "resource_changed",
+			resource: "hype",
+			amount: -3,
+			week: 1,
+		});
+	});
+
+	it("fires at most one incident even when several conditions are active", () => {
+		const state = forcedState("outage");
+		const product = state.products.items[0];
+		if (product === undefined) throw new Error("Expected chat product");
+		product.effectiveQuality = 10;
+		const result = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRoll: 0,
+		});
+		const occurred = result.facts.filter(
+			(fact) => fact.kind === "incident_occurred",
+		);
+		expect(occurred).toHaveLength(1);
+		expect(occurred[0]).toMatchObject({ incident: "outage" });
+		expect(result.pending).toHaveLength(1);
+	});
+
+	it("applies condition thresholds at their exact boundary values", () => {
+		const lowQuality = forcedState("quality_safety_scandal");
+		const qualityProduct = lowQuality.products.items[0];
+		if (qualityProduct === undefined) throw new Error("Expected product");
+		qualityProduct.effectiveQuality = 30;
+		expect(isIncidentConditionActive("low_quality", lowQuality)).toBe(true);
+		qualityProduct.effectiveQuality = 31;
+		expect(isIncidentConditionActive("low_quality", lowQuality)).toBe(false);
+
+		const privacy = forcedState("data_privacy_incident");
+		const privacyProduct = privacy.products.items[0];
+		if (privacyProduct === undefined) throw new Error("Expected product");
+		privacyProduct.effectiveQuality = 10;
+		privacy.company.trust = 10;
+		expect(isIncidentConditionActive("privacy_exposure", privacy)).toBe(true);
+		expect(isIncidentConditionActive("low_quality", privacy)).toBe(false);
+		privacy.company.trust = 11;
+		expect(isIncidentConditionActive("privacy_exposure", privacy)).toBe(false);
+		expect(isIncidentConditionActive("low_quality", privacy)).toBe(true);
+
+		const overload = forcedState("outage");
+		const product = overload.products.items[0];
+		if (product === undefined) throw new Error("Expected product");
+		overload.compute.servingDemand = overload.compute.capacity;
+		product.servingDemand = overload.compute.capacity;
+		expect(isIncidentConditionActive("serving_overload", overload)).toBe(false);
+		overload.compute.servingDemand = overload.compute.capacity + 1;
+		product.servingDemand = overload.compute.capacity + 1;
+		expect(isIncidentConditionActive("serving_overload", overload)).toBe(true);
+	});
+
+	it("routes overload incidents to api_overload when an API product exists", () => {
+		const state = forcedState("latency_degradation");
+		expect(isIncidentConditionActive("api_overload", state)).toBe(true);
+		expect(isIncidentConditionActive("serving_overload", state)).toBe(false);
+
+		const chatOnly = forcedState("outage");
+		expect(isIncidentConditionActive("serving_overload", chatOnly)).toBe(true);
+		expect(isIncidentConditionActive("api_overload", chatOnly)).toBe(false);
+	});
+
+	it("fires training overload at the exact capacity boundary", () => {
+		const state = forcedState("compute_cost_overrun");
+		state.compute.trainingDemand = state.compute.capacity;
+		expect(isIncidentConditionActive("training_overload", state)).toBe(false);
+		state.compute.trainingDemand = state.compute.capacity + 1;
+		expect(isIncidentConditionActive("training_overload", state)).toBe(true);
+	});
+
+	it("fires enterprise risk at the exact quality and reliability boundaries", () => {
+		const state = forcedState("enterprise_sla_breach");
+		const product = state.products.items[0];
+		const model = state.models.items[0];
+		if (product === undefined || model?.estimates === undefined) {
+			throw new Error("Expected enterprise fixture");
+		}
+		model.estimates.reliability = { estimate: 100, lower: 80, upper: 100 };
+		product.effectiveQuality = 56;
+		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(false);
+		product.effectiveQuality = 55;
+		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(true);
+		product.effectiveQuality = 100;
+		model.estimates.reliability = { estimate: 36, lower: 20, upper: 60 };
+		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(false);
+		model.estimates.reliability = { estimate: 35, lower: 20, upper: 60 };
+		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(true);
+	});
+
+	it("rejects an unknown incident type in the definition lookup", () => {
+		expect(() => incidentDefinition("unknown_incident" as never)).toThrow(
+			/unknown incident/i,
+		);
+	});
 });

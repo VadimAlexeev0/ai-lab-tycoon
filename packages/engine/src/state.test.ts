@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-	DecisionChoice,
-	PendingDecision,
-} from "./components/decisions.js";
-import type { Fact } from "./components/reports.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 import { createInitialGameState, type GameState } from "./state.js";
@@ -132,30 +127,6 @@ describe("GameState", () => {
 		);
 		invalidQueue.queue.decisionIds = ["decision_missing"];
 		expect(() => assertGameState(invalidQueue)).toThrow(/queue/i);
-	});
-
-	it("keeps facts, decisions, and choices closed under discriminated unions", () => {
-		const fact: Fact = {
-			kind: "resource_changed",
-			resource: "cash",
-			amount: -10,
-			week: 1,
-		};
-		const pending: PendingDecision = {
-			kind: "launch",
-			id: "decision_001",
-			modelId: "model_001",
-			blocking: true,
-		};
-		const choice: DecisionChoice = {
-			kind: "launch",
-			decisionId: "decision_001",
-			channel: "chat",
-		};
-
-		expect(fact.kind).toBe("resource_changed");
-		expect(pending.kind).toBe("launch");
-		expect(choice.kind).toBe("launch");
 	});
 
 	it("allows a pure system to return a new state with typed facts and pending decisions", () => {

@@ -12,7 +12,7 @@ import {
 	startRun,
 } from "./index.js";
 import { replayCommandLog } from "./replay.js";
-import type { GameState } from "./state.js";
+import type { CommandLogEntry, GameState } from "./state.js";
 
 const SPEC = {
 	name: "Replay-1",
@@ -99,7 +99,10 @@ function evaluationDecisionRun(): GameState {
 }
 
 describe("command-log replay", () => {
-	it("round-trips every direct command kind through the public transitions", () => {
+	// ~10 weeks of full-state validation plus a replay; generous for loaded CI.
+	it("round-trips every direct command kind through the public transitions", {
+		timeout: 60_000,
+	}, () => {
 		const original = directCommandRun();
 		const kinds = new Set(original.commandLog.map((entry) => entry.kind));
 		expect(kinds).toEqual(
@@ -119,7 +122,9 @@ describe("command-log replay", () => {
 		expect(replayed.commandLog).toEqual(original.commandLog);
 	});
 
-	it("round-trips the shelve apply-decision variant", () => {
+	it("round-trips the shelve apply-decision variant", {
+		timeout: 60_000,
+	}, () => {
 		const offered = evaluationDecisionRun();
 		const decision = offered.decisions.pending.find(
 			(item) => item.kind === "evaluation",
@@ -174,5 +179,48 @@ describe("command-log replay", () => {
 		if (model === undefined) throw new Error("Expected the evaluated model");
 		model.status = "designing";
 		expect(() => assertGameState(ineligibleModel)).toThrow(/non-eligible/i);
+	});
+
+	it("requires a start_run anchor and rejects later duplicates", () => {
+		expect(() => replayCommandLog([])).toThrow(/start_run/i);
+
+		const withoutAnchor: CommandLogEntry[] = [
+			{ id: "command_001", kind: "advance_week", week: 1 },
+		];
+		expect(() => replayCommandLog(withoutAnchor)).toThrow(/start_run/i);
+
+		const start = startRun({ companyName: "Acme Labs" }, 42);
+		const anchor = start.commandLog[0];
+		if (anchor === undefined) throw new Error("Expected the start anchor");
+		const duplicateStart: CommandLogEntry[] = [
+			anchor,
+			{ ...anchor, id: "command_002" },
+		];
+		expect(() => replayCommandLog(duplicateStart)).toThrow(/only one/i);
+	});
+
+	it("throws a replay mismatch when the log drifts from its own commands", () => {
+		const start = startRun({ companyName: "Acme Labs" }, 42);
+		const anchor = start.commandLog[0];
+		if (anchor === undefined) throw new Error("Expected the start anchor");
+		const drifted: CommandLogEntry[] = [
+			anchor,
+			{ id: "command_002", kind: "advance_week", week: 1 },
+			{ id: "command_003", kind: "advance_week", week: 1 },
+		];
+		expect(() => replayCommandLog(drifted)).toThrow(/mismatch/i);
+	});
+
+	it("replays advance commands carrying incident roll fixtures byte-for-byte", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const advanced = advanceWeek(state, { incidentRolls: [7, 7, 7, 7, 7, 7] });
+		const entry = advanced.state.commandLog.at(-1);
+		if (entry === undefined || entry.kind !== "advance_week") {
+			throw new Error("Expected an advance command");
+		}
+		expect(entry.incidentRolls).toEqual([7, 7, 7, 7, 7, 7]);
+
+		const replayed = replayCommandLog(advanced.state.commandLog);
+		expect(JSON.stringify(replayed)).toBe(JSON.stringify(advanced.state));
 	});
 });

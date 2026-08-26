@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
 import { MODEL_FAMILIES } from "./data/model-families.js";
 import { startRun } from "./index.js";
-import { designModel, type ModelDesignSpec } from "./model-design.js";
+import {
+	deriveEstimateBands,
+	designModel,
+	generateTrueScores,
+	type ModelDesignSpec,
+} from "./model-design.js";
 import { selectVisibleModels } from "./selectors.js";
 import type { GameState } from "./state.js";
 
@@ -251,5 +256,228 @@ describe("model designer", () => {
 		expect(() => designModel(state, VALID_SPEC)).toThrow(/cash|cost/i);
 		expect(state.models.items).toEqual([]);
 		expect(state.commandLog).toHaveLength(1);
+	});
+
+	it("accepts documented field aliases and normalizes them identically", () => {
+		const aliasSpec: ModelDesignSpec = {
+			name: "Aurora-1",
+			modelFamily: "text",
+			foundation: "fresh",
+			computeTier: "lean",
+			assignedTeamId: "team_001",
+			parentId: null,
+			dataMix: { general: 60, code: 30, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+		};
+		const viaAliases = designModel(designableState(), aliasSpec);
+		expect(viaAliases.state.models.items.at(-1)).toMatchObject({
+			family: "text",
+			tier: "lean",
+			parentModelId: null,
+		});
+		expect(viaAliases.state.projects.items.at(-1)).toMatchObject({
+			teamId: "team_001",
+		});
+
+		const legacyFields = designModel(
+			designableState(),
+			spec({ parentModelId: null }),
+		);
+		expect(legacyFields.state.models.items.at(-1)?.parentModelId).toBeNull();
+	});
+
+	it("rejects conflicting alias fields and unexpected spec keys", () => {
+		expect(() =>
+			designModel(designableState(), spec({ modelFamily: "assistant" })),
+		).toThrow(/agree/i);
+		expect(() =>
+			designModel(designableState(), spec({ computeTier: "aggressive" })),
+		).toThrow(/agree/i);
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({ parentModelId: "model_001", parentId: null }),
+			),
+		).toThrow(/agree/i);
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({ teamId: "team_001", assignedTeamId: "team_002" }),
+			),
+		).toThrow(/agree/i);
+		expect(() =>
+			designModel(designableState(), spec({ unexpected: true } as never)),
+		).toThrow(/unexpected/i);
+	});
+
+	it("rejects a parent model on a fresh foundation", () => {
+		expect(() =>
+			designModel(designableState(), spec({ parentModelId: "model_001" })),
+		).toThrow(/fresh.*parent|parent.*fresh/i);
+	});
+
+	it("rejects an unknown or busy requested team", () => {
+		expect(() =>
+			designModel(designableState(), spec({ teamId: "team_404" })),
+		).toThrow(/unknown team/i);
+
+		const busy = designableState();
+		const team = busy.teams.items[0];
+		const project = busy.projects.items[0];
+		if (team === undefined || project === undefined) {
+			throw new Error("Expected the opening team and project");
+		}
+		team.activeProjectId = project.id;
+		project.teamId = team.id;
+		project.status = "active";
+		expect(() => designModel(busy, spec({ teamId: "team_001" }))).toThrow(
+			/idle/i,
+		);
+	});
+
+	it("rejects fractional or negative data mix and emphasis values", () => {
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({ dataMix: { general: 60.5, code: 30, multimodal: 9.5 } }),
+			),
+		).toThrow(/non-negative integer|integer/i);
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({ dataMix: { general: 60, code: 30, multimodal: -10 } }),
+			),
+		).toThrow(/non-negative/i);
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({
+					emphasis: {
+						capability: 2,
+						reliability: 2,
+						safety: -1,
+						efficiency: 3,
+					},
+				}),
+			),
+		).toThrow(/non-negative/i);
+		expect(() =>
+			designModel(
+				designableState(),
+				spec({ dataMix: { general: 60, code: 25, multimodal: 10 } }),
+			),
+		).toThrow(/total/i);
+	});
+});
+
+describe("score generation contract", () => {
+	it("generates the exact golden hidden scores and estimates for seed 42", () => {
+		const generated = generateTrueScores(designableState().rng, {
+			id: "model_001",
+			name: "Aurora-1",
+			family: "text",
+			foundation: "fresh",
+			tier: "standard",
+			scoreCeiling: BALANCE.modelTiers.standard.scoreCeiling,
+			dataMix: { general: 60, code: 30, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			status: "training",
+			projectId: null,
+		});
+
+		expect(generated.trueScores).toEqual({
+			capability: 59,
+			coding: 41,
+			reliability: 62,
+			safety: 43,
+			efficiency: 61,
+			multimodal: 41,
+		});
+		expect(generated.estimates).toEqual({
+			capability: { estimate: 49, lower: 29, upper: 69 },
+			coding: { estimate: 38, lower: 18, upper: 58 },
+			reliability: { estimate: 65, lower: 45, upper: 85 },
+			safety: { estimate: 35, lower: 15, upper: 55 },
+			efficiency: { estimate: 66, lower: 46, upper: 86 },
+			multimodal: { estimate: 35, lower: 15, upper: 55 },
+		});
+		expect(generated.rng.streams.training).toEqual([
+			811944827, 419055407, 1571840862, -1732192921,
+		]);
+	});
+
+	it("derives default-width bands at zero coverage and minimum width at high coverage", () => {
+		const trueScores = {
+			capability: 59,
+			coding: 41,
+			reliability: 62,
+			safety: 43,
+			efficiency: 61,
+			multimodal: 41,
+		};
+		const estimateScores = {
+			capability: 49,
+			coding: 38,
+			reliability: 65,
+			safety: 35,
+			efficiency: 66,
+			multimodal: 35,
+		};
+
+		const wide = deriveEstimateBands(trueScores, 0, estimateScores);
+		expect(wide.capability).toEqual({ estimate: 49, lower: 29, upper: 69 });
+
+		const narrow = deriveEstimateBands(trueScores, 35, estimateScores);
+		expect(narrow.capability).toEqual({
+			estimate: 49,
+			lower: 48,
+			upper: 50,
+		});
+		for (const band of Object.values(narrow)) {
+			expect(band.upper - band.lower).toBe(
+				2 * BALANCE.modelScore.minimumEstimateBandWidth,
+			);
+		}
+	});
+
+	it("rejects malformed scores, estimates, and coverage", () => {
+		const trueScores = {
+			capability: 59,
+			coding: 41,
+			reliability: 62,
+			safety: 43,
+			efficiency: 61,
+			multimodal: 41,
+		};
+		const estimateScores = {
+			capability: 49,
+			coding: 38,
+			reliability: 65,
+			safety: 35,
+			efficiency: 66,
+			multimodal: 35,
+		};
+		expect(() =>
+			deriveEstimateBands(
+				{ ...trueScores, capability: 59.5 },
+				0,
+				estimateScores,
+			),
+		).toThrow(/integer/i);
+		expect(() =>
+			deriveEstimateBands({ ...trueScores, coding: -1 }, 0, estimateScores),
+		).toThrow(/between 0 and 100/i);
+		expect(() =>
+			deriveEstimateBands(trueScores, 0, {
+				...estimateScores,
+				reliability: Number.NaN,
+			}),
+		).toThrow(/finite/i);
+		expect(() =>
+			deriveEstimateBands(trueScores, Number.NaN, estimateScores),
+		).toThrow(/finite/i);
+		expect(() =>
+			deriveEstimateBands(trueScores, 0, estimateScores),
+		).not.toThrow();
 	});
 });

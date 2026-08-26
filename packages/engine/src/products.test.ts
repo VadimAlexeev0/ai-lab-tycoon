@@ -115,4 +115,125 @@ describe("products", () => {
 			expect.arrayContaining(["developer_api", "enterprise"]),
 		);
 	});
+
+	it("zeroes demand and revenue for non-operating products", () => {
+		const launched = launchProduct(readyState(), "model_001", "chat").state;
+		const product = launched.products.items[0];
+		if (product === undefined) throw new Error("Expected chat product");
+		product.status = "paused";
+		product.servingDemand = 99;
+		product.lastRevenue = 42;
+
+		const result = productsSystem(launched, { phase: "products", week: 2 });
+
+		expect(result.state.products.items[0]).toMatchObject({
+			status: "paused",
+			servingDemand: 0,
+			lastRevenue: 0,
+		});
+		expect(result.state.compute.servingDemand).toBe(0);
+		expect(result.state.compute.allocated).toBe(0);
+		expect(result.facts.some((fact) => fact.kind === "revenue")).toBe(false);
+	});
+
+	it("clamps trust at exactly 100 and stops emitting trust facts", () => {
+		const state = readyState();
+		state.meta.era = "assistant";
+		state.research.currentEra = "assistant";
+		state.company.hype = 100;
+		state.company.trust = 98;
+		const model = state.models.items[0];
+		if (model?.estimates === undefined) throw new Error("Expected estimates");
+		for (const estimate of Object.values(model.estimates)) {
+			estimate.estimate = 100;
+			estimate.lower = 80;
+			estimate.upper = 100;
+		}
+		const launched = launchProduct(state, "model_001", "enterprise").state;
+
+		const first = productsSystem(launched, { phase: "products", week: 1 });
+		expect(first.state.company.trust).toBe(99);
+		const second = productsSystem(first.state, {
+			phase: "products",
+			week: 2,
+		});
+		expect(second.state.company.trust).toBe(100);
+		expect(
+			second.facts.filter(
+				(fact) => fact.kind === "resource_changed" && fact.resource === "trust",
+			),
+		).toHaveLength(1);
+		const third = productsSystem(second.state, {
+			phase: "products",
+			week: 3,
+		});
+		expect(third.state.company.trust).toBe(100);
+		expect(
+			third.facts.filter(
+				(fact) => fact.kind === "resource_changed" && fact.resource === "trust",
+			),
+		).toHaveLength(0);
+	});
+
+	it("emits no revenue fact when the computed revenue truncates to zero", () => {
+		const state = readyState();
+		const model = state.models.items[0];
+		if (model?.estimates === undefined) throw new Error("Expected estimates");
+		model.estimates.capability = { estimate: 0, lower: 0, upper: 20 };
+		model.estimates.reliability = { estimate: 0, lower: 0, upper: 20 };
+		state.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_001",
+				status: "operating",
+				users: 10,
+				lastRevenue: 0,
+				cumulativeRevenue: 0,
+				servingDemand: 10,
+				effectiveQuality: 0,
+			},
+		];
+
+		const result = productsSystem(state, { phase: "products", week: 1 });
+
+		expect(result.state.products.items[0]?.lastRevenue).toBe(0);
+		expect(result.state.products.items[0]?.cumulativeRevenue).toBe(0);
+		expect(result.state.company.cash).toBe(state.company.cash);
+		expect(result.facts.some((fact) => fact.kind === "revenue")).toBe(false);
+	});
+
+	it("truncates fractional revenue toward zero instead of rounding", () => {
+		const state = readyState();
+		const model = state.models.items[0];
+		if (model?.estimates === undefined) throw new Error("Expected estimates");
+		// Chat quality is the mean of capability and reliability: 57 here.
+		model.estimates.capability = { estimate: 54, lower: 34, upper: 74 };
+		model.estimates.reliability = { estimate: 60, lower: 40, upper: 80 };
+		const launched = launchProduct(state, "model_001", "chat").state;
+
+		// 100 * 57 * 15 / 1000 = 85.5, which must truncate to 85.
+		const result = productsSystem(launched, { phase: "products", week: 1 });
+		expect(result.state.products.items[0]?.users).toBe(15);
+		expect(result.state.products.items[0]?.lastRevenue).toBe(85);
+		expect(result.state.products.items[0]?.cumulativeRevenue).toBe(85);
+		expect(result.state.company.cash).toBe(launched.company.cash + 85);
+	});
+
+	it("accumulates exact weekly revenue into cash and cumulative revenue", () => {
+		const launched = launchProduct(readyState(), "model_001", "chat").state;
+		const first = productsSystem(launched, { phase: "products", week: 1 });
+		expect(first.state.products.items[0]?.users).toBe(15);
+		expect(first.state.products.items[0]?.lastRevenue).toBe(75);
+		expect(first.state.products.items[0]?.cumulativeRevenue).toBe(75);
+
+		const second = productsSystem(first.state, {
+			phase: "products",
+			week: 2,
+		});
+		expect(second.state.products.items[0]?.users).toBe(20);
+		expect(second.state.products.items[0]?.lastRevenue).toBe(100);
+		expect(second.state.products.items[0]?.cumulativeRevenue).toBe(175);
+		expect(second.state.company.cash).toBe(launched.company.cash + 75 + 100);
+	});
 });

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { BALANCE } from "./data/balance.js";
 import { runEvaluation } from "./evaluations.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
 import type { GameState } from "./state.js";
@@ -157,6 +156,79 @@ describe("evaluations", () => {
 			scoredState().models.items[0]?.estimates?.capability,
 		);
 	});
-});
 
-void BALANCE;
+	it("narrows capability bands by exactly the coverage-weighted movement", () => {
+		const state = scoredState();
+		const started = runEvaluation(state, "model_001", "capability");
+		const project = started.state.projects.items.find(
+			(item) => item.kind === "evaluation",
+		);
+		if (project === undefined) throw new Error("Expected evaluation project");
+		project.duration = 1;
+		const result = advanceWeek(started.state);
+		const model = result.state.models.items[0];
+		if (model?.estimates === undefined) throw new Error("Expected estimates");
+		const completion = result.facts.find(
+			(fact) => fact.kind === "evaluation_completed",
+		);
+
+		expect(model.estimates.capability).toEqual({
+			estimate: 54,
+			lower: 41,
+			upper: 67,
+		});
+		expect(model.estimates.coding).toEqual({
+			estimate: 63,
+			lower: 50,
+			upper: 77,
+		});
+		expect(model.estimates.reliability).toEqual({
+			estimate: 70,
+			lower: 50,
+			upper: 90,
+		});
+		expect(completion).toMatchObject({
+			kind: "evaluation_completed",
+			coverage: 35,
+		});
+	});
+
+	it("applies the safety emphasis bonus to safety evaluation coverage and bands", () => {
+		const state = scoredState();
+		const started = runEvaluation(state, {
+			modelId: "model_001",
+			evaluation: "safety_reliability",
+		});
+		const project = started.state.projects.items.find(
+			(item) => item.kind === "evaluation",
+		);
+		if (project === undefined) throw new Error("Expected evaluation project");
+		project.duration = 1;
+		const result = advanceWeek(started.state);
+		const model = result.state.models.items[0];
+		if (model?.estimates === undefined) throw new Error("Expected estimates");
+		const completion = result.facts.find(
+			(fact) => fact.kind === "evaluation_completed",
+		);
+
+		expect(model.estimates.reliability).toEqual({
+			estimate: 48,
+			lower: 39,
+			upper: 57,
+		});
+		expect(model.estimates.safety).toEqual({
+			estimate: 34,
+			lower: 25,
+			upper: 43,
+		});
+		expect(model.estimates.capability).toEqual({
+			estimate: 40,
+			lower: 20,
+			upper: 60,
+		});
+		expect(completion).toMatchObject({
+			kind: "evaluation_completed",
+			coverage: 55,
+		});
+	});
+});

@@ -275,4 +275,76 @@ describe("funding gates", () => {
 		expect(result.state.company.cash).toBe(offered.state.company.cash);
 		expect(result.state.funding.seed.status).toBe("declined");
 	});
+
+	it("pins the exact seed grant amount", () => {
+		const offered = fundingSystem(fundableState(), {
+			phase: "funding",
+			week: 1,
+		});
+		const decision = offered.pending[0];
+		if (decision === undefined || decision.kind !== "funding") {
+			throw new Error("Expected a seed funding offer");
+		}
+		const result = applyDecision(persistPending(offered.state, [decision]), {
+			kind: "funding",
+			decisionId: decision.id,
+			round: "seed",
+			accept: true,
+		});
+		expect(result.state.company.cash - offered.state.company.cash).toBe(500);
+	});
+
+	it("rejects resolving a round that is not available", () => {
+		const locked = fundableState();
+		expect(() => applyFunding(locked, "series_a", true)).toThrow(
+			/not available/i,
+		);
+
+		const declined = seriesAFundableState();
+		declined.funding.seed.status = "declined";
+		expect(() => applyFunding(declined, "seed", true)).toThrow(
+			/not available/i,
+		);
+	});
+
+	it("rejects accepting an offer whose gate is no longer met", () => {
+		const offered = fundingSystem(fundableState(), {
+			phase: "funding",
+			week: 1,
+		});
+		const decision = offered.pending[0];
+		if (decision === undefined || decision.kind !== "funding") {
+			throw new Error("Expected a seed funding offer");
+		}
+		const stale = persistPending(offered.state, [decision]);
+		stale.company.hype = BALANCE.funding.seed.minimumHype - 1;
+		expect(meetsFundingGate(stale, "seed")).toBe(false);
+		expect(() =>
+			applyDecision(stale, {
+				kind: "funding",
+				decisionId: decision.id,
+				round: "seed",
+				accept: true,
+			}),
+		).toThrow(/no longer met/i);
+	});
+
+	it("does not re-offer a round while its offer is still pending", () => {
+		const offered = fundingSystem(fundableState(), {
+			phase: "funding",
+			week: 1,
+		});
+		const decision = offered.pending[0];
+		if (decision === undefined || decision.kind !== "funding") {
+			throw new Error("Expected a seed funding offer");
+		}
+		const persisted = persistPending(offered.state, [decision]);
+
+		const second = fundingSystem(persisted, { phase: "funding", week: 2 });
+		const fundingDecisions = second.pending.filter(
+			(item) => item.kind === "funding",
+		);
+		expect(fundingDecisions).toEqual([decision]);
+		expect(second.state.counters.decision).toBe(persisted.counters.decision);
+	});
 });

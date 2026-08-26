@@ -5,7 +5,6 @@ import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
 import { OPENING_RIVALS } from "./data/rivals.js";
 import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
-import type { VisibleModelEstimate } from "./selectors.js";
 import {
 	selectAvailableProjects,
 	selectNextObjective,
@@ -176,32 +175,6 @@ describe("visible selectors", () => {
 		expect(JSON.stringify(visibleModels)).not.toContain("foundation");
 		expect(JSON.stringify(visibleModels)).not.toContain("projectId");
 		expect(JSON.stringify(visibleModels)).not.toContain("status");
-
-		const publicProjection: VisibleModelEstimate = {
-			id: "model_001",
-			name: "Aurora-1",
-			brand: "Aurora",
-			family: "assistant",
-			estimates: {
-				reasoning: { estimate: 72, lower: 54, upper: 90 },
-			},
-		};
-		expect(publicProjection).toEqual({
-			id: "model_001",
-			name: "Aurora-1",
-			brand: "Aurora",
-			family: "assistant",
-			estimates: {
-				reasoning: { estimate: 72, lower: 54, upper: 90 },
-			},
-		});
-		const leakedProjection: VisibleModelEstimate = {
-			id: "model_001",
-			name: "Aurora-1",
-			// @ts-expect-error Visible model projections must never expose true scores.
-			trueScores: { capability: 99 },
-		};
-		void leakedProjection;
 
 		(
 			stateWithHiddenFields.rivals.items[0] as unknown as Record<

@@ -215,7 +215,11 @@ describe("Task 7 integration and replay regressions", () => {
 		]);
 	});
 
-	it("runs the natural public-command path through the first multimodal launch", () => {
+	// ~37 weeks of full-state validation per system; generous so a loaded
+	// machine cannot flake the golden path.
+	it("runs the natural public-command path through the first multimodal launch", {
+		timeout: 300_000,
+	}, () => {
 		const first = runGolden(42);
 		const second = runGolden(42);
 
@@ -258,7 +262,9 @@ describe("Task 7 integration and replay regressions", () => {
 		);
 	});
 
-	it("replays the golden public command log byte-for-byte", () => {
+	it("replays the golden public command log byte-for-byte", {
+		timeout: 300_000,
+	}, () => {
 		const original = runGolden(42);
 		const replayed = replayCommandLog(original.state.commandLog);
 		expect(JSON.stringify(replayed)).toBe(JSON.stringify(original.state));
