@@ -1,9 +1,14 @@
 import {
+	applyDecision,
 	assignProject,
 	cancelProject,
+	designModel,
 	type EngineResult,
 	type GameState,
+	type ModelDesignSpec,
+	runEvaluation,
 	selectNextObjective,
+	selectPendingDecisions,
 	selectVisibleState,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
@@ -16,7 +21,8 @@ import {
 	RotateCcw,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-
+import ModelCard from "@/game/components/model-card";
+import ModelDesigner from "@/game/components/model-designer";
 import ResearchPanel from "@/game/components/research-panel";
 import TeamPanel from "@/game/components/team-panel";
 import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
@@ -246,6 +252,28 @@ export default function GameShell({
 										cancelProject(state, teamId, projectId),
 									);
 								}}
+								onDesignModel={(spec) => {
+									void executeEngineCommand((state) =>
+										designModel(state, spec),
+									);
+								}}
+								onEvaluateModel={(modelId, evaluation) => {
+									const pending = selectPendingDecisions(gameState).find(
+										(decision) =>
+											decision.kind === "evaluation" &&
+											decision.modelId === modelId &&
+											decision.evaluation === evaluation,
+									);
+									void executeEngineCommand((state) =>
+										pending
+											? applyDecision(state, {
+													kind: "evaluate",
+													decisionId: pending.id,
+													evaluation,
+												})
+											: runEvaluation(state, modelId, evaluation),
+									);
+								}}
 								onSelectPanel={setActivePanel}
 								state={gameState}
 							/>
@@ -320,6 +348,8 @@ function DashboardPanels({
 	activePanel,
 	onAssignProject,
 	onCancelProject,
+	onDesignModel,
+	onEvaluateModel,
 	onSelectPanel,
 	state,
 }: {
@@ -328,6 +358,11 @@ function DashboardPanels({
 	activePanel: DashboardPanel;
 	onAssignProject: (teamId: string, projectId: string) => void;
 	onCancelProject: (teamId: string, projectId: string) => void;
+	onDesignModel: (spec: ModelDesignSpec) => void;
+	onEvaluateModel: (
+		modelId: string,
+		evaluation: "capability" | "safety_reliability",
+	) => void;
 	onSelectPanel: (panel: DashboardPanel) => void;
 	state: GameState;
 }) {
@@ -350,10 +385,18 @@ function DashboardPanels({
 				return <ResearchPanel state={state} />;
 			case "models":
 				return (
-					<ComingSoonPanel
-						description="The model workbench is staged next. Research unlocks remain visible above."
-						title="Model designer"
-					/>
+					<div className="space-y-6">
+						<ModelDesigner
+							disabled={actionBusy}
+							onDesign={onDesignModel}
+							state={state}
+						/>
+						<ModelCard
+							disabled={actionBusy}
+							onEvaluate={onEvaluateModel}
+							state={state}
+						/>
+					</div>
 				);
 			case "products":
 				return (
