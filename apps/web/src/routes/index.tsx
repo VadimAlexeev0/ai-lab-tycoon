@@ -223,6 +223,7 @@ function HomeComponent() {
 			companyName={activeState?.company.name}
 			gameState={activeState}
 			hasActiveRun={activeState !== undefined}
+			onRestartRun={run.chooseNewRun}
 			onRetrySession={session.retry}
 			onRunUpdated={run.handleAdvanced}
 			sessionError={session.status === "error" ? session.message : undefined}

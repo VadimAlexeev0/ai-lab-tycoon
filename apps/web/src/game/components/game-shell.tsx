@@ -2,6 +2,7 @@ import {
 	applyDecision,
 	assignProject,
 	cancelProject,
+	type DecisionChoice,
 	designModel,
 	type EngineResult,
 	type GameState,
@@ -21,9 +22,15 @@ import {
 	RotateCcw,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import ComputePanel from "@/game/components/compute-panel";
+import FundingPanel from "@/game/components/funding-panel";
+import IncidentCard from "@/game/components/incident-card";
 import ModelCard from "@/game/components/model-card";
 import ModelDesigner from "@/game/components/model-designer";
+import ProductPanel from "@/game/components/product-panel";
 import ResearchPanel from "@/game/components/research-panel";
+import RivalsPanel from "@/game/components/rivals-panel";
+import RunResult from "@/game/components/run-result";
 import TeamPanel from "@/game/components/team-panel";
 import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
 
@@ -118,6 +125,7 @@ export default function GameShell({
 	gameState,
 	revision,
 	onRunUpdated,
+	onRestartRun,
 }: GameShellProps) {
 	const [activePanel, setActivePanel] = useState<DashboardPanel>("overview");
 	const [actionBusy, setActionBusy] = useState(false);
@@ -274,7 +282,13 @@ export default function GameShell({
 											: runEvaluation(state, modelId, evaluation),
 									);
 								}}
+								onResolveDecision={(choice) => {
+									void executeEngineCommand((state) =>
+										applyDecision(state, choice),
+									);
+								}}
 								onSelectPanel={setActivePanel}
+								onRestartRun={onRestartRun}
 								state={gameState}
 							/>
 						) : null}
@@ -350,6 +364,8 @@ function DashboardPanels({
 	onCancelProject,
 	onDesignModel,
 	onEvaluateModel,
+	onResolveDecision,
+	onRestartRun,
 	onSelectPanel,
 	state,
 }: {
@@ -363,11 +379,14 @@ function DashboardPanels({
 		modelId: string,
 		evaluation: "capability" | "safety_reliability",
 	) => void;
+	onResolveDecision: (choice: DecisionChoice) => void;
+	onRestartRun?: () => void;
 	onSelectPanel: (panel: DashboardPanel) => void;
 	state: GameState;
 }) {
 	const activeDefinition =
 		PANELS.find((panel) => panel.id === activePanel) ?? PANELS[0];
+	const [milestoneDismissed, setMilestoneDismissed] = useState(false);
 	const bodyFor = (panel: DashboardPanel): ReactNode => {
 		switch (panel) {
 			case "overview":
@@ -400,10 +419,32 @@ function DashboardPanels({
 				);
 			case "products":
 				return (
-					<ComingSoonPanel
-						description="Launch pressure and operations are staged next. Keep an eye on the active project queue."
-						title="Product operations"
-					/>
+					<div className="space-y-6">
+						<ProductPanel
+							disabled={actionBusy}
+							onResolveDecision={onResolveDecision}
+							state={state}
+						/>
+						<ComputePanel state={state} />
+						<RivalsPanel state={state} />
+						<FundingPanel
+							disabled={actionBusy}
+							onResolveDecision={onResolveDecision}
+							state={state}
+						/>
+						<IncidentCard
+							disabled={actionBusy}
+							onResolveDecision={onResolveDecision}
+							state={state}
+						/>
+						<RunResult
+							disabled={actionBusy}
+							milestoneDismissed={milestoneDismissed}
+							onContinueSandbox={() => setMilestoneDismissed(true)}
+							onRestartRun={onRestartRun}
+							state={state}
+						/>
+					</div>
 				);
 		}
 	};
@@ -577,26 +618,6 @@ function Metric({ label, value }: { label: string; value: string }) {
 			</p>
 			<p className="mt-1 font-mono font-semibold text-foreground text-sm">
 				{value}
-			</p>
-		</div>
-	);
-}
-
-function ComingSoonPanel({
-	description,
-	title,
-}: {
-	description: string;
-	title: string;
-}) {
-	return (
-		<div className="border border-border/70 bg-background/35 px-3 py-4">
-			<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
-				Next module
-			</p>
-			<h3 className="mt-2 font-medium text-foreground text-sm">{title}</h3>
-			<p className="mt-1 text-muted-foreground text-xs leading-5">
-				{description}
 			</p>
 		</div>
 	);
