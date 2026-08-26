@@ -16,7 +16,8 @@
 		"db:generate": "turbo run db:generate -F @ai-lab-tycoon/db --",
 		"deploy": "turbo run deploy -F @ai-lab-tycoon/infra --",
 		"destroy": "turbo run destroy -F @ai-lab-tycoon/infra --",
-		"check": "biome check --write ."
+		"check": "biome check --write .",
+		"sim": "turbo run sim -F @ai-lab-tycoon/sim-cli --"
 	},
 	"dependencies": {
 		"@ai-lab-tycoon/env": "workspace:*",
