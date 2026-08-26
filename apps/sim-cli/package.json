@@ -1,0 +1,19 @@
+{
+	"name": "@ai-lab-tycoon/sim-cli",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"sim": "tsx src/index.ts",
+		"check-types": "tsc --noEmit",
+		"build": "tsc -b"
+	},
+	"dependencies": {
+		"@ai-lab-tycoon/engine": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"tsx": "^4.20.5",
+		"typescript": "catalog:"
+	}
+}
