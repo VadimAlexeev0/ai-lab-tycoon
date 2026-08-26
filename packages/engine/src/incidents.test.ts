@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { IncidentType } from "./components/decisions.js";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import { incidentDefinition } from "./data/incidents.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
 import type { GameState } from "./state.js";
@@ -52,7 +53,45 @@ function forcedState(incident: IncidentType): GameState {
 	];
 
 	if (incident === "compute_cost_overrun") {
-		state.compute.trainingDemand = state.compute.capacity + 1;
+		const firstModel = state.models.items[0];
+		const firstTeam = state.teams.items[0];
+		if (firstModel === undefined || firstTeam === undefined) {
+			throw new Error("Expected training fixture components");
+		}
+		firstModel.tier = "aggressive";
+		firstModel.projectId = "project_001";
+		firstTeam.activeProjectId = "project_001";
+		state.models.items.push({
+			...firstModel,
+			id: "model_002",
+			projectId: "project_002",
+		});
+		state.teams.items.push({
+			id: "team_002",
+			name: "Training Team",
+			activeProjectId: "project_002",
+		});
+		state.projects.items = [
+			{
+				kind: "training",
+				id: "project_001",
+				teamId: "team_001",
+				status: "active",
+				progress: 0,
+				duration: 3,
+				modelId: "model_001",
+			},
+			{
+				kind: "training",
+				id: "project_002",
+				teamId: "team_002",
+				status: "active",
+				progress: 0,
+				duration: 3,
+				modelId: "model_002",
+			},
+		];
+		state.compute = withRecomputedCompute(state);
 		return state;
 	}
 	const channel =
@@ -67,7 +106,7 @@ function forcedState(incident: IncidentType): GameState {
 			channel,
 			modelId: "model_001",
 			status: "operating",
-			users: 10,
+			users: incident === "data_privacy_incident" ? 1 : 10,
 			lastRevenue: 0,
 			cumulativeRevenue: 0,
 			servingDemand:
@@ -84,7 +123,7 @@ function forcedState(incident: IncidentType): GameState {
 			model.estimates.reliability = { estimate: 10, lower: 0, upper: 20 };
 		}
 	}
-	state.compute.servingDemand = state.products.items[0]?.servingDemand ?? 0;
+	state.compute = withRecomputedCompute(state);
 	return state;
 }
 
@@ -98,7 +137,12 @@ describe("incidents", () => {
 				incidentRolls: [0],
 			});
 			expect(result.pending).toContainEqual(
-				expect.objectContaining({ kind: "incident", incident, blocking: true }),
+				expect.objectContaining({
+					kind: "incident",
+					incident,
+					incidentId: expect.any(String),
+					blocking: true,
+				}),
 			);
 			expect(result.facts).toContainEqual(
 				expect.objectContaining({
@@ -148,10 +192,17 @@ describe("incidents", () => {
 					severity: expect.any(Number),
 				}),
 			);
+			const incidentDecision = occurrence.pending.find(
+				(decision) => decision.kind === "incident",
+			);
+			if (incidentDecision?.kind !== "incident") {
+				throw new Error("Expected an incident decision");
+			}
 			const resolved = applyIncidentResponse(
 				occurrence.state,
 				incident,
 				"repair",
+				incidentDecision.id,
 			);
 			expect(
 				isIncidentConditionActive(definition.condition, resolved.state),
@@ -162,7 +213,7 @@ describe("incidents", () => {
 			if (resolvedFact?.kind !== "incident_resolved") {
 				throw new Error("Expected an incident resolution fact");
 			}
-			expect(resolvedFact.incidentId).toBe(incident);
+			expect(resolvedFact.incidentId).toBe(incidentDecision.id);
 			expect(resolved.facts).toContainEqual(
 				expect.objectContaining({
 					kind: "incident_resolved",
@@ -176,6 +227,7 @@ describe("incidents", () => {
 	it("keeps a trust-zero incident pending until its response is applied", () => {
 		const state = forcedState("data_privacy_incident");
 		state.compute.capacity = 100;
+		state.compute = withRecomputedCompute(state);
 		const advanced = advanceWeek(state, { incidentRolls: [0] });
 
 		expect(advanced.state.terminal.status).toBe("active");
@@ -213,6 +265,7 @@ describe("incidents", () => {
 	it("terminalizes immediately when an incident response leaves Trust at zero", () => {
 		const state = forcedState("data_privacy_incident");
 		state.compute.capacity = 100;
+		state.compute = withRecomputedCompute(state);
 		const advanced = advanceWeek(state, { incidentRolls: [0] });
 		const decision = advanced.state.decisions.pending[0];
 		if (decision?.kind !== "incident")
@@ -369,11 +422,12 @@ describe("incidents", () => {
 		const overload = forcedState("outage");
 		const product = overload.products.items[0];
 		if (product === undefined) throw new Error("Expected product");
-		overload.compute.servingDemand = overload.compute.capacity;
+		overload.compute.capacity = 12;
 		product.servingDemand = overload.compute.capacity;
+		overload.compute = withRecomputedCompute(overload);
 		expect(isIncidentConditionActive("serving_overload", overload)).toBe(false);
-		overload.compute.servingDemand = overload.compute.capacity + 1;
 		product.servingDemand = overload.compute.capacity + 1;
+		overload.compute = withRecomputedCompute(overload);
 		expect(isIncidentConditionActive("serving_overload", overload)).toBe(true);
 	});
 
@@ -389,9 +443,17 @@ describe("incidents", () => {
 
 	it("fires training overload at the exact capacity boundary", () => {
 		const state = forcedState("compute_cost_overrun");
-		state.compute.trainingDemand = state.compute.capacity;
+		const firstModel = state.models.items[0];
+		const secondModel = state.models.items[1];
+		if (firstModel === undefined || secondModel === undefined) {
+			throw new Error("Expected training models");
+		}
+		firstModel.tier = "standard";
+		secondModel.tier = "standard";
+		state.compute = withRecomputedCompute(state);
 		expect(isIncidentConditionActive("training_overload", state)).toBe(false);
-		state.compute.trainingDemand = state.compute.capacity + 1;
+		secondModel.tier = "aggressive";
+		state.compute = withRecomputedCompute(state);
 		expect(isIncidentConditionActive("training_overload", state)).toBe(true);
 	});
 
@@ -403,15 +465,86 @@ describe("incidents", () => {
 			throw new Error("Expected enterprise fixture");
 		}
 		model.estimates.reliability = { estimate: 100, lower: 80, upper: 100 };
-		product.effectiveQuality = 56;
-		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(false);
 		product.effectiveQuality = 55;
-		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(true);
+		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(false);
 		product.effectiveQuality = 100;
 		model.estimates.reliability = { estimate: 36, lower: 20, upper: 60 };
 		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(false);
 		model.estimates.reliability = { estimate: 35, lower: 20, upper: 60 };
 		expect(isIncidentConditionActive("enterprise_risk", state)).toBe(true);
+	});
+
+	it("uses definition thresholds instead of the mutable compute capacity", () => {
+		const serving = forcedState("outage");
+		const servingProduct = serving.products.items[0];
+		if (servingProduct === undefined)
+			throw new Error("Expected serving product");
+		serving.compute.capacity = 100;
+		servingProduct.servingDemand = incidentDefinition("outage").threshold + 1;
+		serving.compute = withRecomputedCompute(serving);
+		expect(isIncidentConditionActive("serving_overload", serving)).toBe(true);
+
+		const training = forcedState("compute_cost_overrun");
+		training.compute.capacity = 100;
+		training.compute = withRecomputedCompute(training);
+		expect(isIncidentConditionActive("training_overload", training)).toBe(true);
+	});
+
+	it("reports aggregate overload measurement and the offending product consistently", () => {
+		const state = forcedState("outage");
+		const first = state.products.items[0];
+		if (first === undefined) throw new Error("Expected first product");
+		first.servingDemand = 13;
+		state.products.items.push({
+			...first,
+			id: "product_002",
+			servingDemand: 1,
+		});
+		state.compute.capacity = 12;
+		state.compute = withRecomputedCompute(state);
+
+		const result = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRoll: 0,
+		});
+		const occurred = result.facts.find(
+			(fact) => fact.kind === "incident_occurred",
+		);
+		expect(occurred).toMatchObject({
+			kind: "incident_occurred",
+			affectedEntity: "product_001",
+			metric: incidentDefinition("outage").metric,
+			measurement: 14,
+			threshold: incidentDefinition("outage").threshold,
+		});
+
+		first.servingDemand = 7;
+		const second = state.products.items[1];
+		if (second === undefined) throw new Error("Expected second product");
+		second.servingDemand = 7;
+		state.compute = withRecomputedCompute(state);
+		const aggregateOnly = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRoll: 0,
+		});
+		const aggregateFact = aggregateOnly.facts.find(
+			(fact) => fact.kind === "incident_occurred",
+		);
+		expect(aggregateFact).toMatchObject({
+			affectedEntity: "company",
+			measurement: 14,
+		});
+	});
+
+	it("requires a stable pending incident id instead of falling back to its type", () => {
+		const state = forcedState("outage");
+		state.decisions.pending = [];
+		state.queue.decisionIds = [];
+		expect(() => applyIncidentResponse(state, "outage", "repair")).toThrow(
+			/incident id/i,
+		);
 	});
 
 	it("rejects an unknown incident type in the definition lookup", () => {

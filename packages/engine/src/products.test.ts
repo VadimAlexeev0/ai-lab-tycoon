@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import { startRun } from "./index.js";
-import { launchProduct } from "./products.js";
+import { isProductLaunchEligible, launchProduct } from "./products.js";
 import type { GameState } from "./state.js";
 import { productsSystem } from "./systems/products.js";
 
@@ -37,6 +38,22 @@ function readyState(): GameState {
 			},
 		},
 	];
+	return state;
+}
+
+function assistantEra(state: GameState): GameState {
+	state.meta.era = "assistant";
+	state.research.currentEra = "assistant";
+	for (const nodeId of ["text_models_principles", "text_models_keystone"]) {
+		const node = state.research.nodes.find((item) => item.id === nodeId);
+		if (node === undefined) throw new Error(`Expected ${nodeId}`);
+		node.status = "completed";
+	}
+	return state;
+}
+
+function syncCompute(state: GameState): GameState {
+	state.compute = withRecomputedCompute(state);
 	return state;
 }
 
@@ -93,9 +110,7 @@ describe("products", () => {
 	});
 
 	it("offers each missing channel once its exact gates are met", () => {
-		const state = readyState();
-		state.meta.era = "assistant";
-		state.research.currentEra = "assistant";
+		const state = assistantEra(readyState());
 		state.company.hype = 100;
 		state.company.trust = 100;
 		const model = state.models.items[0];
@@ -116,6 +131,75 @@ describe("products", () => {
 		);
 	});
 
+	it("offers eligible launches alongside an affordable evaluation", () => {
+		const state = readyState();
+		state.company.hype = 100;
+		state.company.trust = 100;
+		state.company.insight = BALANCE.evaluations.capability.insightCost;
+		expect(isProductLaunchEligible(state, "model_001", "chat")).toBe(true);
+		expect(isProductLaunchEligible(state, "model_001", "developer_api")).toBe(
+			true,
+		);
+		const result = productsSystem(state, { phase: "products", week: 1 });
+
+		expect(result.pending).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					kind: "evaluation",
+					modelId: "model_001",
+					evaluation: "capability",
+				}),
+				expect.objectContaining({
+					kind: "launch",
+					modelId: "model_001",
+					channel: "chat",
+				}),
+				expect.objectContaining({
+					kind: "launch",
+					modelId: "model_001",
+					channel: "developer_api",
+				}),
+			]),
+		);
+	});
+
+	it("keeps eligible launches when evaluation resources are unavailable", () => {
+		const state = readyState();
+		state.company.hype = 100;
+		state.company.trust = 100;
+		state.company.insight = 0;
+		const result = productsSystem(state, { phase: "products", week: 1 });
+		const launches = result.pending.filter(
+			(decision) => decision.kind === "launch",
+		);
+
+		expect(launches.map((decision) => decision.channel)).toEqual(
+			expect.arrayContaining(["chat", "developer_api"]),
+		);
+		expect(
+			result.pending.some((decision) => decision.kind === "evaluation"),
+		).toBe(false);
+	});
+
+	it("surfaces an informational fact when a ready model has no affordable choice", () => {
+		const state = readyState();
+		state.company.cash = 0;
+		state.company.hype = 0;
+		state.company.insight = 0;
+		state.company.trust = 0;
+
+		const result = productsSystem(state, { phase: "products", week: 1 });
+
+		expect(
+			result.pending.some(
+				(decision) =>
+					(decision.kind === "launch" || decision.kind === "evaluation") &&
+					decision.modelId === "model_001",
+			),
+		).toBe(false);
+		expect(result.facts.length).toBeGreaterThan(0);
+	});
+
 	it("zeroes demand and revenue for non-operating products", () => {
 		const launched = launchProduct(readyState(), "model_001", "chat").state;
 		const product = launched.products.items[0];
@@ -124,7 +208,10 @@ describe("products", () => {
 		product.servingDemand = 99;
 		product.lastRevenue = 42;
 
-		const result = productsSystem(launched, { phase: "products", week: 2 });
+		const result = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 2,
+		});
 
 		expect(result.state.products.items[0]).toMatchObject({
 			status: "paused",
@@ -137,9 +224,7 @@ describe("products", () => {
 	});
 
 	it("clamps trust at exactly 100 and stops emitting trust facts", () => {
-		const state = readyState();
-		state.meta.era = "assistant";
-		state.research.currentEra = "assistant";
+		const state = assistantEra(readyState());
 		state.company.hype = 100;
 		state.company.trust = 98;
 		const model = state.models.items[0];
@@ -181,6 +266,7 @@ describe("products", () => {
 		if (model?.estimates === undefined) throw new Error("Expected estimates");
 		model.estimates.capability = { estimate: 0, lower: 0, upper: 20 };
 		model.estimates.reliability = { estimate: 0, lower: 0, upper: 20 };
+		model.status = "launched";
 		state.products.items = [
 			{
 				id: "product_001",
@@ -195,7 +281,10 @@ describe("products", () => {
 			},
 		];
 
-		const result = productsSystem(state, { phase: "products", week: 1 });
+		const result = productsSystem(syncCompute(state), {
+			phase: "products",
+			week: 1,
+		});
 
 		expect(result.state.products.items[0]?.lastRevenue).toBe(0);
 		expect(result.state.products.items[0]?.cumulativeRevenue).toBe(0);

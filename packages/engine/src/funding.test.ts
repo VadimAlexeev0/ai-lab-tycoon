@@ -79,6 +79,11 @@ function seriesAFundableState(): GameState {
 			effectiveQuality: 60,
 		},
 	];
+	// Keep the derived compute fields consistent with the fixture product.
+	state.compute.servingDemand = 10;
+	state.compute.allocated = 10;
+	const model = state.models.items[0];
+	if (model !== undefined) model.status = "launched";
 	return state;
 }
 
@@ -224,6 +229,11 @@ describe("funding gates", () => {
 		] as const;
 		for (const [factor, thresholdName] of thresholds) {
 			const below = seriesAFundableState();
+			if (factor === "operatingProducts") {
+				below.products.items = [];
+				below.compute.servingDemand = 0;
+				below.compute.allocated = 0;
+			}
 			if (factor === "modelScore") {
 				const model = below.models.items[0];
 				if (model?.estimates === undefined)

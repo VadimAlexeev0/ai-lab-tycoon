@@ -7,10 +7,17 @@ import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
 import {
 	selectAvailableProjects,
+	selectFunding,
 	selectNextObjective,
+	selectPendingDecisions,
+	selectProducts,
+	selectRecentReports,
+	selectResearchNodes,
 	selectResourceBar,
 	selectRivals,
 	selectTeams,
+	selectTerminalObjective,
+	selectTerminalProjection,
 	selectVisibleModels,
 	selectVisibleState,
 } from "./selectors.js";
@@ -196,11 +203,68 @@ describe("visible selectors", () => {
 			teams: selectTeams(state),
 			availableProjects: selectAvailableProjects(state),
 			rivals: selectRivals(state),
+			models: selectVisibleModels(stateWithHiddenFields),
+			research: selectResearchNodes(state),
+			products: selectProducts(state),
+			funding: selectFunding(state),
+			pendingDecisions: selectPendingDecisions(state),
+			recentReports: selectRecentReports(state),
+			terminal: selectTerminalProjection(state),
 			nextObjective: selectNextObjective(state),
 		});
-		expect(visible).not.toHaveProperty("models");
 		expect(JSON.stringify(visible)).not.toContain("trueScores");
 		expect(JSON.stringify(visible)).not.toContain("trueScore");
 		expect(JSON.stringify(visible)).not.toContain("internalCost");
+	});
+
+	it("projects the complete public dashboard state", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const visible = selectVisibleState(state);
+
+		expect(visible.models).toEqual([]);
+		expect(visible.research).toEqual(
+			state.research.nodes.map((node) => ({
+				id: node.id,
+				branch: node.branch,
+				status: node.status,
+				prereqs: [...node.prerequisites],
+				insightCost: node.insightCost,
+			})),
+		);
+		expect(visible.products).toEqual([]);
+		expect(visible.funding).toMatchObject({
+			seed: state.funding.seed,
+			seriesA: state.funding.seriesA,
+		});
+		expect(visible.funding.factors).toEqual({
+			hype: 10,
+			trust: 60,
+			modelScore: 0,
+			operatingProducts: 0,
+			cumulativeRevenue: 0,
+		});
+		expect(visible.pendingDecisions).toEqual([]);
+		expect(visible.recentReports).toEqual([]);
+		expect(visible.terminal).toEqual(state.terminal);
+	});
+
+	it("returns restart guidance as the next objective after a terminal loss", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.terminal = {
+			status: "lost",
+			reason: "cash_depleted",
+			frontierReached: false,
+			contributors: [],
+		};
+
+		expect(selectTerminalObjective(state)).toEqual({
+			kind: "restart",
+			reason: "cash_depleted",
+			guidance: expect.stringContaining("cash"),
+		});
+		expect(selectNextObjective(state)).toEqual(selectTerminalObjective(state));
+		expect(selectVisibleState(state).nextObjective).toEqual(
+			selectTerminalObjective(state),
+		);
 	});
 });

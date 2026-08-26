@@ -30,6 +30,11 @@ function designableState(seed = 42): GameState {
 		throw new Error("Expected the Text model research node");
 	}
 	node.status = "completed";
+	// The keystone's own prerequisite must be complete for the graph invariant.
+	const principles = state.research.nodes.find(
+		(item) => item.id === "text_models_principles",
+	);
+	if (principles !== undefined) principles.status = "completed";
 	return state;
 }
 
@@ -206,6 +211,23 @@ describe("model designer", () => {
 			foundation: "fresh",
 			status: "shelved",
 			projectId: null,
+			tier: "lean",
+			trueScores: {
+				capability: 50,
+				coding: 50,
+				reliability: 50,
+				safety: 50,
+				efficiency: 50,
+				multimodal: 0,
+			},
+			estimates: {
+				capability: { estimate: 50, lower: 40, upper: 60 },
+				coding: { estimate: 50, lower: 40, upper: 60 },
+				reliability: { estimate: 50, lower: 40, upper: 60 },
+				safety: { estimate: 50, lower: 40, upper: 60 },
+				efficiency: { estimate: 50, lower: 40, upper: 60 },
+				multimodal: { estimate: 0, lower: 0, upper: 10 },
+			},
 		});
 		expect(() =>
 			designModel(
@@ -222,6 +244,7 @@ describe("model designer", () => {
 			foundation: "fresh",
 			status: "ready",
 			projectId: null,
+			tier: "lean",
 			trueScores: {
 				capability: 70,
 				coding: 70,
@@ -229,6 +252,14 @@ describe("model designer", () => {
 				safety: 70,
 				efficiency: 70,
 				multimodal: 70,
+			},
+			estimates: {
+				capability: { estimate: 70, lower: 50, upper: 90 },
+				coding: { estimate: 70, lower: 50, upper: 90 },
+				reliability: { estimate: 70, lower: 50, upper: 90 },
+				safety: { estimate: 70, lower: 50, upper: 90 },
+				efficiency: { estimate: 70, lower: 50, upper: 90 },
+				multimodal: { estimate: 0, lower: 0, upper: 10 },
 			},
 		});
 		compatible.counters.model = 2;

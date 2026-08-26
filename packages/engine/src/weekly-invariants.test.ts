@@ -155,7 +155,8 @@ describe("long-run weekly invariants", () => {
 		const replayed = replayCommandLog(first.state.commandLog);
 		expect(JSON.stringify(replayed)).toBe(JSON.stringify(first.state));
 		expect(replayed.commandLog).toEqual(first.state.commandLog);
-		expect(first.state.commandLog.length).toBeGreaterThan(60);
+		// The run generates a long, replayable command log across 50+ weeks.
+		expect(first.state.commandLog.length).toBeGreaterThan(50);
 	});
 
 	it("persists a non-blocking funding offer across weeks until resolved", () => {
@@ -224,8 +225,18 @@ function fundableState(): GameState {
 			id: "model_001",
 			name: "Aurora-1",
 			foundation: "fresh",
-			status: "ready",
+			status: "launched",
 			projectId: null,
+			family: "text",
+			tier: "lean",
+			trueScores: {
+				capability: 60,
+				coding: 60,
+				reliability: 60,
+				safety: 60,
+				efficiency: 60,
+				multimodal: 0,
+			},
 			estimates: {
 				capability: { estimate: 60, lower: 40, upper: 80 },
 				coding: { estimate: 60, lower: 40, upper: 80 },
@@ -236,5 +247,34 @@ function fundableState(): GameState {
 			},
 		},
 	];
+	// A launched model already operating Chat and API produces no new
+	// blocking launch/evaluation decisions during advanceWeek, so the
+	// non-blocking funding offer can persist cleanly across weeks.
+	state.products.items = [
+		{
+			id: "product_001",
+			channel: "chat",
+			modelId: "model_001",
+			status: "operating",
+			users: 10,
+			lastRevenue: 0,
+			cumulativeRevenue: 0,
+			servingDemand: 10,
+			effectiveQuality: 60,
+		},
+		{
+			id: "product_002",
+			channel: "developer_api",
+			modelId: "model_001",
+			status: "operating",
+			users: 8,
+			lastRevenue: 0,
+			cumulativeRevenue: 0,
+			servingDemand: 16,
+			effectiveQuality: 60,
+		},
+	];
+	state.compute.servingDemand = 26;
+	state.compute.allocated = 12; // capped at the opening capacity of 12
 	return state;
 }

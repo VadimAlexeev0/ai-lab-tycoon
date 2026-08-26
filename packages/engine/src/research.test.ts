@@ -13,7 +13,12 @@ import {
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
 import { allocateId } from "./ids.js";
-import { advanceWeek, assignProject, startRun } from "./index.js";
+import {
+	advanceWeek,
+	assertGameState,
+	assignProject,
+	startRun,
+} from "./index.js";
 import { projectsSystem } from "./systems/projects.js";
 import { researchSystem } from "./systems/research.js";
 
@@ -492,18 +497,49 @@ describe("V1 research data", () => {
 		project.progress = project.duration;
 		project.teamId = null;
 
+		// A Text-era state exposing an unlocked Assistant node is now rejected
+		// by the runtime graph invariant before the system can act on it.
+		expect(() => assertGameState(state)).toThrow(
+			/not unlocked in the current era/i,
+		);
+	});
+
+	it("completes an Assistant research project only after the era gate opens", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.era = ASSISTANT_ERA;
+		state.research.currentEra = ASSISTANT_ERA;
+		for (const node of state.research.nodes) {
+			if (
+				node.id === TEXT_MODELS_KEYSTONE_ID ||
+				node.id === "text_models_principles"
+			) {
+				node.status = "completed";
+			}
+		}
+		assertGameState(state);
+		const assistantProject = {
+			kind: "research" as const,
+			id: "project_assistant",
+			teamId: null,
+			status: "completed" as const,
+			progress: 1,
+			duration: 1,
+			nodeId: "assistant_models_reasoning",
+		};
+		state.projects.items = [...state.projects.items, assistantProject];
+		const target = state.research.nodes.find(
+			(item) => item.id === "assistant_models_reasoning",
+		);
+		if (target === undefined) throw new Error("Expected Assistant node");
+		target.status = "available";
+
 		const result = researchSystem(state, {
 			phase: "research",
 			week: 2,
 		});
-
-		expect(result.state.research.nodes).toContainEqual({
-			...node,
-			status: "available",
-		});
-		expect(result.facts).not.toContainEqual({
+		expect(result.facts).toContainEqual({
 			kind: "research_completed",
-			nodeId: node.id,
+			nodeId: "assistant_models_reasoning",
 			week: 2,
 		});
 	});
@@ -513,10 +549,14 @@ describe("V1 research data", () => {
 		for (const node of state.research.nodes) {
 			if (
 				node.id === TEXT_MODELS_KEYSTONE_ID ||
+				node.id === "text_models_principles" ||
 				node.prerequisites.includes(TEXT_MODELS_KEYSTONE_ID)
 			) {
 				node.status =
-					node.id === TEXT_MODELS_KEYSTONE_ID ? "completed" : node.status;
+					node.id === "text_models_principles" ||
+					node.id === TEXT_MODELS_KEYSTONE_ID
+						? "completed"
+						: node.status;
 			}
 		}
 		const result = researchSystem(state, {

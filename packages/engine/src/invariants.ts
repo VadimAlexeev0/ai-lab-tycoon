@@ -14,6 +14,7 @@ import { assertRivalsState } from "./components/rivals.js";
 import { assertRngState } from "./components/rng.js";
 import { assertTeamsState } from "./components/teams.js";
 import { assertTerminalState } from "./components/terminal.js";
+import { computeReservations } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	DATA_MIX_DIMENSIONS,
@@ -21,6 +22,12 @@ import {
 	MODEL_FAMILY_IDS,
 	MODEL_TIERS,
 } from "./data/model-families.js";
+import {
+	ASSISTANT_ERA,
+	ASSISTANT_MODELS_KEYSTONE_ID,
+	MULTIMODAL_ERA,
+	TEXT_MODELS_KEYSTONE_ID,
+} from "./data/research.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -52,6 +59,9 @@ const COMMAND_KINDS = [
 	"design_model",
 	"run_evaluation",
 	"launch_product",
+	"buy_compute",
+	"hire_team",
+	"product_resume",
 ] as const;
 const MODEL_FOUNDATIONS = ["fresh", "continued", "distilled"] as const;
 const WARNING_CODES = [
@@ -92,6 +102,7 @@ export function assertGameState(
 	options: GameStateValidationOptions = {},
 ): asserts value is GameState {
 	assertJsonCompatible(value);
+	assertSafePersistedNumbers(value);
 	assertExactObject(value, GAME_STATE_KEYS, "game state");
 
 	const state = value as unknown as GameState;
@@ -118,10 +129,245 @@ export function assertGameState(
 	assertQueueShape(state.queue);
 	assertCommandLog(state.commandLog, state);
 	assertWarnings(state.warnings);
+	assertComputeReservations(state);
+	assertResearchGraph(state);
+	assertModelRelations(state);
+	assertTerminalResourceConsistency(state);
 
 	assertUniqueStateIds(state);
 	assertComponentOwnership(state);
 	assertQueueConsistency(state);
+}
+
+/**
+ * Game state is an integer-only JSON contract. Keep this pass at the root so
+ * every persisted numeric remains safe even if a component later forgets to
+ * use one of the numeric assertion helpers.
+ */
+function assertSafePersistedNumbers(value: unknown, path = "state"): void {
+	if (typeof value === "number") {
+		if (!Number.isSafeInteger(value)) {
+			throw new Error(`${path} must be a safe integer`);
+		}
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (let index = 0; index < value.length; index += 1) {
+			assertSafePersistedNumbers(value[index], `${path}[${index}]`);
+		}
+		return;
+	}
+	if (value !== null && typeof value === "object") {
+		for (const [key, child] of Object.entries(value)) {
+			assertSafePersistedNumbers(child, `${path}.${key}`);
+		}
+	}
+}
+
+/**
+ * Compute reservations are derived from active projects and operating
+ * products. State may be observed during a phase, but the persisted snapshot
+ * must agree exactly; the explicit zero tolerance documents that all values
+ * are integer simulation units rather than floating point measurements.
+ */
+const COMPUTE_RESERVATION_TOLERANCE = 0;
+
+function assertComputeReservations(state: GameState): void {
+	const expected = computeReservations(state);
+	const checks: readonly [string, number, number][] = [
+		["training demand", state.compute.trainingDemand, expected.trainingDemand],
+		["serving demand", state.compute.servingDemand, expected.servingDemand],
+		["allocated compute", state.compute.allocated, expected.allocated],
+	];
+	for (const [name, actual, derived] of checks) {
+		if (Math.abs(actual - derived) > COMPUTE_RESERVATION_TOLERANCE) {
+			throw new Error(
+				`Compute ${name} does not match recomputed reservations (stored ${actual}, expected ${derived})`,
+			);
+		}
+	}
+}
+
+function assertResearchGraph(state: GameState): void {
+	const nodes = state.research.nodes;
+	const byId = new Map(nodes.map((node) => [node.id, node]));
+	const currentEraIndex = RESEARCH_ERAS.indexOf(state.research.currentEra);
+
+	assertEraKeystone(state, state.research.currentEra, currentEraIndex);
+
+	for (const node of nodes) {
+		if (
+			node.status === "available" &&
+			!isResearchEraUnlocked(state, node.era)
+		) {
+			throw new Error(
+				`Available research node ${node.id} is not unlocked in the current era`,
+			);
+		}
+		if (
+			node.status === "available" &&
+			node.prerequisites.some(
+				(prerequisiteId) => byId.get(prerequisiteId)?.status !== "completed",
+			)
+		) {
+			throw new Error(
+				`Available research node ${node.id} requires completed prerequisites`,
+			);
+		}
+		if (node.status !== "completed") {
+			continue;
+		}
+		const nodeEraIndex = RESEARCH_ERAS.indexOf(node.era);
+		if (
+			nodeEraIndex > currentEraIndex ||
+			!isResearchEraUnlocked(state, node.era)
+		) {
+			throw new Error(
+				`Completed research node ${node.id} is not unlocked in the current era`,
+			);
+		}
+		for (const prerequisiteId of node.prerequisites) {
+			const prerequisite = byId.get(prerequisiteId);
+			if (prerequisite?.status !== "completed") {
+				throw new Error(
+					`Completed research node ${node.id} requires completed prerequisite ${prerequisiteId}`,
+				);
+			}
+		}
+	}
+
+	const visiting = new Set<string>();
+	const visited = new Set<string>();
+	const visit = (nodeId: string): void => {
+		if (visiting.has(nodeId)) {
+			throw new Error(
+				`Research nodes contain a prerequisite cycle at ${nodeId}`,
+			);
+		}
+		if (visited.has(nodeId)) return;
+		const node = byId.get(nodeId);
+		if (node === undefined) return;
+		visiting.add(nodeId);
+		for (const prerequisiteId of node.prerequisites) visit(prerequisiteId);
+		visiting.delete(nodeId);
+		visited.add(nodeId);
+	};
+	for (const node of nodes) visit(node.id);
+}
+
+function assertEraKeystone(
+	state: GameState,
+	era: GameState["research"]["currentEra"],
+	eraIndex: number,
+): void {
+	if (eraIndex < 0) {
+		throw new Error(`Research era is not recognized: ${era}`);
+	}
+	if (
+		era === ASSISTANT_ERA &&
+		!hasCompletedResearchNode(state, TEXT_MODELS_KEYSTONE_ID)
+	) {
+		throw new Error(
+			`The ${ASSISTANT_ERA} era requires completed research node ${TEXT_MODELS_KEYSTONE_ID}`,
+		);
+	}
+	if (
+		era === MULTIMODAL_ERA &&
+		!hasCompletedResearchNode(state, ASSISTANT_MODELS_KEYSTONE_ID)
+	) {
+		throw new Error(
+			`The ${MULTIMODAL_ERA} era requires completed research node ${ASSISTANT_MODELS_KEYSTONE_ID}`,
+		);
+	}
+}
+
+function isResearchEraUnlocked(
+	state: GameState,
+	era: GameState["research"]["currentEra"],
+): boolean {
+	const eraIndex = RESEARCH_ERAS.indexOf(era);
+	if (
+		eraIndex < 0 ||
+		eraIndex > RESEARCH_ERAS.indexOf(state.research.currentEra)
+	) {
+		return false;
+	}
+	if (
+		eraIndex >= RESEARCH_ERAS.indexOf(ASSISTANT_ERA) &&
+		!hasCompletedResearchNode(state, TEXT_MODELS_KEYSTONE_ID)
+	) {
+		return false;
+	}
+	if (
+		eraIndex >= RESEARCH_ERAS.indexOf(MULTIMODAL_ERA) &&
+		!hasCompletedResearchNode(state, ASSISTANT_MODELS_KEYSTONE_ID)
+	) {
+		return false;
+	}
+	return true;
+}
+
+function hasCompletedResearchNode(state: GameState, nodeId: string): boolean {
+	return state.research.nodes.some(
+		(node) => node.id === nodeId && node.status === "completed",
+	);
+}
+
+function assertModelRelations(state: GameState): void {
+	for (const model of state.models.items) {
+		const hasTrueScores = model.trueScores !== undefined;
+		const hasEstimates = model.estimates !== undefined;
+		if (hasTrueScores !== hasEstimates) {
+			throw new Error(
+				`Model ${model.id} must have true scores and estimates together`,
+			);
+		}
+		if (
+			model.status !== "designing" &&
+			(model.family === undefined || model.tier === undefined)
+		) {
+			throw new Error(
+				`Model ${model.id} must have a family and tier once it is beyond designing`,
+			);
+		}
+
+		const referencedProducts = state.products.items.filter(
+			(product) => product.modelId === model.id,
+		);
+		if (
+			model.status === "shelved" &&
+			referencedProducts.some((product) => product.status === "operating")
+		) {
+			throw new Error(
+				`Shelved model ${model.id} cannot have an operating product`,
+			);
+		}
+	}
+
+	for (const product of state.products.items) {
+		if (product.status !== "operating" && product.status !== "paused") continue;
+		const model = state.models.items.find(
+			(candidate) => candidate.id === product.modelId,
+		);
+		if (model !== undefined && model.status !== "launched") {
+			throw new Error(
+				`Product ${product.id} with status ${product.status} requires referenced model ${model.id} to be launched`,
+			);
+		}
+	}
+}
+
+function assertTerminalResourceConsistency(state: GameState): void {
+	if (state.terminal.reason === "cash_depleted" && state.company.cash > 0) {
+		throw new Error(
+			"Terminal cash_depleted reason requires company cash to be at or below zero",
+		);
+	}
+	if (state.terminal.reason === "trust_collapsed" && state.company.trust > 0) {
+		throw new Error(
+			"Terminal trust_collapsed reason requires company trust to be at or below zero",
+		);
+	}
 }
 
 function assertMeta(value: unknown, research: unknown): void {
@@ -346,6 +592,12 @@ function assertCommandLog(
 		assertObject(item, "command log entry");
 		assertEnum(item.kind, COMMAND_KINDS, "Command log kind");
 		assertIdentifier(item.id, "Command id");
+		const expectedId = `command_${String(index + 1).padStart(3, "0")}`;
+		if (item.id !== expectedId) {
+			throw new Error(
+				`Command ids must be sequential; expected ${expectedId} but received ${item.id}`,
+			);
+		}
 		assertPositiveInteger(item.week, "Command week");
 		if (item.week > state.meta.week) {
 			throw new Error(`Command ${item.id} cannot be from a future week`);
@@ -517,6 +769,33 @@ function assertCommandLog(
 				}
 				break;
 			}
+			case "buy_compute":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "amount"],
+					"buy_compute command",
+				);
+				assertPositiveInteger(item.amount, "Buy compute amount");
+				break;
+			case "hire_team":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "name"],
+					"hire_team command",
+				);
+				assertString(item.name, "Hire team name");
+				if (item.name.trim().length === 0) {
+					throw new Error("Hire team name must not be empty");
+				}
+				break;
+			case "product_resume":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "productId"],
+					"product_resume command",
+				);
+				assertIdentifier(item.productId, "Resume product id");
+				break;
 		}
 	}
 

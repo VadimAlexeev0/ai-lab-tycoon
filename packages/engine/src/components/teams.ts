@@ -16,6 +16,8 @@ export type TeamsState = {
 	items: Team[];
 };
 
+export const MAX_TEAMS = 3;
+
 export function createTeamsState(items: Team[] = []): TeamsState {
 	return {
 		items: items.map((team) => ({ ...team })),
@@ -25,7 +27,7 @@ export function createTeamsState(items: Team[] = []): TeamsState {
 export function assertTeamsState(value: unknown): asserts value is TeamsState {
 	assertExactObject(value, ["items"], "teams");
 	assertArray(value.items, "Teams items");
-	if (value.items.length > 3) {
+	if (value.items.length > MAX_TEAMS) {
 		throw new Error("Teams must contain at most three teams");
 	}
 

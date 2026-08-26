@@ -79,7 +79,10 @@ export type CommandKind =
 	| "cancel_project"
 	| "design_model"
 	| "run_evaluation"
-	| "launch_product";
+	| "launch_product"
+	| "buy_compute"
+	| "hire_team"
+	| "product_resume";
 
 type CommandLogBase = {
 	id: string;
@@ -134,6 +137,18 @@ export type CommandLogEntry =
 			productId: string;
 			modelId: string;
 			channel: "chat" | "developer_api" | "enterprise";
+	  })
+	| (CommandLogBase & {
+			kind: "buy_compute";
+			amount: number;
+	  })
+	| (CommandLogBase & {
+			kind: "hire_team";
+			name: string;
+	  })
+	| (CommandLogBase & {
+			kind: "product_resume";
+			productId: string;
 	  });
 
 export type WarningCode =

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
+import { TEXT_MODELS_KEYSTONE_ID } from "./data/research.js";
 import { startRun } from "./index.js";
 import {
 	effectiveProductQuality,
@@ -50,6 +51,16 @@ function assistantEraState(): GameState {
 	const state = readyState();
 	state.meta.era = "assistant";
 	state.research.currentEra = "assistant";
+	// Satisfy the runtime research-graph invariant for the assistant era.
+	for (const node of state.research.nodes) {
+		if (
+			node.era === "text" ||
+			node.id === "text_models_principles" ||
+			node.id === TEXT_MODELS_KEYSTONE_ID
+		) {
+			node.status = "completed";
+		}
+	}
 	return state;
 }
 

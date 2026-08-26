@@ -18,7 +18,10 @@ export type Product = {
 	channel: ProductChannel;
 	modelId: string;
 	status: ProductStatus;
-	/** Operational metrics are present for products created by the V1 commands. */
+	/**
+	 * Current retained users. Pausing preserves this value; V1 resume uses
+	 * persist-with-decay=0 and applies no growth tick until the next week.
+	 */
 	users?: number;
 	lastRevenue?: number;
 	cumulativeRevenue?: number;

@@ -9,6 +9,7 @@ import { startRun } from "./start-run.js";
 export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
 
 export type { AdvanceWeekOptions } from "./advance-week.js";
+export { buyCompute, hireTeam } from "./commands/teams.js";
 export type {
 	DecisionChoice,
 	PendingDecision,
@@ -33,23 +34,44 @@ export type {
 } from "./data/model-families.js";
 export { assertGameState } from "./invariants.js";
 export type { ModelDesignSpec } from "./model-design.js";
+export { applyProductResume } from "./products.js";
+export type {
+	CommandLogEnvelope,
+	ReplayCommandLogInput,
+	ReplayCommandLogOptions,
+} from "./replay.js";
+export { replayCommandLog } from "./replay.js";
 export type {
 	NextObjective,
 	ResourceBarSummary,
 	TeamStatus,
+	TerminalObjective,
 	VisibleAvailableProject,
 	VisibleEstimateBand,
+	VisibleFundingSummary,
 	VisibleGameState,
 	VisibleModelEstimate,
+	VisiblePendingDecision,
+	VisibleProductSummary,
+	VisibleReport,
+	VisibleResearchNode,
 	VisibleRival,
 	VisibleTeam,
+	VisibleTerminalProjection,
 } from "./selectors.js";
 export {
 	selectAvailableProjects,
+	selectFunding,
 	selectNextObjective,
+	selectPendingDecisions,
+	selectProducts,
+	selectRecentReports,
+	selectResearchNodes,
 	selectResourceBar,
 	selectRivals,
 	selectTeams,
+	selectTerminalObjective,
+	selectTerminalProjection,
 	selectVisibleModels,
 	selectVisibleState,
 } from "./selectors.js";
@@ -61,6 +83,7 @@ export type {
 	RunSetup,
 } from "./state.js";
 export { GAME_STATE_SCHEMA_VERSION } from "./state.js";
+export { fundingFactors } from "./systems/funding.js";
 export {
 	advanceWeek,
 	applyDecision,

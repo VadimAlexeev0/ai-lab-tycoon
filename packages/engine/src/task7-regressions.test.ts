@@ -32,6 +32,68 @@ const MULTIMODAL_SPEC = {
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 };
 
+function lifecycleState(status: "ready" | "launched" = "ready"): GameState {
+	const state = startRun({ companyName: "Lifecycle Labs" }, 42);
+	state.meta.era = "assistant";
+	state.research.currentEra = "assistant";
+	const textPrinciples = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (textPrinciples === undefined) throw new Error("Expected text principles");
+	textPrinciples.status = "completed";
+	const textKeystone = state.research.nodes.find(
+		(node) => node.id === "text_models_keystone",
+	);
+	if (textKeystone === undefined) throw new Error("Expected text keystone");
+	textKeystone.status = "completed";
+	state.company.cash = 1_000;
+	state.company.hype = 100;
+	state.company.trust = 100;
+	state.company.insight = 10;
+	state.models.items = [
+		{
+			id: "model_001",
+			name: "Aurora-1",
+			foundation: "fresh",
+			status,
+			projectId: null,
+			family: "text",
+			tier: "standard",
+			scoreCeiling: 88,
+			dataMix: { general: 70, code: 20, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			trueScores: {
+				capability: 100,
+				coding: 100,
+				reliability: 100,
+				safety: 100,
+				efficiency: 100,
+				multimodal: 0,
+			},
+			estimates: {
+				capability: { estimate: 100, lower: 80, upper: 100 },
+				coding: { estimate: 100, lower: 80, upper: 100 },
+				reliability: { estimate: 100, lower: 80, upper: 100 },
+				safety: { estimate: 100, lower: 80, upper: 100 },
+				efficiency: { estimate: 100, lower: 80, upper: 100 },
+				multimodal: { estimate: 0, lower: 0, upper: 20 },
+			},
+		},
+	];
+	return state;
+}
+
+function withModelDecisions(
+	state: GameState,
+	decisions: PendingDecision[],
+): GameState {
+	return {
+		...state,
+		decisions: { pending: decisions },
+		queue: { ...state.queue, decisionIds: decisions.map((item) => item.id) },
+	};
+}
+
 type GoldenEvent = {
 	command: string;
 	facts: Fact[];
@@ -199,6 +261,206 @@ function runGolden(seed: number): GoldenRun {
 }
 
 describe("Task 7 integration and replay regressions", () => {
+	it("shelving one channel on a launched model clears model siblings without shelving it", () => {
+		const state = lifecycleState("launched");
+		state.models.activeModelId = "model_001";
+		state.compute.servingDemand = 10;
+		state.compute.allocated = 10;
+		state.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_001",
+				status: "operating",
+				users: 10,
+				lastRevenue: 0,
+				cumulativeRevenue: 0,
+				servingDemand: 10,
+				effectiveQuality: 100,
+			},
+		];
+		const offered = withModelDecisions(state, [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				channel: "developer_api",
+				blocking: true,
+			},
+			{
+				kind: "launch",
+				id: "decision_002",
+				modelId: "model_001",
+				channel: "enterprise",
+				blocking: true,
+			},
+		]);
+
+		const result = applyDecision(offered, {
+			kind: "shelve",
+			decisionId: "decision_001",
+		});
+
+		expect(result.state.models.items[0]?.status).toBe("launched");
+		expect(result.state.models.activeModelId).toBe("model_001");
+		expect(result.state.products.items).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					channel: "chat",
+					status: "operating",
+				}),
+			]),
+		);
+		expect(result.state.decisions.pending).toEqual([]);
+		expect(result.state.queue.decisionIds).toEqual([]);
+	});
+
+	it("keeps a ready model when shelving one of several model options", () => {
+		const offered = withModelDecisions(lifecycleState(), [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				channel: "chat",
+				blocking: true,
+			},
+			{
+				kind: "evaluation",
+				id: "decision_002",
+				modelId: "model_001",
+				evaluation: "capability",
+				blocking: true,
+			},
+		]);
+
+		const result = applyDecision(offered, {
+			kind: "shelve",
+			decisionId: "decision_001",
+		});
+
+		expect(result.state.models.items[0]?.status).toBe("ready");
+		expect(result.state.decisions.pending).toEqual([]);
+	});
+
+	it("shelves a ready model on its last option and clears a stale active model", () => {
+		const state = lifecycleState();
+		state.models.activeModelId = "model_001";
+		const offered = withModelDecisions(state, [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				channel: "chat",
+				blocking: true,
+			},
+		]);
+
+		const result = applyDecision(offered, {
+			kind: "shelve",
+			decisionId: "decision_001",
+		});
+
+		expect(result.state.models.items[0]).toMatchObject({
+			status: "shelved",
+			projectId: null,
+		});
+		expect(result.state.models.activeModelId).toBeNull();
+		expect(result.state.decisions.pending).toEqual([]);
+	});
+
+	it("clears sibling launch choices when evaluation is selected", () => {
+		const offered = withModelDecisions(lifecycleState(), [
+			{
+				kind: "evaluation",
+				id: "decision_001",
+				modelId: "model_001",
+				evaluation: "capability",
+				blocking: true,
+			},
+			{
+				kind: "launch",
+				id: "decision_002",
+				modelId: "model_001",
+				channel: "chat",
+				blocking: true,
+			},
+		]);
+
+		const result = applyDecision(offered, {
+			kind: "evaluate",
+			decisionId: "decision_001",
+			evaluation: "capability",
+		});
+
+		expect(result.state.decisions.pending).toEqual([]);
+		expect(result.pending).toEqual(result.state.decisions.pending);
+	});
+
+	it("does not re-offer blocking launches while a selected evaluation is active", () => {
+		const offered = withModelDecisions(lifecycleState(), [
+			{
+				kind: "evaluation",
+				id: "decision_001",
+				modelId: "model_001",
+				evaluation: "capability",
+				blocking: true,
+			},
+		]);
+		const selected = applyDecision(offered, {
+			kind: "evaluate",
+			decisionId: "decision_001",
+			evaluation: "capability",
+		});
+		const evaluation = selected.state.projects.items.find(
+			(project) => project.kind === "evaluation",
+		);
+		if (evaluation === undefined)
+			throw new Error("Expected evaluation project");
+		evaluation.duration = 2;
+
+		const advanced = advanceWeek(selected.state);
+
+		expect(
+			advanced.pending.filter(
+				(decision) =>
+					(decision.kind === "launch" || decision.kind === "evaluation") &&
+					decision.modelId === "model_001",
+			),
+		).toEqual([]);
+	});
+
+	it("clears sibling evaluations when a launch is selected", () => {
+		const offered = withModelDecisions(lifecycleState(), [
+			{
+				kind: "evaluation",
+				id: "decision_001",
+				modelId: "model_001",
+				evaluation: "capability",
+				blocking: true,
+			},
+			{
+				kind: "launch",
+				id: "decision_002",
+				modelId: "model_001",
+				channel: "chat",
+				blocking: true,
+			},
+		]);
+
+		const result = applyDecision(offered, {
+			kind: "launch",
+			decisionId: "decision_002",
+			channel: "chat",
+		});
+
+		expect(
+			result.state.decisions.pending.some(
+				(decision) =>
+					decision.kind === "evaluation" && decision.modelId === "model_001",
+			),
+		).toBe(false);
+	});
+
 	it("keeps the documented weekly system order", () => {
 		expect(WEEKLY_SYSTEMS.map(({ phase }) => phase)).toEqual([
 			"upkeep",
@@ -258,7 +520,7 @@ describe("Task 7 integration and replay regressions", () => {
 			.filter((entry) => entry.kind === "apply_decision")
 			.map((entry) => entry.choice.kind);
 		expect(decisionKinds).toEqual(
-			expect.arrayContaining(["evaluate", "launch", "funding", "incident"]),
+			expect.arrayContaining(["launch", "funding", "incident"]),
 		);
 	});
 

@@ -192,6 +192,67 @@ export function applyProductLaunch(
 	return { state: recomputedState, facts, pending: [] };
 }
 
+export function applyProductResume(
+	state: GameState,
+	productId: string,
+): EngineResult {
+	assertGameState(state);
+	assertRunActive(state);
+	assertIdentifier(productId, "Product id");
+	const product = state.products.items.find((item) => item.id === productId);
+	if (product === undefined) {
+		throw new Error(`Cannot resume an unknown product: ${productId}`);
+	}
+	if (product.status !== "paused") {
+		throw new Error(`Only a paused product can be resumed: ${productId}`);
+	}
+	const model = state.models.items.find(
+		(candidate) => candidate.id === product.modelId,
+	);
+	if (model === undefined) {
+		throw new Error(`Product ${product.id} references an unknown model`);
+	}
+	const tuning = BALANCE.productChannels[product.channel];
+	// V1 pause policy is persist-with-decay=0: preserve the current user base,
+	// then recompute serving demand from those users without a growth tick.
+	const users = product.users ?? tuning.baseUsers;
+	const resumedProduct: Product = {
+		...product,
+		status: "operating",
+		users,
+		lastRevenue: 0,
+		servingDemand: users * tuning.servingComputePerUser,
+		effectiveQuality: effectiveProductQuality(model, product.channel),
+	};
+	const nextState: GameState = {
+		...state,
+		products: {
+			items: state.products.items.map((candidate) =>
+				candidate.id === product.id ? resumedProduct : cloneProduct(candidate),
+			),
+		},
+	};
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState);
+	// `product_resumed` is intentionally returned now, while the report/fact
+	// union and public command-log wiring are outside this worker's file scope.
+	const facts = [
+		{
+			kind: "product_resumed",
+			productId: product.id,
+			channel: product.channel,
+			week: state.meta.week,
+		},
+	] as unknown as Fact[];
+	return {
+		state: recomputedState,
+		facts,
+		pending: state.decisions.pending.map((decision) => ({ ...decision })),
+	};
+}
 export function rivalLaunchPressure(
 	state: GameState,
 	baseMinimumHype: number,

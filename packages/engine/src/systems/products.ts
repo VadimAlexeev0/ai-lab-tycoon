@@ -111,91 +111,92 @@ export const productsSystem: GameSystem = (state, context) => {
 		},
 		products: { items: nextProducts },
 	};
+	nextState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
 
 	const pending = state.decisions.pending.map((decision) => ({ ...decision }));
 	for (const model of state.models.items) {
 		if (model.status !== "ready" && model.status !== "launched") continue;
-		const hasEvaluationDecision =
-			model.status === "ready" &&
-			pending.some(
+
+		const modelDecisions = () =>
+			pending.filter(
 				(decision) =>
-					decision.kind === "evaluation" && decision.modelId === model.id,
+					(decision.kind === "launch" || decision.kind === "evaluation") &&
+					decision.modelId === model.id,
 			);
-		const evaluationKind =
-			model.status === "ready"
-				? (["capability", "safety_reliability"] as const).find(
-						(kind) =>
-							!hasEvaluation(model.id, kind, state) &&
-							!pending.some(
-								(decision) =>
-									decision.kind === "evaluation" &&
-									decision.modelId === model.id &&
-									decision.evaluation === kind,
-							),
-					)
-				: undefined;
-		if (hasEvaluationDecision) {
-			continue;
-		}
-		if (evaluationKind !== undefined) {
-			const evaluationTuning = BALANCE.evaluations[evaluationKind];
-			const reservations = computeReservations(nextState);
-			const hasIdleTeam = nextState.teams.items.some(
-				(team) => team.activeProjectId === null,
+		const evaluationInProgress = hasActiveEvaluation(state, model.id);
+		let offeredChoice = modelDecisions().length > 0 || evaluationInProgress;
+
+		if (model.status === "ready") {
+			const evaluationKind = (
+				["capability", "safety_reliability"] as const
+			).find(
+				(kind) =>
+					!hasEvaluation(model.id, kind, state) &&
+					!pending.some(
+						(decision) =>
+							decision.kind === "evaluation" &&
+							decision.modelId === model.id &&
+							decision.evaluation === kind,
+					),
 			);
-			const hasComputeCapacity =
-				nextState.compute.capacity -
-					reservations.trainingDemand -
-					reservations.servingDemand -
-					reservations.evaluationDemand >=
-				evaluationTuning.computeCost;
 			if (
-				!hasIdleTeam ||
-				nextState.company.insight < evaluationTuning.insightCost ||
-				!hasComputeCapacity
+				evaluationKind !== undefined &&
+				canAffordEvaluation(nextState, evaluationKind)
 			) {
-				// Leave the model ready but do not expose an impossible blocking
-				// choice. The next research/operating tick can make it affordable.
-				continue;
+				const allocation = allocateId(nextState, "decision");
+				nextState = allocation.state;
+				pending.push({
+					kind: "evaluation",
+					id: allocation.id,
+					modelId: model.id,
+					evaluation: evaluationKind,
+					blocking: true,
+				});
+				offeredChoice = true;
 			}
-			const allocation = allocateId(nextState, "decision");
-			nextState = allocation.state;
-			pending.push({
-				kind: "evaluation",
-				id: allocation.id,
-				modelId: model.id,
-				evaluation: evaluationKind,
-				blocking: true,
-			});
-			// Resolve evaluation choices before exposing launches. Otherwise a
-			// second blocking launch decision can prevent the evaluation project
-			// from ever advancing to completion.
-			continue;
 		}
-		for (const channel of ["chat", "developer_api", "enterprise"] as const) {
-			if (
-				state.products.items.some(
-					(product) =>
-						product.modelId === model.id && product.channel === channel,
-				) ||
-				pending.some(
-					(decision) =>
-						decision.kind === "launch" &&
-						decision.modelId === model.id &&
-						decision.channel === channel,
-				) ||
-				!isProductLaunchEligible(state, model.id, channel)
-			) {
-				continue;
+
+		if (!evaluationInProgress) {
+			for (const channel of ["chat", "developer_api", "enterprise"] as const) {
+				if (
+					state.products.items.some(
+						(product) =>
+							product.modelId === model.id && product.channel === channel,
+					) ||
+					pending.some(
+						(decision) =>
+							decision.kind === "launch" &&
+							decision.modelId === model.id &&
+							decision.channel === channel,
+					) ||
+					!isProductLaunchEligible(nextState, model.id, channel)
+				) {
+					continue;
+				}
+				const allocation = allocateId(nextState, "decision");
+				nextState = allocation.state;
+				pending.push({
+					kind: "launch",
+					id: allocation.id,
+					modelId: model.id,
+					channel,
+					blocking: true,
+				});
+				offeredChoice = true;
 			}
-			const allocation = allocateId(nextState, "decision");
-			nextState = allocation.state;
-			pending.push({
-				kind: "launch",
-				id: allocation.id,
+		}
+
+		if (model.status === "ready" && !offeredChoice) {
+			// V1 has no dedicated no-affordable-choice fact kind yet. Keep the
+			// ready model visible in the fact/report stream until that schema can
+			// carry the reason explicitly.
+			facts.push({
+				kind: "model_trained",
 				modelId: model.id,
-				channel,
-				blocking: true,
+				week: context.week,
 			});
 		}
 	}
@@ -209,6 +210,32 @@ export const productsSystem: GameSystem = (state, context) => {
 	});
 	return { state: recomputedState, facts, pending };
 };
+
+function canAffordEvaluation(
+	state: GameState,
+	evaluation: "capability" | "safety_reliability",
+): boolean {
+	const tuning = BALANCE.evaluations[evaluation];
+	const reservations = computeReservations(state);
+	return (
+		state.teams.items.some((team) => team.activeProjectId === null) &&
+		state.company.insight >= tuning.insightCost &&
+		state.compute.capacity -
+			reservations.trainingDemand -
+			reservations.servingDemand -
+			reservations.evaluationDemand >=
+			tuning.computeCost
+	);
+}
+
+function hasActiveEvaluation(state: GameState, modelId: string): boolean {
+	return state.projects.items.some(
+		(project) =>
+			project.kind === "evaluation" &&
+			project.modelId === modelId &&
+			project.status === "active",
+	);
+}
 
 function hasEvaluation(
 	modelId: string,

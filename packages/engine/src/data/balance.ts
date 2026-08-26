@@ -103,6 +103,10 @@ export type EvaluationBalance = Readonly<{
 export type BalanceConstants = Readonly<{
 	startingCash: number;
 	startingComputeCapacity: number;
+	infrastructureCapacityGain: number;
+	computePurchaseCost: number;
+	computePurchaseUnits: number;
+	hireTeamCost: number;
 	startingInsight: number;
 	startingTrust: number;
 	startingHype: number;
@@ -127,8 +131,14 @@ export type BalanceConstants = Readonly<{
 
 /** Cash available when a new V1 run opens. */
 export const STARTING_CASH = 1_000;
-/** Shared compute capacity available when a new V1 run opens. */
+/** Shared compute capacity available when a new run opens. */
 export const STARTING_COMPUTE_CAPACITY = 12;
+/** Permanent capacity added when compute infrastructure is completed. */
+export const INFRASTRUCTURE_CAPACITY_GAIN = 8;
+/** Cash price of one fixed-size permanent compute purchase. */
+export const COMPUTE_PURCHASE_COST = 300;
+/** Permanent capacity units granted by each compute purchase. */
+export const COMPUTE_PURCHASE_UNITS = 12;
 /** Insight available before the first week of research. */
 export const STARTING_INSIGHT = 0;
 /** Trust available when a new V1 run opens. */
@@ -139,6 +149,8 @@ export const STARTING_HYPE = 10;
 export const STARTING_PROJECT_PROGRESS = 0;
 /** Weekly salary for each team in the initial V1 staffing tier. */
 export const FOUNDING_TEAM_SALARY = 50;
+/** One-time cash cost to hire a team at the founding salary tier. */
+export const HIRE_TEAM_COST = 300;
 /** Weekly base operating cost before team salaries and other systems. */
 export const BASE_UPKEEP = 25;
 /** Progress units produced by one team in one week for each project kind. */
@@ -363,11 +375,28 @@ const LEGACY_BALANCE = {
  * access the complete typed table directly.
  */
 export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
+	infrastructureCapacityGain: {
+		value: INFRASTRUCTURE_CAPACITY_GAIN,
+		enumerable: false,
+	},
+	computePurchaseCost: {
+		value: COMPUTE_PURCHASE_COST,
+		enumerable: false,
+	},
+	computePurchaseUnits: {
+		value: COMPUTE_PURCHASE_UNITS,
+		enumerable: false,
+	},
+	hireTeamCost: { value: HIRE_TEAM_COST, enumerable: false },
 	productChannels: { value: PRODUCT_CHANNEL_BALANCE, enumerable: false },
 	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
 	funding: { value: FUNDING_BALANCE, enumerable: false },
 	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
 }) as unknown as typeof LEGACY_BALANCE & {
+	readonly infrastructureCapacityGain: typeof INFRASTRUCTURE_CAPACITY_GAIN;
+	readonly computePurchaseCost: typeof COMPUTE_PURCHASE_COST;
+	readonly computePurchaseUnits: typeof COMPUTE_PURCHASE_UNITS;
+	readonly hireTeamCost: typeof HIRE_TEAM_COST;
 	readonly productChannels: typeof PRODUCT_CHANNEL_BALANCE;
 	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
 	readonly funding: typeof FUNDING_BALANCE;
@@ -383,6 +412,10 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		[
 			"startingCash",
 			"startingComputeCapacity",
+			"infrastructureCapacityGain",
+			"computePurchaseCost",
+			"computePurchaseUnits",
+			"hireTeamCost",
 			"startingInsight",
 			"startingTrust",
 			"startingHype",
@@ -409,6 +442,13 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		value.startingComputeCapacity,
 		"Starting compute capacity",
 	);
+	assertPositiveInteger(
+		value.infrastructureCapacityGain,
+		"Infrastructure capacity gain",
+	);
+	assertPositiveInteger(value.computePurchaseCost, "Compute purchase cost");
+	assertPositiveInteger(value.computePurchaseUnits, "Compute purchase units");
+	assertPositiveInteger(value.hireTeamCost, "Hire team cost");
 	assertNonNegativeInteger(value.startingInsight, "Starting insight");
 	assertNonNegativeInteger(value.startingTrust, "Starting trust");
 	assertNonNegativeInteger(value.startingHype, "Starting hype");

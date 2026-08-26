@@ -15,6 +15,7 @@ import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import type { EngineResult, GameState } from "./state.js";
+import { appendFactsAsReports } from "./systems/reporting.js";
 import { assertEnum, assertIdentifier, assertObject } from "./validation.js";
 
 const EVALUATION_KINDS = ["capability", "safety_reliability"] as const;
@@ -45,13 +46,9 @@ export function runEvaluation(
 	const result = applyEvaluation(state, request, true);
 	const remaining = result.state.decisions.pending.filter(
 		(decision) =>
-			decision.kind !== "evaluation" ||
-			decision.modelId !== request.modelId ||
-			decision.evaluation !== request.evaluation,
+			(decision.kind !== "launch" && decision.kind !== "evaluation") ||
+			decision.modelId !== request.modelId,
 	);
-	if (remaining.length === result.state.decisions.pending.length) {
-		return result;
-	}
 	const nextState: GameState = {
 		...result.state,
 		decisions: { pending: remaining },
@@ -60,8 +57,15 @@ export function runEvaluation(
 			decisionIds: remaining.map((decision) => decision.id),
 		},
 	};
-	assertGameState(nextState);
-	return { ...result, state: nextState };
+	const reportedState = appendFactsAsReports(nextState, result.facts);
+	assertGameState(reportedState);
+	return {
+		...result,
+		state: reportedState,
+		pending: reportedState.decisions.pending.map((decision) => ({
+			...decision,
+		})),
+	};
 }
 
 /** Apply an already validated evaluation choice by starting its project. */

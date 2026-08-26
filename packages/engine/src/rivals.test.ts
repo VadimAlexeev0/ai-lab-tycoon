@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
+import { TEXT_MODELS_KEYSTONE_ID } from "./data/research.js";
 import { RIVAL_MILESTONES } from "./data/rivals.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
@@ -52,6 +53,14 @@ describe("rival progress clocks", () => {
 
 		state.meta.era = "assistant";
 		state.research.currentEra = "assistant";
+		for (const node of state.research.nodes) {
+			if (
+				node.id === TEXT_MODELS_KEYSTONE_ID ||
+				node.id === "text_models_principles"
+			) {
+				node.status = "completed";
+			}
+		}
 		const assistantResult = rivalsSystem(state, { phase: "rivals", week: 2 });
 		expect(
 			assistantResult.state.rivals.items.filter((rival) => rival.active),

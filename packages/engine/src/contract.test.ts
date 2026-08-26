@@ -19,6 +19,8 @@ function addLaunchDecision(state: GameState): void {
 			foundation: "fresh",
 			status: "ready",
 			projectId: null,
+			family: "text",
+			tier: "lean",
 		},
 	];
 	state.decisions.pending = [
@@ -511,6 +513,8 @@ describe("hardened component contract", () => {
 				foundation: "fresh",
 				status: "training",
 				projectId: "project_001",
+				family: "text",
+				tier: "lean",
 			},
 		];
 		active.projects.items = [
@@ -524,6 +528,8 @@ describe("hardened component contract", () => {
 				duration: 2,
 			},
 		];
+		active.compute.trainingDemand = 3;
+		active.compute.allocated = 3;
 		expect(() => assertGameState(active)).not.toThrow();
 
 		const activeModel = active.models.items.at(0);
@@ -541,6 +547,8 @@ describe("hardened component contract", () => {
 				foundation: "fresh",
 				status: "ready",
 				projectId: null,
+				family: "text",
+				tier: "lean",
 			},
 		];
 		historical.projects.items = [
@@ -564,6 +572,8 @@ describe("hardened component contract", () => {
 				foundation: "fresh",
 				status: "ready",
 				projectId: "project_001",
+				family: "text",
+				tier: "lean",
 			},
 		];
 		incompatible.projects.items = [
@@ -712,6 +722,32 @@ describe("hardened component contract", () => {
 		];
 		expect(() => assertGameState(projectEntries)).not.toThrow();
 
+		const deferredCommandFixtures: Array<GameState["commandLog"][number]> = [
+			{
+				id: "command_002",
+				kind: "buy_compute",
+				week: 1,
+				amount: 4,
+			},
+			{
+				id: "command_002",
+				kind: "hire_team",
+				week: 1,
+				name: "Research Team",
+			},
+			{
+				id: "command_002",
+				kind: "product_resume",
+				week: 1,
+				productId: "product_001",
+			},
+		];
+		for (const command of deferredCommandFixtures) {
+			const deferred = cloneState(state);
+			deferred.commandLog.push(command);
+			expect(() => assertGameState(deferred)).not.toThrow(command.kind);
+		}
+
 		const invalidEntry = cloneState(state);
 		(asRecord(invalidEntry.commandLog[0]) as StateRecord).seed = 1.5;
 		expect(() => assertGameState(invalidEntry)).toThrow(/seed|integer/i);
@@ -722,17 +758,29 @@ describe("hardened component contract", () => {
 			"GAME_STATE_SCHEMA_VERSION",
 			"advanceWeek",
 			"applyDecision",
+			"applyProductResume",
 			"assertGameState",
 			"assignProject",
+			"buyCompute",
 			"cancelProject",
 			"designModel",
+			"fundingFactors",
+			"hireTeam",
 			"launchProduct",
+			"replayCommandLog",
 			"runEvaluation",
 			"selectAvailableProjects",
+			"selectFunding",
 			"selectNextObjective",
+			"selectPendingDecisions",
+			"selectProducts",
+			"selectRecentReports",
+			"selectResearchNodes",
 			"selectResourceBar",
 			"selectRivals",
 			"selectTeams",
+			"selectTerminalObjective",
+			"selectTerminalProjection",
 			"selectVisibleModels",
 			"selectVisibleState",
 			"startRun",
@@ -759,7 +807,9 @@ describe("hardened component contract", () => {
 			anchor,
 		];
 
-		expect(() => assertGameState(state)).toThrow(/first|index|start_run/i);
+		expect(() => assertGameState(state)).toThrow(
+			/first|index|start_run|sequential/i,
+		);
 	});
 
 	it("requires the start_run command at week one", () => {

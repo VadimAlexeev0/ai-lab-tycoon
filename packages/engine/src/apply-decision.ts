@@ -51,17 +51,20 @@ export function applyDecision(
 			}
 			throw error;
 		}
-		remaining = withoutDecision(state.decisions.pending, pending.id);
+		remaining = withoutModelEvaluations(
+			withoutDecision(state.decisions.pending, pending.id),
+			pendingModelId(pending),
+		);
 	} else if (choice.kind === "evaluate") {
 		resolved = applyEvaluation(
 			state,
 			{ modelId: pendingModelId(pending), evaluation: choice.evaluation },
 			false,
 		);
-		remaining =
-			pending.kind === "launch"
-				? state.decisions.pending.map((decision) => ({ ...decision }))
-				: withoutDecision(state.decisions.pending, pending.id);
+		remaining = withoutModelDecisions(
+			state.decisions.pending,
+			pendingModelId(pending),
+		);
 	} else if (choice.kind === "funding") {
 		resolved = applyFunding(state, choice.round, choice.accept);
 		remaining = withoutDecision(state.decisions.pending, pending.id);
@@ -94,7 +97,10 @@ export function applyDecision(
 		remaining = terminalResult.pending.map((decision) => ({ ...decision }));
 	} else {
 		resolved = shelveDecision(state, pending);
-		remaining = withoutDecision(state.decisions.pending, pending.id);
+		remaining = withoutModelDecisions(
+			state.decisions.pending,
+			pendingModelId(pending),
+		);
 	}
 
 	const withDecision = {
@@ -188,22 +194,87 @@ function withoutDecision(
 		.map((decision) => ({ ...decision }));
 }
 
+function withoutModelDecisions(
+	decisions: readonly PendingDecision[],
+	modelId: string,
+): PendingDecision[] {
+	return decisions
+		.filter(
+			(decision) =>
+				(decision.kind !== "launch" && decision.kind !== "evaluation") ||
+				decision.modelId !== modelId,
+		)
+		.map((decision) => ({ ...decision }));
+}
+
+function withoutModelEvaluations(
+	decisions: readonly PendingDecision[],
+	modelId: string,
+): PendingDecision[] {
+	return decisions
+		.filter(
+			(decision) =>
+				decision.kind !== "evaluation" || decision.modelId !== modelId,
+		)
+		.map((decision) => ({ ...decision }));
+}
+
 function shelveDecision(
 	state: GameState,
 	decision: PendingDecision,
 ): EngineResult {
+	// Shelving declines the complete currently surfaced card for this model.
+	// A launched model remains launched because shelving a channel is not
+	// retirement; a ready model is shelved only when this was its last option.
 	if (decision.kind !== "launch" && decision.kind !== "evaluation") {
 		throw new Error("Only model decisions can be shelved");
 	}
+	const model = state.models.items.find(
+		(candidate) => candidate.id === decision.modelId,
+	);
+	if (model === undefined) {
+		throw new Error(`Cannot shelve an unknown model: ${decision.modelId}`);
+	}
+	const modelDecisionCount = state.decisions.pending.filter(
+		(candidate) =>
+			(candidate.kind === "launch" || candidate.kind === "evaluation") &&
+			candidate.modelId === model.id,
+	).length;
+	const hasOperatingProduct = state.products.items.some(
+		(product) => product.modelId === model.id && product.status === "operating",
+	);
+	const hasActiveModelProject = state.projects.items.some(
+		(project) =>
+			project.status === "active" &&
+			(project.kind === "model" ||
+				project.kind === "training" ||
+				project.kind === "evaluation" ||
+				project.kind === "product") &&
+			project.modelId === model.id,
+	);
+	const shouldShelveReadyModel =
+		model.status === "ready" &&
+		modelDecisionCount === 1 &&
+		!hasOperatingProduct &&
+		!hasActiveModelProject;
+	const nextStatus = shouldShelveReadyModel ? "shelved" : model.status;
 	const nextState: GameState = {
 		...state,
 		models: {
 			...state.models,
-			items: state.models.items.map((model) =>
-				model.id === decision.modelId
-					? { ...model, status: "shelved", projectId: null }
-					: { ...model },
+			items: state.models.items.map((candidate) =>
+				candidate.id === model.id
+					? {
+							...candidate,
+							status: nextStatus,
+							...(nextStatus === "shelved" ? { projectId: null } : {}),
+						}
+					: { ...candidate },
 			),
+			activeModelId:
+				nextStatus === "shelved" && state.models.activeModelId === model.id
+					? null
+					: state.models.activeModelId,
 		},
 	};
 	assertGameState(nextState);

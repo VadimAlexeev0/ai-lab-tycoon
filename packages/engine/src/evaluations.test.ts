@@ -99,6 +99,28 @@ describe("evaluations", () => {
 		);
 	});
 
+	it("returns direct evaluation pending state and appends its facts as reports", () => {
+		const state = scoredState();
+		const decision = {
+			kind: "evaluation" as const,
+			id: "decision_001",
+			modelId: "model_001",
+			evaluation: "capability" as const,
+			blocking: true as const,
+		};
+		state.decisions.pending = [decision];
+		state.queue.decisionIds = [decision.id];
+
+		const result = runEvaluation(state, "model_001", "capability");
+
+		expect(result.pending).toEqual(result.state.decisions.pending);
+		expect(result.pending).toEqual([]);
+		expect(result.state.reports.items.map((report) => report.fact)).toEqual(
+			expect.arrayContaining(result.facts),
+		);
+		expect(result.state.queue.reportIds).toHaveLength(result.facts.length);
+	});
+
 	it("rejects an evaluation that cannot reserve all compute before mutation", () => {
 		const state = scoredState();
 		state.compute.capacity = 1;

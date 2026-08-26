@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	applyInfrastructureGain,
 	computeReservations,
 	withRecomputedCompute,
 } from "./compute-reservations.js";
@@ -232,5 +233,50 @@ describe("compute reservations", () => {
 		expect(compute.servingDemand).toBe(7);
 		expect(compute.trainingDemand).toBe(0);
 		expect(compute.allocated).toBe(7);
+	});
+
+	it("adds the data-defined capacity gain for a completed compute project", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.projects.items = [
+			{
+				kind: "infrastructure",
+				id: "project_999",
+				teamId: null,
+				status: "completed",
+				progress: 1,
+				duration: 1,
+				target: "compute",
+			},
+		];
+
+		const result = applyInfrastructureGain(state, "project_999");
+
+		expect(result.compute.capacity).toBe(
+			BALANCE.startingComputeCapacity + BALANCE.infrastructureCapacityGain,
+		);
+		expect(result.compute.allocated).toBe(0);
+		expect(state.compute.capacity).toBe(BALANCE.startingComputeCapacity);
+	});
+
+	it("rejects applying an infrastructure gain to an unfinished or unrelated project", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.projects.items = [
+			{
+				kind: "infrastructure",
+				id: "project_999",
+				teamId: null,
+				status: "active",
+				progress: 0,
+				duration: 1,
+				target: "compute",
+			},
+		];
+
+		expect(() => applyInfrastructureGain(state, "project_999")).toThrow(
+			/completed/i,
+		);
+		expect(() => applyInfrastructureGain(state, "project_missing")).toThrow(
+			/unknown/i,
+		);
 	});
 });

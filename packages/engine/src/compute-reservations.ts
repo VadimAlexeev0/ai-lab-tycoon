@@ -55,3 +55,46 @@ export function withRecomputedCompute(state: GameState): GameState["compute"] {
 		allocated: reservations.allocated,
 	};
 }
+
+/**
+ * Apply the permanent compute capacity supplied by a completed infrastructure
+ * project. The project system owns completion detection and should call this
+ * exactly once after it marks the project completed.
+ */
+export function applyInfrastructureGain(
+	state: GameState,
+	projectId: string,
+): GameState {
+	const project = state.projects.items.find((item) => item.id === projectId);
+	if (project === undefined) {
+		throw new Error(
+			`Cannot apply infrastructure gain to unknown project: ${projectId}`,
+		);
+	}
+	if (project.kind !== "infrastructure" || project.target !== "compute") {
+		throw new Error(
+			`Project ${projectId} is not a compute infrastructure project`,
+		);
+	}
+	if (project.status !== "completed" || project.progress !== project.duration) {
+		throw new Error(
+			`Infrastructure project ${projectId} must be completed before its gain is applied`,
+		);
+	}
+
+	const capacity = state.compute.capacity + BALANCE.infrastructureCapacityGain;
+	if (!Number.isSafeInteger(capacity)) {
+		throw new Error("Compute capacity exceeded the safe integer limit");
+	}
+	const nextState = {
+		...state,
+		compute: {
+			...state.compute,
+			capacity,
+		},
+	};
+	return {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+}

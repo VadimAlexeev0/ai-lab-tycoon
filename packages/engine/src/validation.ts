@@ -114,8 +114,12 @@ export function assertInteger(
 	value: unknown,
 	path: string,
 ): asserts value is number {
-	if (!Number.isInteger(value) || Object.is(value, -0)) {
-		throw new Error(`${path} must be an integer and not negative zero`);
+	if (
+		!Number.isInteger(value) ||
+		!Number.isSafeInteger(value) ||
+		Object.is(value, -0)
+	) {
+		throw new Error(`${path} must be a safe integer and not negative zero`);
 	}
 }
 

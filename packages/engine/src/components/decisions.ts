@@ -64,6 +64,8 @@ export type PendingDecision =
 	| {
 			kind: "incident";
 			id: string;
+			/** Stable id shared by the occurrence, decision, and resolution facts. */
+			incidentId?: string;
 			incident: IncidentType;
 			blocking: true;
 	  };
@@ -223,17 +225,20 @@ function assertPendingDecision(value: Record<string, unknown>): void {
 				throw new Error("Funding decisions must be non-blocking");
 			}
 			return;
-		case "incident":
-			assertExactObject(
-				value,
-				["kind", "id", "incident", "blocking"],
-				"incident decision",
-			);
+		case "incident": {
+			const keys = Object.hasOwn(value, "incidentId")
+				? ["kind", "id", "incidentId", "incident", "blocking"]
+				: ["kind", "id", "incident", "blocking"];
+			assertExactObject(value, keys, "incident decision");
+			if (Object.hasOwn(value, "incidentId")) {
+				assertIdentifier(value.incidentId, "Incident id");
+			}
 			assertEnum(value.incident, INCIDENT_TYPES, "Decision incident type");
 			assertBoolean(value.blocking, "Incident decision blocking");
 			if (value.blocking !== true) {
 				throw new Error("Incident decisions must be blocking");
 			}
 			return;
+		}
 	}
 }

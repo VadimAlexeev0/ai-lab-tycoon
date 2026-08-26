@@ -35,6 +35,11 @@ export const trainingSystem: GameSystem = (state, context) => {
 		trainingDemand > availableTrainingCapacity
 			? 0
 			: BALANCE.projectProgressPerWeek.training;
+	const servingStarvation =
+		trainingProgressRate === 0 &&
+		reservations.servingDemand > 0 &&
+		reservations.servingDemand >=
+			Math.max(0, state.compute.capacity - reservations.evaluationDemand);
 	let nextRng = state.rng;
 	const nextModels = state.models.items.map(cloneModel);
 	const nextProjects: Project[] = state.projects.items.map((project) => {
@@ -122,6 +127,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 					: { ...team },
 			),
 		},
+		warnings: updateComputeShortageWarning(state.warnings, servingStarvation),
 	};
 	const recomputedState = {
 		...nextState,
@@ -132,6 +138,19 @@ export const trainingSystem: GameSystem = (state, context) => {
 	});
 	return { state: recomputedState, facts, pending: [] };
 };
+
+function updateComputeShortageWarning(
+	warnings: GameState["warnings"],
+	servingStarvation: boolean,
+): GameState["warnings"] {
+	const nextWarnings = warnings.filter(
+		(warning) => warning.code !== "compute_shortage",
+	);
+	if (servingStarvation) {
+		nextWarnings.push({ code: "compute_shortage", severity: "warning" });
+	}
+	return nextWarnings;
+}
 
 function cloneProject(project: Project): Project {
 	return { ...project };

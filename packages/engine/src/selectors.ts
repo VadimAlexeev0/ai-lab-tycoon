@@ -1,7 +1,21 @@
+import type { PendingDecision } from "./components/decisions.js";
+import type { FundingGateFactors } from "./components/funding.js";
 import type { Model } from "./components/models.js";
+import type { Product } from "./components/products.js";
 import type { Project } from "./components/projects.js";
+import type { Fact, Report } from "./components/reports.js";
+import type {
+	ResearchBranch,
+	ResearchNodeStatus,
+} from "./components/research.js";
 import type { Rival } from "./components/rivals.js";
+import type {
+	TerminalContributor,
+	TerminalReason,
+	TerminalStatus,
+} from "./components/terminal.js";
 import type { GameState } from "./state.js";
+import { fundingFactors } from "./systems/funding.js";
 import type { DeepReadonly } from "./systems/types.js";
 
 export type ResourceBarSummary = {
@@ -84,6 +98,57 @@ export type VisibleRival = {
 	active: boolean;
 };
 
+export type VisibleResearchNode = {
+	id: string;
+	branch: ResearchBranch;
+	status: ResearchNodeStatus;
+	prereqs: string[];
+	insightCost: number;
+};
+
+export type VisibleProductSummary = {
+	id: string;
+	channel: Product["channel"];
+	modelId: string;
+	status: Product["status"];
+	users?: number;
+	lastRevenue?: number;
+	cumulativeRevenue?: number;
+	servingDemand?: number;
+	effectiveQuality?: number;
+};
+
+export type VisibleFundingSummary = {
+	seed: { round: "seed"; status: GameState["funding"]["seed"]["status"] };
+	seriesA: {
+		round: "series_a";
+		status: GameState["funding"]["seriesA"]["status"];
+	};
+	factors: FundingGateFactors;
+};
+
+export type VisiblePendingDecision = PendingDecision;
+
+export type VisibleReport = {
+	id: string;
+	priority: Report["priority"];
+	fact: Fact;
+	acknowledged: boolean;
+};
+
+export type VisibleTerminalProjection = {
+	status: TerminalStatus;
+	reason: TerminalReason;
+	frontierReached: boolean;
+	contributors: TerminalContributor[];
+};
+
+export type TerminalObjective = {
+	kind: "restart";
+	reason: Exclude<TerminalReason, "none">;
+	guidance: string;
+};
+
 export type NextObjective =
 	| {
 			kind: "assign_project";
@@ -96,13 +161,21 @@ export type NextObjective =
 	| {
 			kind: "advance_week";
 			week: number;
-	  };
+	  }
+	| TerminalObjective;
 
 export type VisibleGameState = {
 	resourceBar: ResourceBarSummary;
 	teams: VisibleTeam[];
 	availableProjects: VisibleAvailableProject[];
 	rivals: VisibleRival[];
+	models: VisibleModelEstimate[];
+	research: VisibleResearchNode[];
+	products: VisibleProductSummary[];
+	funding: VisibleFundingSummary;
+	pendingDecisions: VisiblePendingDecision[];
+	recentReports: VisibleReport[];
+	terminal: VisibleTerminalProjection;
 	nextObjective: NextObjective;
 };
 
@@ -160,9 +233,102 @@ export function selectVisibleModels(
 	return state.models.items.map(modelToVisible);
 }
 
+export function selectResearchNodes(
+	state: DeepReadonly<GameState>,
+): VisibleResearchNode[] {
+	return state.research.nodes.map((node) => ({
+		id: node.id,
+		branch: node.branch,
+		status: node.status,
+		prereqs: [...node.prerequisites],
+		insightCost: node.insightCost,
+	}));
+}
+
+export function selectProducts(
+	state: DeepReadonly<GameState>,
+): VisibleProductSummary[] {
+	return state.products.items.map((product) => {
+		const visible: VisibleProductSummary = {
+			id: product.id,
+			channel: product.channel,
+			modelId: product.modelId,
+			status: product.status,
+		};
+		if (product.users !== undefined) visible.users = product.users;
+		if (product.lastRevenue !== undefined) {
+			visible.lastRevenue = product.lastRevenue;
+		}
+		if (product.cumulativeRevenue !== undefined) {
+			visible.cumulativeRevenue = product.cumulativeRevenue;
+		}
+		if (product.servingDemand !== undefined) {
+			visible.servingDemand = product.servingDemand;
+		}
+		if (product.effectiveQuality !== undefined) {
+			visible.effectiveQuality = product.effectiveQuality;
+		}
+		return visible;
+	});
+}
+
+export function selectFunding(
+	state: DeepReadonly<GameState>,
+): VisibleFundingSummary {
+	return {
+		seed: { round: "seed", status: state.funding.seed.status },
+		seriesA: { round: "series_a", status: state.funding.seriesA.status },
+		factors: fundingFactors(state as unknown as GameState),
+	};
+}
+
+export function selectPendingDecisions(
+	state: DeepReadonly<GameState>,
+): VisiblePendingDecision[] {
+	return state.decisions.pending.map((decision) => ({ ...decision }));
+}
+
+export function selectRecentReports(
+	state: DeepReadonly<GameState>,
+): VisibleReport[] {
+	return state.reports.items.map(reportToVisible);
+}
+
+export function selectTerminalProjection(
+	state: DeepReadonly<GameState>,
+): VisibleTerminalProjection {
+	return {
+		status: state.terminal.status,
+		reason: state.terminal.reason,
+		frontierReached: state.terminal.frontierReached,
+		contributors: state.terminal.contributors.map((contributor) => ({
+			...contributor,
+		})),
+	};
+}
+
+/** Return the only valid next action for a run that has already been lost. */
+export function selectTerminalObjective(
+	state: DeepReadonly<GameState>,
+): TerminalObjective | null {
+	if (state.terminal.status !== "lost" || state.terminal.reason === "none") {
+		return null;
+	}
+	return {
+		kind: "restart",
+		reason: state.terminal.reason,
+		guidance: restartGuidance(state.terminal.reason),
+	};
+}
+
 export function selectNextObjective(
 	state: DeepReadonly<GameState>,
 ): NextObjective {
+	const terminalObjective = selectTerminalObjective(state);
+	if (terminalObjective !== null) {
+		return terminalObjective;
+	}
+
 	const blockingDecision = state.decisions.pending.find(
 		(decision) => decision.blocking,
 	);
@@ -200,6 +366,13 @@ export function selectVisibleState(
 		teams: selectTeams(state),
 		availableProjects: selectAvailableProjects(state),
 		rivals: selectRivals(state),
+		models: selectVisibleModels(state),
+		research: selectResearchNodes(state),
+		products: selectProducts(state),
+		funding: selectFunding(state),
+		pendingDecisions: selectPendingDecisions(state),
+		recentReports: selectRecentReports(state),
+		terminal: selectTerminalProjection(state),
 		nextObjective: selectNextObjective(state),
 	};
 }
@@ -311,4 +484,34 @@ function projectEstimateBands(
 		};
 	}
 	return visible;
+}
+
+function reportToVisible(report: DeepReadonly<Report>): VisibleReport {
+	return {
+		id: report.id,
+		priority: report.priority,
+		fact: cloneFact(report.fact),
+		acknowledged: report.acknowledged,
+	};
+}
+
+function cloneFact(fact: DeepReadonly<Fact>): Fact {
+	if (fact.kind === "terminal") {
+		return {
+			...fact,
+			contributors: fact.contributors.map((contributor) => ({
+				...contributor,
+			})),
+		};
+	}
+	if (fact.kind === "funding_resolved" && fact.factors !== undefined) {
+		return { ...fact, factors: { ...fact.factors } };
+	}
+	return { ...fact } as Fact;
+}
+
+function restartGuidance(reason: Exclude<TerminalReason, "none">): string {
+	return reason === "cash_depleted"
+		? "Restart with more runway: protect cash before committing to another expensive project."
+		: "Restart with a safer posture: evaluate reliability and protect Trust before scaling.";
 }

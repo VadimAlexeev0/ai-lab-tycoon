@@ -42,7 +42,8 @@ function multimodalDesignableState(seed = 42): GameState {
 	state.research.currentEra = "multimodal";
 	for (const node of state.research.nodes) {
 		if (
-			node.id === "assistant_models_tool_use" ||
+			node.era === "text" ||
+			node.era === "assistant" ||
 			node.id === "multimodal_models_fusion"
 		) {
 			node.status = "completed";
@@ -77,6 +78,16 @@ function parentModel(trueScores: Model["trueScores"]): Model {
 		dataMix: { general: 60, code: 30, multimodal: 10 },
 		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 		trueScores,
+		estimates: Object.fromEntries(
+			Object.entries(trueScores).map(([dimension, score]) => [
+				dimension,
+				{
+					estimate: score,
+					lower: Math.max(0, score - 10),
+					upper: Math.min(100, score + 10),
+				},
+			]),
+		) as Model["estimates"],
 	};
 }
 
@@ -262,10 +273,14 @@ describe("Task 6 review regressions", () => {
 		const textKeystone = state.research.nodes.find(
 			(node) => node.id === TEXT_MODELS_KEYSTONE_ID,
 		);
-		if (textKeystone === undefined) {
-			throw new Error("Expected Text keystone");
+		const principles = state.research.nodes.find(
+			(node) => node.id === "text_models_principles",
+		);
+		if (textKeystone === undefined || principles === undefined) {
+			throw new Error("Expected Text keystone and principles");
 		}
 		textKeystone.status = "completed";
+		principles.status = "completed";
 
 		const assistantEra = researchSystem(state, {
 			phase: "research",

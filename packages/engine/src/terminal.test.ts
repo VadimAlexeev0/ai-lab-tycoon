@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
+import { ASSISTANT_MODELS_KEYSTONE_ID } from "./data/research.js";
 import {
 	advanceWeek,
 	applyDecision,
@@ -20,6 +21,17 @@ function multimodalReadyState(): GameState {
 	state.research.currentEra = "multimodal";
 	state.company.hype = 100;
 	state.company.trust = 100;
+	// Satisfy the runtime research-graph invariant: entering multimodal
+	// requires both era keystones (and their prerequisites) completed.
+	for (const node of state.research.nodes) {
+		if (
+			node.era === "text" ||
+			node.era === "assistant" ||
+			node.prerequisites.includes(ASSISTANT_MODELS_KEYSTONE_ID)
+		) {
+			node.status = "completed";
+		}
+	}
 	state.models.items = [
 		{
 			id: "model_001",
@@ -97,6 +109,10 @@ describe("terminal outcomes and milestone", () => {
 		const state = multimodalReadyState();
 		state.company.cash = BALANCE.upkeep + BALANCE.salaries.foundingTeam - 1;
 		state.compute.capacity = 100;
+		const model = state.models.items[0];
+		if (model !== undefined) model.status = "launched";
+		state.compute.servingDemand = 10;
+		state.compute.allocated = 10;
 		state.products.items = [
 			{
 				id: "product_001",

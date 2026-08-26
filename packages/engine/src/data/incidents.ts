@@ -19,6 +19,12 @@ export type IncidentCondition =
 	| "privacy_exposure";
 
 export type IncidentTarget = "product" | "training_project" | "company";
+export type IncidentMetric =
+	| "servingDemand"
+	| "effectiveQuality"
+	| "trainingDemand"
+	| "reliability"
+	| "trust";
 export type IncidentResolution =
 	| "pause_product"
 	| "cancel_training"
@@ -37,7 +43,7 @@ export type IncidentDefinition = Readonly<{
 	type: IncidentType;
 	condition: IncidentCondition;
 	affectedEntity: IncidentTarget;
-	metric: string;
+	metric: IncidentMetric;
 	threshold: number;
 	baseProbability: number;
 	severity: IncidentEffect;
@@ -166,6 +172,7 @@ export const INCIDENT_DEFINITIONS = [
 		type: "enterprise_sla_breach",
 		condition: "enterprise_risk",
 		affectedEntity: "product",
+		// Enterprise SLA V1 is reliability-only; quality is not a second trigger.
 		metric: "reliability",
 		threshold: 35,
 		baseProbability: 5,
@@ -231,10 +238,24 @@ export function incidentDefinition(type: IncidentType): IncidentDefinition {
 	return definition;
 }
 
+/** Return the single data definition that owns a predicate condition. */
+export function incidentDefinitionForCondition(
+	condition: IncidentCondition,
+): IncidentDefinition {
+	const definition = INCIDENT_DEFINITIONS.find(
+		(item) => item.condition === condition,
+	);
+	if (definition === undefined) {
+		throw new Error(`Unknown incident condition: ${condition}`);
+	}
+	return definition;
+}
+
 function assertIncidentDefinitions(
 	definitions: readonly IncidentDefinition[],
 ): void {
 	const types = new Set<string>();
+	const conditions = new Set<string>();
 	for (const definition of definitions) {
 		assertExactObject(
 			definition,
@@ -277,14 +298,32 @@ function assertIncidentDefinitions(
 			],
 			"Incident condition",
 		);
+		if (conditions.has(definition.condition)) {
+			throw new Error("Incident conditions must be unique");
+		}
+		conditions.add(definition.condition);
 		assertEnum(
 			definition.affectedEntity,
 			["product", "training_project", "company"],
 			"Incident affected entity",
 		);
 		assertString(definition.metric, "Incident metric");
-		if (definition.metric.trim().length === 0) {
-			throw new Error("Incident metric must not be empty");
+		assertEnum(
+			definition.metric,
+			[
+				"servingDemand",
+				"effectiveQuality",
+				"trainingDemand",
+				"reliability",
+				"trust",
+			],
+			"Incident metric",
+		);
+		const expectedMetric = metricForCondition(definition.condition);
+		if (definition.metric !== expectedMetric) {
+			throw new Error(
+				`Incident ${definition.type} metric must be ${expectedMetric}`,
+			);
 		}
 		assertInteger(definition.threshold, "Incident threshold");
 		assertNonNegativeInteger(
@@ -311,6 +350,22 @@ function assertIncidentDefinitions(
 	}
 	if (definitions.length !== 6)
 		throw new Error("V1 must define six incident types");
+}
+
+function metricForCondition(condition: IncidentCondition): IncidentMetric {
+	switch (condition) {
+		case "serving_overload":
+		case "api_overload":
+			return "servingDemand";
+		case "low_quality":
+			return "effectiveQuality";
+		case "training_overload":
+			return "trainingDemand";
+		case "enterprise_risk":
+			return "reliability";
+		case "privacy_exposure":
+			return "trust";
+	}
 }
 
 function assertEffect(value: IncidentEffect, path: string): void {

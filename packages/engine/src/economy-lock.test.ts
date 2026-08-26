@@ -14,6 +14,10 @@ import {
 const EXPECTED_ECONOMY: BalanceConstants = {
 	startingCash: 1_000,
 	startingComputeCapacity: 12,
+	infrastructureCapacityGain: 8,
+	computePurchaseCost: 300,
+	computePurchaseUnits: 12,
+	hireTeamCost: 300,
 	startingInsight: 0,
 	startingTrust: 60,
 	startingHype: 10,
@@ -184,6 +188,27 @@ describe("V1 economy constants", () => {
 	it("locks the exact funding and evaluation tables", () => {
 		expect(BALANCE.funding).toEqual(EXPECTED_ECONOMY.funding);
 		expect(BALANCE.evaluations).toEqual(EXPECTED_ECONOMY.evaluations);
+	});
+
+	it("pins capacity progression and two-purchase lean-training headroom", () => {
+		expect(BALANCE.infrastructureCapacityGain).toBe(8);
+		expect(BALANCE.computePurchaseCost).toBe(300);
+		expect(BALANCE.computePurchaseUnits).toBe(12);
+		expect(BALANCE.hireTeamCost).toBe(300);
+
+		const afterFirstInfrastructure =
+			BALANCE.startingComputeCapacity + BALANCE.infrastructureCapacityGain;
+		const afterSecondInfrastructure =
+			afterFirstInfrastructure + BALANCE.infrastructureCapacityGain;
+		const afterTwoPurchases =
+			afterFirstInfrastructure + 2 * BALANCE.computePurchaseUnits;
+
+		expect(afterFirstInfrastructure).toBe(20);
+		expect(afterSecondInfrastructure).toBe(28);
+		expect(afterTwoPurchases).toBe(44);
+		expect(afterTwoPurchases).toBeGreaterThanOrEqual(
+			40 + BALANCE.modelTiers.lean.trainingCompute,
+		);
 	});
 
 	it("locks the exact score-generation and tier tables", () => {

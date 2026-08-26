@@ -23,6 +23,37 @@ const SPEC = {
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 };
 
+function resolveNonModelBlockers(state: GameState): GameState {
+	let current = state;
+	let guard = 0;
+	while (
+		current.decisions.pending.some((decision) => decision.blocking) &&
+		guard < 12
+	) {
+		guard += 1;
+		const decision = current.decisions.pending[0];
+		if (decision === undefined) break;
+		if (decision.kind === "funding") {
+			current = applyDecision(current, {
+				kind: "funding",
+				decisionId: decision.id,
+				round: decision.round,
+				accept: true,
+			}).state;
+		} else if (decision.kind === "incident") {
+			current = applyDecision(current, {
+				kind: "incident",
+				decisionId: decision.id,
+				response: "repair",
+			}).state;
+		} else {
+			// Evaluation / launch decisions for a ready model: leave them.
+			break;
+		}
+	}
+	return current;
+}
+
 function directCommandRun(): GameState {
 	let state = startRun({ companyName: "Replay Labs" }, 9);
 
@@ -52,13 +83,22 @@ function directCommandRun(): GameState {
 	state = assignProject(state, team.id, principles.id).state;
 	state = advanceWeek(state).state;
 
+	// Bank Insight to >= 2 by advancing with the team idle (research gain is
+	// 1/week with no spend; assigning a research node would cost 1 and net
+	// zero). The team is idle here and no model is ready yet, so advanceWeek
+	// generates no blocking decisions.
+	for (let index = 0; index < 6 && state.company.insight < 2; index += 1) {
+		state = advanceWeek(state).state;
+	}
+
 	state = designModel(state, SPEC).state;
-	for (let index = 0; index < 6; index += 1) {
-		if (
-			state.decisions.pending.some((decision) => decision.kind === "evaluation")
-		) {
-			break;
-		}
+
+	// Train until the model is ready. No blocking decisions appear while a
+	// model is designing/training (no products, no incidents, funding is
+	// non-blocking), so plain advanceWeek is safe.
+	for (let index = 0; index < 8; index += 1) {
+		state = resolveNonModelBlockers(state);
+		if (state.models.items.some((m) => m.status === "ready")) break;
 		state = advanceWeek(state).state;
 	}
 
@@ -66,9 +106,16 @@ function directCommandRun(): GameState {
 		(candidate) => candidate.status === "ready",
 	);
 	if (model === undefined) throw new Error("Expected a ready replay model");
+	if (state.company.insight < 2) {
+		throw new Error("Expected Insight >= 2 for the direct evaluation");
+	}
+
+	// Direct-command segment. runEvaluation clears every launch/evaluation
+	// decision for this model, so no blocking decisions remain; call
+	// launchProduct immediately afterwards (no advanceWeek in between) so the
+	// decision system does not regenerate them.
 	const evaluation = runEvaluation(state, model.id, "capability");
 	state = evaluation.state;
-	state = advanceWeek(state).state;
 	state = launchProduct(state, model.id, "chat").state;
 	return state;
 }
@@ -86,11 +133,30 @@ function evaluationDecisionRun(): GameState {
 	}
 	state = assignProject(state, team.id, project.id).state;
 	state = advanceWeek(state).state;
+	// Bank Insight to >= 2 so productsSystem will emit an evaluation decision
+	// for the ready model (it stays silent when insight/team/compute are short).
+	for (let index = 0; index < 6 && state.company.insight < 2; index += 1) {
+		state = advanceWeek(state).state;
+	}
 	state = designModel(state, SPEC).state;
 	for (let index = 0; index < 8; index += 1) {
 		if (
 			state.decisions.pending.some((decision) => decision.kind === "evaluation")
 		) {
+			return state;
+		}
+		// Clear non-model blockers so advanceWeek can proceed; launch
+		// decisions appear together with evaluation (same week the model
+		// becomes ready), so we return before ever hitting one.
+		state = resolveNonModelBlockers(state);
+		if (
+			state.decisions.pending.some((decision) => decision.kind === "evaluation")
+		) {
+			return state;
+		}
+		if (state.models.items.some((m) => m.status === "ready")) {
+			// The model is ready and a launch/evaluation decision is expected
+			// next tick; advancing now would be blocked. Keep looping.
 			return state;
 		}
 		state = advanceWeek(state).state;
@@ -126,17 +192,28 @@ describe("command-log replay", () => {
 		timeout: 60_000,
 	}, () => {
 		const offered = evaluationDecisionRun();
-		const decision = offered.decisions.pending.find(
+		const evaluation = offered.decisions.pending.find(
 			(item) => item.kind === "evaluation",
 		);
-		if (decision === undefined || decision.kind !== "evaluation") {
+		if (evaluation === undefined || evaluation.kind !== "evaluation") {
 			throw new Error("Expected an evaluation decision");
 		}
+		// Shelving an evaluation decision declines the whole surfaced card: it
+		// clears every sibling launch/evaluation decision for that model and
+		// leaves the ready model ready (it was not the sole remaining option),
+		// so no zombie blocking decisions remain to deadlock Advance Week.
 		const original = applyDecision(offered, {
 			kind: "shelve",
-			decisionId: decision.id,
+			decisionId: evaluation.id,
 		});
-		expect(original.state.models.items.at(-1)?.status).toBe("shelved");
+		expect(original.state.models.items.at(-1)?.status).toBe("ready");
+		expect(
+			original.state.decisions.pending.some(
+				(decision) =>
+					(decision.kind === "launch" || decision.kind === "evaluation") &&
+					decision.modelId === "model_001",
+			),
+		).toBe(false);
 		expect(original.state.commandLog.at(-1)?.kind).toBe("apply_decision");
 
 		const replayed = replayCommandLog(original.state.commandLog);
@@ -223,4 +300,72 @@ describe("command-log replay", () => {
 		const replayed = replayCommandLog(advanced.state.commandLog);
 		expect(JSON.stringify(replayed)).toBe(JSON.stringify(advanced.state));
 	});
+
+	it("accepts a versioned envelope and compares reordered structures canonically", () => {
+		const original = advanceWeek(
+			startRun({ companyName: "Canonical Labs" }, 42),
+		).state;
+		const reordered = original.commandLog.map(
+			(entry) => reverseObjectKeys(entry) as CommandLogEntry,
+		);
+
+		const replayed = replayCommandLog(
+			{
+				schemaVersion: 1,
+				commands: reordered,
+			},
+			{ expectedState: original },
+		);
+
+		expect(replayed).toEqual(original);
+
+		const alteredExpected = JSON.parse(JSON.stringify(original)) as GameState;
+		alteredExpected.company.cash += 1;
+		expect(() =>
+			replayCommandLog(
+				{ schemaVersion: 1, commands: reordered },
+				{ expectedState: alteredExpected },
+			),
+		).toThrow(/expectedState|state mismatch/i);
+	});
+
+	it("rejects unsupported envelope versions, non-sequential ids, and regressing weeks", () => {
+		const state = advanceWeek(
+			startRun({ companyName: "Canonical Labs" }, 42),
+		).state;
+		const log = state.commandLog;
+
+		expect(() =>
+			replayCommandLog({ schemaVersion: 999, commands: log }),
+		).toThrow(/schema|version/i);
+
+		const skippedId = [...log];
+		const second = skippedId[1];
+		if (second === undefined) throw new Error("Expected a second command");
+		skippedId[1] = { ...second, id: "command_003" };
+		expect(() => replayCommandLog(skippedId)).toThrow(
+			/sequential|command.*id/i,
+		);
+
+		const regressingWeeks: CommandLogEntry[] = [
+			log[0] as CommandLogEntry,
+			{ id: "command_002", kind: "advance_week", week: 2 },
+			{ id: "command_003", kind: "advance_week", week: 1 },
+		];
+		expect(() => replayCommandLog(regressingWeeks)).toThrow(
+			/non-decreasing|monotonic|week/i,
+		);
+	});
 });
+
+function reverseObjectKeys(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(reverseObjectKeys);
+	if (value !== null && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value)
+				.reverse()
+				.map(([key, child]) => [key, reverseObjectKeys(child)]),
+		);
+	}
+	return value;
+}

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { advanceWeek } from "./advance-week.js";
+import {
+	applyInfrastructureGain,
+	withRecomputedCompute,
+} from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import { startRun } from "./index.js";
 import { designModel, type ModelDesignSpec } from "./model-design.js";
@@ -64,6 +68,89 @@ describe("training system", () => {
 		expect(completed.state.models.items.at(-1)?.status).toBe("ready");
 		expect(completed.state.compute.trainingDemand).toBe(0);
 		expect(completed.state.compute.allocated).toBe(0);
+	});
+
+	it("records a typed compute shortage warning when serving starves training", () => {
+		const designed = designModel(designableState(), {
+			...SPEC,
+			name: "Lean-1",
+			tier: "lean",
+		}).state;
+		const model = designed.models.items.at(-1);
+		if (model === undefined) {
+			throw new Error("Expected the designed model");
+		}
+		designed.models.items.push({
+			id: "model_live",
+			name: "Live-1",
+			foundation: "fresh",
+			family: "text",
+			tier: "lean",
+			scoreCeiling: BALANCE.modelTiers.lean.scoreCeiling,
+			status: "launched",
+			projectId: null,
+		});
+		designed.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_live",
+				status: "operating",
+				users: 15,
+				lastRevenue: 0,
+				cumulativeRevenue: 0,
+				servingDemand: 15,
+				effectiveQuality: 60,
+			},
+		];
+		designed.compute = withRecomputedCompute(designed);
+
+		const result = trainingSystem(designed, { phase: "training", week: 1 });
+		const trainingProject = result.state.projects.items.at(-1);
+		if (trainingProject === undefined || trainingProject.kind !== "training") {
+			throw new Error("Expected an active training project");
+		}
+
+		expect(trainingProject.progress).toBe(0);
+		expect(result.state.warnings).toContainEqual({
+			code: "compute_shortage",
+			severity: "warning",
+		});
+		expect(result.facts).not.toContainEqual(
+			expect.objectContaining({
+				kind: "resource_changed",
+				resource: "compute",
+			}),
+		);
+
+		const withInfrastructure = {
+			...result.state,
+			projects: {
+				items: [
+					...result.state.projects.items,
+					{
+						kind: "infrastructure" as const,
+						id: "project_infrastructure",
+						teamId: null,
+						status: "completed" as const,
+						progress: 1,
+						duration: 1,
+						target: "compute" as const,
+					},
+				],
+			},
+		};
+		const expanded = applyInfrastructureGain(
+			withInfrastructure,
+			"project_infrastructure",
+		);
+		const resumed = trainingSystem(expanded, { phase: "training", week: 2 });
+		expect(resumed.state.compute.capacity).toBe(20);
+		expect(resumed.state.projects.items.at(-2)?.progress).toBe(1);
+		expect(resumed.state.warnings).not.toContainEqual({
+			code: "compute_shortage",
+			severity: "warning",
+		});
 	});
 
 	it("progresses the active training project and leaves a designing model unfinished", () => {

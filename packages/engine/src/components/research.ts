@@ -72,8 +72,15 @@ export function assertResearchState(
 			`Research node ${item.id} insight cost`,
 		);
 		assertArray(item.prerequisites, "Research node prerequisites");
+		const prerequisites = new Set<string>();
 		for (const prerequisite of item.prerequisites) {
 			assertIdentifier(prerequisite, "Research prerequisite id");
+			if (prerequisites.has(prerequisite)) {
+				throw new Error(
+					`Research node ${item.id} repeats a prerequisite: ${prerequisite}`,
+				);
+			}
+			prerequisites.add(prerequisite);
 			if (prerequisite === item.id) {
 				throw new Error(`Research node ${item.id} cannot require itself`);
 			}

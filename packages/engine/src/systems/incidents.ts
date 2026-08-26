@@ -11,13 +11,16 @@ import {
 import {
 	INCIDENT_DEFINITIONS,
 	type IncidentCondition,
+	type IncidentDefinition,
 	incidentDefinition,
+	incidentDefinitionForCondition,
 } from "../data/incidents.js";
 import { assertRunActive } from "../guards.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import { nextInt } from "../rng.js";
 import type { EngineResult, GameState } from "../state.js";
+import { assertIdentifier } from "../validation.js";
 import type { GameSystem } from "./types.js";
 
 /** Roll at most one data-defined incident for the current world state. */
@@ -50,7 +53,7 @@ export const incidentsSystem: GameSystem = (state, context) => {
 		if (rollValue >= definition.baseProbability) continue;
 
 		const severity = definition.severity;
-		const evidence = incidentEvidence(definition.condition, state);
+		const evidence = incidentEvidence(definition, state);
 		nextState = {
 			...nextState,
 			rng: nextRng,
@@ -66,10 +69,14 @@ export const incidentsSystem: GameSystem = (state, context) => {
 		pending.push({
 			kind: "incident",
 			id: allocation.id,
+			incidentId: allocation.id,
 			incident: definition.type,
 			blocking: true,
 		});
 		facts.push({
+			// The pending decision carries the same allocation.id. Adding the
+			// incidentId field to this occurrence fact/report validator is a
+			// cross-scope schema request; keep the id stable at the decision seam.
 			kind: "incident_occurred",
 			incident: definition.type,
 			condition: definition.condition,
@@ -100,9 +107,19 @@ export function isIncidentConditionActive(
 	state: GameState,
 ): boolean {
 	const reservations = computeReservations(state);
-	const servingOverload =
-		Math.max(state.compute.servingDemand, reservations.servingDemand) >
-		state.compute.capacity;
+	const servingOverloadDefinition =
+		incidentDefinitionForCondition("serving_overload");
+	const apiOverloadDefinition = incidentDefinitionForCondition("api_overload");
+	const lowQualityDefinition = incidentDefinitionForCondition("low_quality");
+	const trainingOverloadDefinition =
+		incidentDefinitionForCondition("training_overload");
+	const enterpriseRiskDefinition =
+		incidentDefinitionForCondition("enterprise_risk");
+	const privacyDefinition = incidentDefinitionForCondition("privacy_exposure");
+	const servingDemand = reservations.servingDemand;
+	const trainingDemand = reservations.trainingDemand;
+	const servingOverload = servingDemand > servingOverloadDefinition.threshold;
+	const apiOverload = servingDemand > apiOverloadDefinition.threshold;
 	const hasApi = state.products.items.some(
 		(product) =>
 			product.status === "operating" && product.channel === "developer_api",
@@ -116,7 +133,8 @@ export function isIncidentConditionActive(
 	);
 	const lowQuality = state.products.items.some(
 		(product) =>
-			product.status === "operating" && (product.effectiveQuality ?? 100) <= 30,
+			product.status === "operating" &&
+			(product.effectiveQuality ?? 100) <= lowQualityDefinition.threshold,
 	);
 	const enterpriseRisk = state.products.items.some((product) => {
 		if (product.status !== "operating" || product.channel !== "enterprise") {
@@ -126,30 +144,26 @@ export function isIncidentConditionActive(
 			(candidate) => candidate.id === product.modelId,
 		);
 		return (
-			(product.effectiveQuality ?? 100) <= 55 ||
-			(model?.estimates?.reliability?.estimate ?? 100) <= 35
+			(model?.estimates?.reliability?.estimate ?? 100) <=
+			enterpriseRiskDefinition.threshold
 		);
 	});
 	const trainingOverload =
-		state.compute.trainingDemand > state.compute.capacity ||
-		(state.projects.items.some(
-			(project) => project.kind === "training" && project.status === "active",
-		) &&
-			reservations.totalDemand > state.compute.capacity);
+		trainingDemand > trainingOverloadDefinition.threshold;
 
 	switch (condition) {
 		case "serving_overload":
 			return servingOverload && !hasApi && !hasEnterprise;
 		case "api_overload":
-			return servingOverload && hasApi;
+			return apiOverload && hasApi;
 		case "low_quality":
-			return lowQuality && state.company.trust > 10;
+			return lowQuality && state.company.trust > privacyDefinition.threshold;
 		case "training_overload":
 			return trainingOverload;
 		case "enterprise_risk":
 			return enterpriseRisk;
 		case "privacy_exposure":
-			return hasProduct && state.company.trust <= 10;
+			return hasProduct && state.company.trust <= privacyDefinition.threshold;
 	}
 }
 
@@ -181,13 +195,33 @@ export function applyIncidentResponse(
 			hype: Math.max(0, mechanicallyResolved.company.hype + effect.hype),
 		},
 	};
+	const pendingIncident = state.decisions.pending.find((decision) => {
+		if (decision.kind !== "incident") return false;
+		return incidentId === undefined
+			? decision.incident === incident
+			: decision.incidentId === incidentId || decision.id === incidentId;
+	});
+	if (incidentId !== undefined) {
+		assertIdentifier(incidentId, "Incident id");
+	}
+	if (
+		pendingIncident?.kind === "incident" &&
+		pendingIncident.incident !== incident
+	) {
+		throw new Error(
+			`Incident id ${incidentId} does not match ${pendingIncident.incident}`,
+		);
+	}
 	const resolvedIncidentId =
 		incidentId ??
-		state.decisions.pending.find(
-			(decision) =>
-				decision.kind === "incident" && decision.incident === incident,
-		)?.id ??
-		incident;
+		(pendingIncident?.kind === "incident"
+			? (pendingIncident.incidentId ?? pendingIncident.id)
+			: undefined);
+	if (resolvedIncidentId === undefined) {
+		throw new Error(
+			"Cannot resolve an incident without its stable incident id",
+		);
+	}
 	const facts: Fact[] = [];
 	appendResourceFact(facts, "cash", -effect.cash, state.meta.week);
 	appendResourceFact(facts, "trust", effect.trust, state.meta.week);
@@ -221,7 +255,13 @@ function applyMechanicalResolution(
 						product.status === "operating" &&
 						(pauseAll || channel === undefined || product.channel === channel);
 					return shouldPause
-						? { ...product, status: "paused", servingDemand: 0, lastRevenue: 0 }
+						? {
+								// Pause is temporary by default: retain users and revenue history.
+								...product,
+								status: "paused",
+								servingDemand: 0,
+								lastRevenue: 0,
+							}
 						: { ...product };
 				}),
 			},
@@ -300,30 +340,44 @@ function channelForIncident(
 }
 
 function incidentEvidence(
-	condition: IncidentCondition,
+	definition: IncidentDefinition,
 	state: GameState,
 ): { affectedEntity: string; measurement: number } {
-	switch (condition) {
+	const reservations = computeReservations(state);
+	switch (definition.condition) {
 		case "serving_overload":
 		case "api_overload": {
-			const product = state.products.items.find(
-				(item) =>
-					item.status === "operating" &&
-					(item.servingDemand ?? 0) > state.compute.capacity,
+			const operatingProducts = state.products.items.filter(
+				(item) => item.status === "operating",
 			);
+			const product =
+				(definition.condition === "api_overload"
+					? operatingProducts.find(
+							(item) =>
+								item.channel === "developer_api" &&
+								(item.servingDemand ?? 0) > definition.threshold,
+						)
+					: undefined) ??
+				operatingProducts.find(
+					(item) => (item.servingDemand ?? 0) > definition.threshold,
+				);
 			return {
+				// Overload is an aggregate metric. Name a product only when its
+				// own demand crosses the definition threshold; otherwise the
+				// company is the affected entity and the aggregate is reported.
 				affectedEntity: product?.id ?? "company",
-				measurement: product?.servingDemand ?? state.compute.servingDemand,
+				measurement: reservations.servingDemand,
 			};
 		}
 		case "low_quality": {
 			const product = state.products.items.find(
 				(item) =>
-					item.status === "operating" && (item.effectiveQuality ?? 100) <= 30,
+					item.status === "operating" &&
+					(item.effectiveQuality ?? 100) <= definition.threshold,
 			);
 			return {
 				affectedEntity: product?.id ?? "company",
-				measurement: product?.effectiveQuality ?? 0,
+				measurement: product?.effectiveQuality ?? 100,
 			};
 		}
 		case "training_overload": {
@@ -332,19 +386,19 @@ function incidentEvidence(
 			);
 			return {
 				affectedEntity: project?.id ?? "company",
-				measurement: Math.max(
-					state.compute.trainingDemand,
-					computeReservations(state).totalDemand,
-				),
+				measurement: reservations.trainingDemand,
 			};
 		}
 		case "enterprise_risk": {
 			const product = state.products.items.find(
 				(item) => item.status === "operating" && item.channel === "enterprise",
 			);
+			const model = state.models.items.find(
+				(item) => item.id === product?.modelId,
+			);
 			return {
 				affectedEntity: product?.id ?? "company",
-				measurement: product?.effectiveQuality ?? 0,
+				measurement: model?.estimates?.reliability?.estimate ?? 100,
 			};
 		}
 		case "privacy_exposure":
