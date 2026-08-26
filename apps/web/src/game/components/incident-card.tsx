@@ -155,9 +155,9 @@ export default function IncidentCard({
 						className="size-3.5 text-[var(--game-positive)]"
 						aria-hidden="true"
 					/>
-					<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+					<h3 className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
 						No incident response required
-					</p>
+					</h3>
 				</div>
 				<p className="mt-1 text-muted-foreground text-xs leading-5">
 					Mechanical incident checks run during weekly operations.
@@ -263,6 +263,7 @@ function IncidentDecision({
 										{signed(effect.hype)}
 									</p>
 									<Button
+										aria-label={`Choose ${effect.label}`}
 										disabled={disabled}
 										className="mt-2 w-full"
 										onClick={() =>

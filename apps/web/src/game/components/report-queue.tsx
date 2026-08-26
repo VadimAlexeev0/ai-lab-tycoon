@@ -139,6 +139,7 @@ function QueueReport({
 			</div>
 			{!blocking && report.priority === "informational" && onAcknowledge ? (
 				<Button
+					aria-label={`Acknowledge report ${report.id}`}
 					className="mt-2"
 					onClick={() => onAcknowledge(report.id)}
 					size="xs"

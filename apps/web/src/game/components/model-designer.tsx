@@ -341,6 +341,7 @@ export default function ModelDesigner({
 				<div className="flex flex-wrap justify-between gap-2 border-border/70 border-t pt-3">
 					{step > 1 ? (
 						<Button
+							aria-label={`Back to ${step === 2 ? "foundation" : "tuning"} step`}
 							disabled={disabled}
 							onClick={() => setStep((current) => current - 1)}
 							type="button"
@@ -353,6 +354,11 @@ export default function ModelDesigner({
 						<span />
 					)}
 					<Button
+						aria-label={
+							step === 3
+								? "Start model training"
+								: `Continue to ${step === 1 ? "tuning" : "review"} step`
+						}
 						disabled={
 							disabled ||
 							(step === 1 && !canLeaveBasics) ||
@@ -424,6 +430,7 @@ function BasicsStep({
 					maxLength={80}
 					onChange={(event) => onNameChange(event.target.value)}
 					placeholder="e.g. Northstar-1"
+					required
 					value={name}
 				/>
 			</div>
@@ -458,10 +465,10 @@ function BasicsStep({
 											Available
 										</span>
 									) : (
-										<Lock
-											className="size-3 text-muted-foreground"
-											aria-hidden="true"
-										/>
+										<span className="flex items-center gap-1 font-mono text-[9px] text-muted-foreground uppercase">
+											<Lock className="size-3" aria-hidden="true" />
+											Locked
+										</span>
 									)}
 								</span>
 								<span className="mt-1 block text-[10px] text-muted-foreground leading-4">
@@ -540,6 +547,7 @@ function BasicsStep({
 						className="h-8 w-full border border-input bg-background px-2 text-foreground text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
 						id="model-parent"
 						onChange={(event) => onParentChange(event.target.value)}
+						required
 						value={parentId}
 					>
 						<option value="">Choose a ready or launched parent…</option>
@@ -564,6 +572,7 @@ function BasicsStep({
 					disabled={idleTeams.length === 0}
 					id="model-team"
 					onChange={(event) => onTeamChange(event.target.value)}
+					required
 					value={teamId}
 				>
 					<option value="">Choose an idle team…</option>

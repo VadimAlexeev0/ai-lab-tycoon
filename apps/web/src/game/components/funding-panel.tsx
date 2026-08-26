@@ -6,7 +6,7 @@ import {
 	selectPendingDecisions,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
-import { Banknote, CheckCircle2, LockKeyhole } from "lucide-react";
+import { Banknote, CheckCircle2, CircleAlert, LockKeyhole } from "lucide-react";
 
 const ROUND_INFO: Record<
 	FundingRound,
@@ -169,20 +169,29 @@ function RoundCard({
 				className="mt-2 space-y-1 text-[10px] text-muted-foreground"
 				aria-label={`${info.label} eligibility factors`}
 			>
-				{entries.map(([factor, threshold]) => (
-					<li className="flex items-center justify-between gap-2" key={factor}>
-						<span>{factorLabel(factor)}</span>
-						<span
-							className={
-								factors[factor] >= threshold
-									? "text-[var(--game-positive)]"
-									: "text-[var(--game-amber)]"
-							}
+				{entries.map(([factor, threshold]) => {
+					const met = factors[factor] >= threshold;
+					const StatusIcon = met ? CheckCircle2 : CircleAlert;
+					return (
+						<li
+							className="flex items-center justify-between gap-2"
+							key={factor}
 						>
-							{factors[factor]} / {threshold}
-						</span>
-					</li>
-				))}
+							<span>{factorLabel(factor)}</span>
+							<span
+								className={
+									met
+										? "inline-flex items-center gap-1 text-[var(--game-positive)]"
+										: "inline-flex items-center gap-1 text-[var(--game-amber)]"
+								}
+							>
+								<StatusIcon className="size-3" aria-hidden="true" />
+								<span>{met ? "Met" : "Needs"}</span>
+								{factors[factor]} / {threshold}
+							</span>
+						</li>
+					);
+				})}
 			</ul>
 			{decision ? (
 				<div className="mt-3 flex flex-wrap gap-2 border-border/70 border-t pt-3">
@@ -202,6 +211,7 @@ function RoundCard({
 						Accept {info.label}
 					</Button>
 					<Button
+						aria-label={`Decline ${info.label}`}
 						disabled={disabled}
 						onClick={() =>
 							onResolveDecision({

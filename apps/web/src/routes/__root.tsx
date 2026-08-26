@@ -1,13 +1,11 @@
 import { Toaster } from "@ai-lab-tycoon/ui/components/sonner";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import {
 	createRootRouteWithContext,
 	HeadContent,
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import type { orpc } from "@/utils/orpc";
 
@@ -56,13 +54,14 @@ function RootDocument() {
 				<HeadContent />
 			</head>
 			<body>
+				<a className="skip-link" href="#main-content">
+					Skip to main content
+				</a>
 				<div className="grid h-svh grid-rows-[auto_1fr]">
 					<Header />
 					<Outlet />
 				</div>
 				<Toaster richColors />
-				<TanStackRouterDevtools position="bottom-left" />
-				<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
 				<Scripts />
 			</body>
 		</html>

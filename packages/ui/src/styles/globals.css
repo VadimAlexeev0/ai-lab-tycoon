@@ -131,8 +131,49 @@
 			linear-gradient(var(--game-grid) 1px, transparent 1px),
 			linear-gradient(90deg, var(--game-grid) 1px, transparent 1px);
 		background-size: 32px 32px;
+		overflow-x: clip;
 	}
 	html {
 		@apply font-sans;
+		overflow-x: clip;
 	}
+
+	.site-header :is(a, button):focus-visible,
+	.game-shell
+		:is(a, button, input, select, textarea, [role="button"]):focus-visible {
+		outline: 3px solid var(--primary);
+		outline-offset: 2px;
+	}
+
+	.game-shell :is(button, select, input, textarea, [role="button"]) {
+		min-height: 2.75rem;
+	}
+
+	.game-shell :is(button, [role="button"]) {
+		min-width: 2.75rem;
+	}
+
+	.game-shell :is(input[type="range"]) {
+		min-height: 2.75rem;
+	}
+}
+
+.skip-link {
+	position: fixed;
+	inset-inline-start: 1rem;
+	top: 0.75rem;
+	z-index: 50;
+	transform: translateY(-200%);
+	border: 1px solid var(--primary);
+	background: var(--primary);
+	color: var(--primary-foreground);
+	padding: 0.75rem 1rem;
+	font-family: var(--font-sans);
+	font-size: 0.875rem;
+	font-weight: 600;
+	transition: transform 150ms ease;
+}
+
+.skip-link:focus-visible {
+	transform: translateY(0);
 }

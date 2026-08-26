@@ -71,10 +71,13 @@ export default function ResourceBar({ state }: ResourceBarProps) {
 
 	return (
 		<section
-			aria-label="Run resources"
+			aria-labelledby="resource-bar-heading"
 			className="border border-border bg-card/70"
 			data-next-objective={visibleState.nextObjective.kind}
 		>
+			<h2 id="resource-bar-heading" className="sr-only">
+				Run resources
+			</h2>
 			<div className="grid grid-cols-2 divide-border border-b sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">
 				<div className="col-span-2 flex items-center gap-3 border-border border-b px-3 py-3 sm:col-span-3 lg:col-span-1 lg:border-b-0">
 					<div className="flex size-8 shrink-0 items-center justify-center border border-primary/40 bg-primary/10 text-primary">

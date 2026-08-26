@@ -335,6 +335,7 @@ function ActiveRunView({
 						disabled={isDeleting}
 						onClick={onNewRun}
 						size="sm"
+						type="button"
 						variant="outline"
 					>
 						<Play data-icon="inline-start" aria-hidden="true" />
@@ -344,6 +345,7 @@ function ActiveRunView({
 						disabled={isDeleting}
 						onClick={onDelete}
 						size="sm"
+						type="button"
 						variant="destructive"
 					>
 						<Trash2 data-icon="inline-start" aria-hidden="true" />
@@ -360,9 +362,12 @@ function ActiveRunView({
 			/>
 
 			<section
-				aria-label="Next objective"
+				aria-labelledby="next-objective-heading"
 				className="border border-border/70 bg-card/50 px-4 py-3"
 			>
+				<h2 id="next-objective-heading" className="sr-only">
+					Next objective
+				</h2>
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
 						Next objective
@@ -434,14 +439,14 @@ function ResumeRunState({
 				<span>Revision {run.revision}</span>
 			</div>
 			<div className="mt-4 flex flex-wrap gap-2">
-				<Button onClick={onResume}>
+				<Button onClick={onResume} type="button">
 					<Play data-icon="inline-start" aria-hidden="true" />
 					Resume run
 				</Button>
-				<Button onClick={onNewRun} variant="outline">
+				<Button onClick={onNewRun} type="button" variant="outline">
 					Start new run
 				</Button>
-				<Button onClick={onDelete} variant="destructive">
+				<Button onClick={onDelete} type="button" variant="destructive">
 					<Trash2 data-icon="inline-start" aria-hidden="true" />
 					Delete run
 				</Button>
@@ -493,7 +498,7 @@ function SaveErrorState({
 					{message}
 				</p>
 			</div>
-			<Button onClick={onRetry} size="sm" variant="outline">
+			<Button onClick={onRetry} size="sm" type="button" variant="outline">
 				<RotateCcw data-icon="inline-start" aria-hidden="true" />
 				Retry save read
 			</Button>

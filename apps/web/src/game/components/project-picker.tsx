@@ -54,6 +54,7 @@ export default function ProjectPicker({
 					disabled={disabled}
 					id={selectId}
 					onChange={(event) => setSelectedProjectId(event.target.value)}
+					required
 					value={selectedProjectId}
 				>
 					{availableProjects.map((project) => (
@@ -69,6 +70,11 @@ export default function ProjectPicker({
 				) : null}
 			</div>
 			<Button
+				aria-label={
+					selectedProject
+						? `Start ${projectLabel(selectedProject)} for ${teamId}`
+						: "Start selected project"
+				}
 				disabled={disabled || selectedProject === undefined}
 				onClick={() => {
 					if (selectedProject !== undefined) {

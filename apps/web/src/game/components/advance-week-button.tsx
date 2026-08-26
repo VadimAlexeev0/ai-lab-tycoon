@@ -72,9 +72,12 @@ export default function AdvanceWeekButton({
 
 	return (
 		<section
-			aria-label="Time controls"
+			aria-labelledby="time-controls-heading"
 			className="flex flex-col gap-3 border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 		>
+			<h2 id="time-controls-heading" className="sr-only">
+				Time controls
+			</h2>
 			<div className="min-w-0">
 				<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
 					Time control

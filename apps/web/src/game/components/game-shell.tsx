@@ -21,7 +21,13 @@ import {
 	Radio,
 	RotateCcw,
 } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import {
+	type KeyboardEvent,
+	type ReactNode,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import ComputePanel from "@/game/components/compute-panel";
 import FundingPanel from "@/game/components/funding-panel";
 import IncidentCard from "@/game/components/incident-card";
@@ -140,7 +146,21 @@ export default function GameShell({
 	const [activePanel, setActivePanel] = useState<DashboardPanel>("overview");
 	const [actionBusy, setActionBusy] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
+	const [liveAnnouncement, setLiveAnnouncement] = useState("");
 	const isReady = sessionStatus === "ready";
+	const liveWeek = gameState?.meta.week;
+	const latestReportId = gameState?.reports.items.at(-1)?.id;
+	const latestReportPriority = gameState?.reports.items.at(-1)?.priority;
+
+	useEffect(() => {
+		if (liveWeek === undefined) {
+			setLiveAnnouncement("");
+			return;
+		}
+		setLiveAnnouncement(
+			`Week ${liveWeek}.${latestReportId === undefined ? "" : ` New ${latestReportPriority} report ${latestReportId}.`}`,
+		);
+	}, [liveWeek, latestReportId, latestReportPriority]);
 
 	useEffect(() => {
 		if (blockingDecisionId === null) return;
@@ -173,7 +193,19 @@ export default function GameShell({
 	}
 
 	return (
-		<main className="min-h-0 overflow-y-auto bg-background">
+		<main
+			id="main-content"
+			tabIndex={-1}
+			className="game-shell min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
+		>
+			<div
+				aria-atomic="true"
+				aria-live="polite"
+				className="sr-only"
+				role="status"
+			>
+				{liveAnnouncement}
+			</div>
 			<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-5 px-4 py-5 sm:px-6 lg:gap-6 lg:px-8 lg:py-7">
 				<header className="flex flex-col gap-5 border-border/70 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
 					<div className="space-y-2">
@@ -195,8 +227,8 @@ export default function GameShell({
 						</p>
 					</div>
 
-					<div className="flex shrink-0 items-center gap-3 self-start lg:self-end">
-						<div className="flex items-center gap-2 rounded-none border border-border bg-card px-3 py-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+					<div className="flex max-w-full flex-wrap items-center gap-3 self-start lg:self-end">
+						<div className="flex min-w-0 max-w-full items-center gap-2 rounded-none border border-border bg-card px-3 py-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
 							<span
 								className={cn(
 									"size-2 rounded-full",
@@ -208,7 +240,7 @@ export default function GameShell({
 								)}
 								aria-hidden="true"
 							/>
-							<span>{sessionLabel}</span>
+							<span className="min-w-0 break-words">{sessionLabel}</span>
 						</div>
 						{hasActiveRun && week !== undefined ? (
 							<div className="border border-primary/35 bg-primary/10 px-3 py-2 font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.16em]">
@@ -219,8 +251,8 @@ export default function GameShell({
 				</header>
 
 				{hasActiveRun && companyName ? (
-					<div className="flex flex-wrap items-center justify-between gap-2 border border-border/70 bg-card/60 px-3 py-2.5 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
-						<span>
+					<div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border border-border/70 bg-card/60 px-3 py-2.5 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+						<span className="min-w-0 break-words">
 							Company <strong className="text-foreground">{companyName}</strong>
 						</span>
 						<span className="text-primary">Live run / autosave enabled</span>
@@ -245,7 +277,7 @@ export default function GameShell({
 							>
 								<div className="flex items-center gap-2 font-mono font-semibold text-[10px] text-[var(--game-amber)] uppercase tracking-[0.2em]">
 									<Radio className="size-3.5" aria-hidden="true" />
-									Decision required
+									<h2>Decision required</h2>
 								</div>
 								<p className="font-medium text-foreground text-sm">
 									Resolve the highlighted decision before advancing the week.
@@ -394,12 +426,13 @@ function DashboardPanels({
 	onSelectPanel: (panel: DashboardPanel) => void;
 	state: GameState;
 }) {
-	const activeDefinition =
-		PANELS.find((panel) => panel.id === activePanel) ?? PANELS[0];
 	const [milestoneDismissed, setMilestoneDismissed] = useState(false);
 	const [acknowledgedReportIds, setAcknowledgedReportIds] = useState<
 		ReadonlySet<string>
 	>(new Set<string>());
+	const panelTabRefs = useRef<
+		Partial<Record<DashboardPanel, HTMLButtonElement | null>>
+	>({});
 	useEffect(() => {
 		setAcknowledgedReportIds(new Set<string>());
 		setMilestoneDismissed(false);
@@ -407,6 +440,33 @@ function DashboardPanels({
 
 	function acknowledgeReport(reportId: string) {
 		setAcknowledgedReportIds((current) => new Set([...current, reportId]));
+	}
+
+	function handlePanelKeyDown(
+		event: KeyboardEvent<HTMLButtonElement>,
+		index: number,
+	) {
+		const { key } = event;
+		if (
+			key !== "ArrowRight" &&
+			key !== "ArrowLeft" &&
+			key !== "Home" &&
+			key !== "End"
+		) {
+			return;
+		}
+		event.preventDefault();
+		const nextIndex =
+			key === "Home"
+				? 0
+				: key === "End"
+					? PANELS.length - 1
+					: (index + (key === "ArrowRight" ? 1 : -1) + PANELS.length) %
+						PANELS.length;
+		const nextPanel = PANELS[nextIndex];
+		if (nextPanel === undefined) return;
+		onSelectPanel(nextPanel.id);
+		panelTabRefs.current[nextPanel.id]?.focus();
 	}
 
 	const bodyFor = (panel: DashboardPanel): ReactNode => {
@@ -486,7 +546,10 @@ function DashboardPanels({
 	};
 
 	return (
-		<section aria-label="Operations modules" className="min-h-0">
+		<section aria-labelledby="operations-modules-heading" className="min-h-0">
+			<h2 id="operations-modules-heading" className="sr-only">
+				Operations modules
+			</h2>
 			{actionError ? (
 				<div
 					className="mb-3 flex items-start gap-2 border border-[var(--game-negative)]/50 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5"
@@ -503,16 +566,23 @@ function DashboardPanels({
 			<div
 				role="tablist"
 				aria-label="Operations modules"
+				aria-orientation="horizontal"
 				className="flex gap-1 overflow-x-auto border-border/70 border-y py-1 lg:hidden"
 			>
-				{PANELS.map((panel) => (
+				{PANELS.map((panel, index) => (
 					<button
+						id={`panel-tab-${panel.id}`}
 						key={panel.id}
 						type="button"
 						role="tab"
+						tabIndex={activePanel === panel.id ? 0 : -1}
 						aria-selected={activePanel === panel.id}
-						aria-controls={`mobile-panel-${panel.id}`}
+						aria-controls={`panel-${panel.id}`}
 						onClick={() => onSelectPanel(panel.id)}
+						onKeyDown={(event) => handlePanelKeyDown(event, index)}
+						ref={(element) => {
+							panelTabRefs.current[panel.id] = element;
+						}}
 						className={cn(
 							"flex min-h-9 shrink-0 items-center gap-2 px-2.5 font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.12em]",
 							activePanel === panel.id
@@ -526,52 +596,19 @@ function DashboardPanels({
 				))}
 			</div>
 
-			<div className="mt-3 lg:hidden">
-				<PanelCard
-					body={bodyFor(activeDefinition.id)}
-					id={`mobile-panel-${activeDefinition.id}`}
-					panel={activeDefinition}
-					mobile
-				/>
-			</div>
-
-			<div className="mt-3 hidden gap-3 lg:grid lg:grid-cols-12">
-				<PanelCard
-					body={bodyFor("overview")}
-					className="lg:col-span-7"
-					id="desktop-panel-overview"
-					panel={PANELS[0]}
-				/>
-				<PanelCard
-					body={bodyFor("teams")}
-					className="lg:col-span-5"
-					id="desktop-panel-teams"
-					panel={PANELS[1]}
-				/>
-				<PanelCard
-					body={bodyFor("research")}
-					className="lg:col-span-5"
-					id="desktop-panel-research"
-					panel={PANELS[2]}
-				/>
-				<PanelCard
-					body={bodyFor("models")}
-					className="lg:col-span-6"
-					id="desktop-panel-models"
-					panel={PANELS[3]}
-				/>
-				<PanelCard
-					body={bodyFor("products")}
-					className="lg:col-span-6"
-					id="desktop-panel-products"
-					panel={PANELS[4]}
-				/>
-				<PanelCard
-					body={bodyFor("reports")}
-					className="lg:col-span-6"
-					id="desktop-panel-reports"
-					panel={PANELS[5]}
-				/>
+			<div className="mt-3 grid gap-3 lg:grid-cols-12">
+				{PANELS.map((panel) => (
+					<PanelCard
+						body={bodyFor(panel.id)}
+						className={cn(
+							activePanel === panel.id ? "flex" : "hidden lg:flex",
+							panelGridClass(panel.id),
+						)}
+						id={`panel-${panel.id}`}
+						key={panel.id}
+						panel={panel}
+					/>
+				))}
 			</div>
 		</section>
 	);
@@ -582,20 +619,19 @@ function PanelCard({
 	className,
 	id,
 	panel,
-	mobile = false,
 }: {
 	body: ReactNode;
 	className?: string;
 	id: string;
 	panel: PanelDefinition;
-	mobile?: boolean;
 }) {
 	return (
 		<article
+			aria-labelledby={`panel-heading-${panel.id}`}
 			id={id}
+			role="tabpanel"
 			className={cn(
-				"group relative flex min-h-36 flex-col overflow-hidden border border-border bg-card p-4",
-				mobile ? "min-h-52" : null,
+				"group relative flex min-h-52 min-w-0 flex-col overflow-hidden border border-border bg-card p-4 lg:min-h-36",
 				className,
 			)}
 		>
@@ -608,7 +644,10 @@ function PanelCard({
 					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
 						{panel.status}
 					</p>
-					<h2 className="mt-2 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<h2
+						id={`panel-heading-${panel.id}`}
+						className="mt-2 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+					>
 						{panel.label}
 					</h2>
 				</div>
@@ -620,6 +659,20 @@ function PanelCard({
 			<div className="mt-4 min-w-0">{body}</div>
 		</article>
 	);
+}
+
+function panelGridClass(panel: DashboardPanel): string {
+	switch (panel) {
+		case "overview":
+			return "lg:col-span-7";
+		case "teams":
+		case "research":
+			return "lg:col-span-5";
+		case "models":
+		case "products":
+		case "reports":
+			return "lg:col-span-6";
+	}
 }
 
 function OverviewPanel({ state }: { state: GameState }) {

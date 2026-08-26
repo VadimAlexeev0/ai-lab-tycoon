@@ -158,6 +158,7 @@ function ActiveProject({
 					</p>
 				</div>
 				<Button
+					aria-label={`Cancel ${projectLabel(project.kind)} for ${teamId}`}
 					disabled={disabled}
 					onClick={() => onCancel(teamId, project.id)}
 					size="xs"

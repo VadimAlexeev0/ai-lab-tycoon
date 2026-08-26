@@ -101,6 +101,7 @@ export default function StartRunForm({
 							name="companyName"
 							onChange={(event) => setCompanyName(event.target.value)}
 							placeholder="e.g. Northstar Labs"
+							required
 							value={companyName}
 						/>
 					</div>
