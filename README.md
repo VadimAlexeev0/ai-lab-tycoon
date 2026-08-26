@@ -1,123 +1,88 @@
-# ai-lab-tycoon
+# AI Startup Lab Tycoon
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Hono, ORPC, and more.
+A deterministic AI-lab management game (Civ × Game Dev Tycoon): run a research
+labs, design and train foundation models, launch them into Chat / Developer
+API / Enterprise products, and survive funding rounds, rivals, and incidents.
+V1 is a sandbox — the first multimodal launch is a milestone, not a fixed win.
 
-## Features
+## Stack
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **workers** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **Cloudflare D1** - Database engine
-- **Biome** - Linting and formatting
-- **Turborepo** - Optimized monorepo build system
+Monorepo (pnpm + Turborepo):
 
-## Getting Started
+- **`packages/engine`** — the pure, deterministic game engine. Component-based
+  TypeScript, integer math, seeded RNG (no `Date`/`Math.random`/network). Runs
+  headless; every transition is command-logged and replayable.
+- **`packages/db`** — Cloudflare D1 schema (auth tables + one active run per
+  user) with Drizzle.
+- **`packages/api`** — oRPC routers, including the authenticated game-save
+  procedures (`getActiveRun` / `upsertActiveRun` / `deleteActiveRun`).
+- **`apps/server`** — Hono worker hosting Better Auth (anonymous sessions) and
+  the oRPC/OpenAPI handlers.
+- **`apps/web`** — TanStack Start dashboard (desktop grid + mobile tabs).
+- **`apps/sim-cli`** — seeded balance/simulation CLI over the public engine API.
+- **`packages/ui`** — shared shadcn/ui primitives and design tokens.
 
-First, install the dependencies:
+## Getting started
 
 ```bash
 pnpm install
+pnpm run dev        # web on :3001, API on :3000
 ```
 
-## Database Setup
+Better Auth mints an **anonymous session** on first load (no signup UI in V1),
+and one active run is autosaved per anonymous user to D1. Refresh/resume loads
+that exact run; cross-user access is rejected; an integer `revision` gives
+optimistic concurrency (stale writes surface a conflict, never silent
+overwrite).
 
-This project uses Cloudflare D1 (SQLite) with Drizzle ORM.
-
-Runtime database access uses the Cloudflare `DB` binding from `packages/infra/alchemy.run.ts`. If a local `DATABASE_URL` is present, it is only for database tooling.
-
-Alchemy provisions the D1 database and applies migrations during `deploy`.
-
-1. Generate migration files:
+## Database
 
 ```bash
-pnpm run db:generate
+pnpm run db:generate   # Drizzle migration from packages/db schema
 ```
 
-Then, run the development server:
+Runtime DB access uses the Cloudflare `DB` binding from
+`packages/infra/alchemy.run.ts`. Alchemy provisions D1 and applies migrations
+on deploy.
+
+## Simulation CLI (balance)
 
 ```bash
-pnpm run dev
+pnpm --filter @ai-lab-tycoon/sim-cli sim -- --runs 10 --seed 42
+pnpm --filter @ai-lab-tycoon/sim-cli sim -- --runs 50 --seed 42   # balance checkpoint
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Four deterministic bots (`random`, `capability-rusher`, `evaluator`,
+`efficiency-first`) drive the engine and print a machine-readable JSON line plus
+a balance table (milestone reach, loss causes, week percentiles, compute
+shortages, rival leads, funding rounds, foundation choices). `--runs` is
+restricted to 10–50. The CLI asserts same-seed determinism on every run.
 
-## UI Customization
+Balance results live in [`docs/V1_BALANCE_BASELINE.md`](docs/V1_BALANCE_BASELINE.md).
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
+## Checks
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+pnpm run check         # Biome lint + format
+pnpm run check-types   # TypeScript across workspaces
+pnpm run test          # Engine Vitest suite
+pnpm run build         # Production builds
 ```
 
-Import shared components like this:
-
-```tsx
-import { Button } from "@ai-lab-tycoon/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Deployment
-
-### Alchemy
-
-- Target: web on Cloudflare + server on Cloudflare
-- Configure provider login: `cd packages/infra && pnpm exec alchemy login --configure`
-- Dev: pnpm run dev
-- Deploy: pnpm run deploy
-- Destroy: pnpm run destroy
-
-`alchemy login --configure` stores the selected Cloudflare, Neon, PlanetScale, and/or Prisma provider profiles under `~/.alchemy`; no provider-specific setup command is required by this scaffold.
-
-Deploys are staged and default to a personal `dev_<username>` stage. For production, run the deploy with an explicit stage from `packages/infra`:
+## Deployment (Alchemy/Cloudflare)
 
 ```bash
-cd packages/infra && pnpm exec alchemy deploy --stage production
+pnpm run deploy    # staged deploy (web + server workers, D1)
+pnpm run destroy
 ```
 
-### Production origins
+After the first deploy set `CORS_ORIGIN` in `apps/server/.env` to the exact
+deployed web origin and redeploy the server.
 
-- Required after the first deploy: set `CORS_ORIGIN` in `apps/server/.env` to the exact deployed web origin, such as `https://app.example.com`, then deploy the server again.
+## V1 scope
 
-## Git Hooks and Formatting
-
-- Run checks: `pnpm run check`
-
-## Project Structure
-
-```
-ai-lab-tycoon/
-├── apps/
-│   ├── web/         # Frontend application (React + TanStack Start)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── api/         # API layer / business logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run dev:web`: Start only the web application
-- `pnpm run dev:server`: Start only the server
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run db:generate`: Generate database client/types
-- `pnpm run check`: Run Biome formatting and linting
+Sandbox with no fixed win; 30–60 minute session; no authored story/advisors.
+One to three teams; five resources (Cash, Compute, Insight, Trust, Hype);
+Text → Assistant → Multimodal research tree; Chat / Developer API / Enterprise
+products; two rivals plus a third in the Assistant era; Seed + Series A
+funding; six incidents; mechanical reports as the only narrative output.
