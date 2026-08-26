@@ -1,1 +1,13 @@
 @import "@ai-lab-tycoon/ui/globals.css";
+
+@layer base {
+	body {
+		min-width: 320px;
+		background-color: var(--background);
+	}
+
+	button,
+	input {
+		font: inherit;
+	}
+}

@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"@ai-lab-tycoon/api": "workspace:*",
+		"@ai-lab-tycoon/engine": "workspace:*",
 		"@ai-lab-tycoon/env": "workspace:*",
 		"@ai-lab-tycoon/ui": "workspace:*",
 		"@orpc/client": "catalog:",

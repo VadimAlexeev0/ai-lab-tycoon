@@ -30,7 +30,12 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "My App",
+				title: "AI Startup Lab Tycoon",
+			},
+			{
+				name: "description",
+				content:
+					"A deterministic strategy dashboard for building an AI startup.",
 			},
 		],
 		links: [

@@ -1,4 +1,5 @@
 import type { AppRouter } from "@ai-lab-tycoon/api/routers/index";
+import type { GameState } from "@ai-lab-tycoon/engine";
 import { env } from "@ai-lab-tycoon/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -60,6 +61,7 @@ function getServerUrl(url: string) {
 
 	return `http://localhost:3000${normalized}`;
 }
+
 const link = new RPCLink({
 	url: `${getServerUrl(env.VITE_SERVER_URL)}/rpc`,
 	// The auth middleware keys saves by the browser's session cookie; keep
@@ -78,3 +80,46 @@ const getORPCClient = () => {
 export const client: RouterClient<AppRouter> = getORPCClient();
 
 export const orpc = createTanstackQueryUtils(client);
+
+// Convenience save helpers built on the real authenticated AppRouter.
+export type ActiveRunRecord = {
+	id: string;
+	seed: number;
+	schemaVersion: number;
+	state: GameState;
+	currentWeek: number;
+	status: "active" | "terminal";
+	revision: number;
+};
+
+export function toUpsertActiveRunInput(
+	state: GameState,
+	revision?: number,
+): {
+	seed: number;
+	state: string;
+	currentWeek: number;
+	status: "active" | "terminal";
+	schemaVersion: number;
+	revision?: number;
+} {
+	const status: "active" | "terminal" =
+		state.terminal.status === "lost" ? "terminal" : "active";
+	return {
+		seed: state.rng.seed,
+		state: JSON.stringify(state),
+		currentWeek: state.meta.week,
+		status,
+		schemaVersion: state.meta.schemaVersion,
+		...(revision === undefined ? {} : { revision }),
+	};
+}
+
+export async function persistActiveRun(
+	state: GameState,
+	revision?: number,
+): Promise<ActiveRunRecord> {
+	const input = toUpsertActiveRunInput(state, revision);
+	const run = await client.gameSave.upsertActiveRun(input);
+	return run as unknown as ActiveRunRecord;
+}
