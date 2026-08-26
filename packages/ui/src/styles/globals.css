@@ -42,7 +42,11 @@
 }
 
 .dark {
-	--background: oklch(0.145 0 0);
+	--background: oklch(0.12 0.018 250);
+	--game-positive: oklch(0.78 0.16 155);
+	--game-negative: oklch(0.68 0.19 25);
+	--game-amber: oklch(0.82 0.16 85);
+	--game-grid: oklch(1 0 0 / 3%);
 	--foreground: oklch(0.985 0 0);
 	--card: oklch(0.205 0 0);
 	--card-foreground: oklch(0.985 0 0);
@@ -123,6 +127,10 @@
 	}
 	body {
 		@apply font-sans bg-background text-foreground;
+		background-image:
+			linear-gradient(var(--game-grid) 1px, transparent 1px),
+			linear-gradient(90deg, var(--game-grid) 1px, transparent 1px);
+		background-size: 32px 32px;
 	}
 	html {
 		@apply font-sans;
