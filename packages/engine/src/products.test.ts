@@ -61,13 +61,17 @@ describe("products", () => {
 		const result = productsSystem(launched, { phase: "products", week: 1 });
 		const expectedQuality = Math.trunc((40 + 60) / 2);
 		const expectedRevenue = Math.trunc(
-			(BALANCE.productChannels.chat.weeklyRevenue * expectedQuality) / 100,
+			(BALANCE.productChannels.chat.weeklyRevenue * expectedQuality * 15) /
+				(100 * BALANCE.productChannels.chat.baseUsers),
 		);
 
 		expect(result.state.company.cash).toBe(
 			launched.company.cash + expectedRevenue,
 		);
 		expect(result.state.compute.servingDemand).toBeGreaterThan(0);
+		expect(result.state.compute.allocated).toBeLessThanOrEqual(
+			result.state.compute.capacity,
+		);
 		expect(result.facts).toContainEqual({
 			kind: "revenue",
 			productId: "product_001",
@@ -76,5 +80,39 @@ describe("products", () => {
 			effectiveQuality: expectedQuality,
 			week: 1,
 		});
+	});
+
+	it("scales revenue monotonically with traction users", () => {
+		const launched = launchProduct(readyState(), "model_001", "chat").state;
+		const product = launched.products.items[0];
+		if (product === undefined) throw new Error("Expected chat product");
+		product.users = 15;
+		const result = productsSystem(launched, { phase: "products", week: 1 });
+		expect(result.state.products.items[0]?.users).toBe(20);
+		expect(result.state.products.items[0]?.lastRevenue).toBe(100);
+	});
+
+	it("offers each missing channel once its exact gates are met", () => {
+		const state = readyState();
+		state.meta.era = "assistant";
+		state.research.currentEra = "assistant";
+		state.company.hype = 100;
+		state.company.trust = 100;
+		const model = state.models.items[0];
+		if (model?.estimates === undefined)
+			throw new Error("Expected model estimates");
+		for (const estimate of Object.values(model.estimates)) {
+			estimate.estimate = 100;
+			estimate.lower = 80;
+			estimate.upper = 100;
+		}
+		const launched = launchProduct(state, "model_001", "chat").state;
+		const result = productsSystem(launched, { phase: "products", week: 1 });
+		const channels = result.pending
+			.filter((decision) => decision.kind === "launch")
+			.map((decision) => decision.channel);
+		expect(channels).toEqual(
+			expect.arrayContaining(["developer_api", "enterprise"]),
+		);
 	});
 });

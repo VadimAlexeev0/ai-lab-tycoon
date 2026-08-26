@@ -15,6 +15,14 @@ export type FundingRoundState = {
 	status: FundingStatus;
 };
 
+export type FundingGateFactors = {
+	hype: number;
+	trust: number;
+	modelScore: number;
+	operatingProducts: number;
+	cumulativeRevenue: number;
+};
+
 export type FundingState = {
 	seed: FundingRoundState;
 	seriesA: FundingRoundState;

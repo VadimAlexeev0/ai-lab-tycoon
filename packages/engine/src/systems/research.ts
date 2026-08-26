@@ -42,7 +42,7 @@ export function isResearchNodeAvailableForAssignment(
 
 /** Gain Insight and materialize projects for newly available nodes. */
 export const researchSystem: GameSystem = (state, context) => {
-	assertGameState(state);
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 
 	const facts: Fact[] = [];
 	const eligibleTeamCount = state.teams.items.filter((team) => {
@@ -157,7 +157,7 @@ export const researchSystem: GameSystem = (state, context) => {
 		};
 	}
 
-	assertGameState(nextState);
+	assertGameState(nextState, { allowNegativeCash: nextState.company.cash < 0 });
 	return { state: nextState, facts, pending: [] };
 };
 

@@ -62,6 +62,9 @@ export function assertRivalsState(
 		assertEnum(item.archetype, RIVAL_ARCHETYPES, "Rival archetype");
 		assertEnum(item.focus, RIVAL_FOCUSES, "Rival focus");
 		assertNonNegativeInteger(item.progress, `Rival ${item.id} progress`);
+		if (item.progress > 100) {
+			throw new Error(`Rival ${item.id} progress must be at most 100`);
+		}
 		assertBoolean(item.active, `Rival ${item.id} active`);
 	}
 }

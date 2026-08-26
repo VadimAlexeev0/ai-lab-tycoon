@@ -5,11 +5,13 @@ import type {
 	ModelEstimates,
 } from "./components/models.js";
 import type { Fact } from "./components/reports.js";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	MODEL_DIMENSIONS,
 	type ModelDimension,
 } from "./data/model-families.js";
+import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import type { EngineResult, GameState } from "./state.js";
@@ -38,17 +40,38 @@ export function runEvaluation(
 	evaluation?: EvaluationKind,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 	const request = normalizeRequest(modelOrRequest, evaluation);
-	return applyEvaluation(state, request, true);
+	const result = applyEvaluation(state, request, true);
+	const remaining = result.state.decisions.pending.filter(
+		(decision) =>
+			decision.kind !== "evaluation" ||
+			decision.modelId !== request.modelId ||
+			decision.evaluation !== request.evaluation,
+	);
+	if (remaining.length === result.state.decisions.pending.length) {
+		return result;
+	}
+	const nextState: GameState = {
+		...result.state,
+		decisions: { pending: remaining },
+		queue: {
+			...result.state.queue,
+			decisionIds: remaining.map((decision) => decision.id),
+		},
+	};
+	assertGameState(nextState);
+	return { ...result, state: nextState };
 }
 
-/** Apply an already validated evaluation choice without writing a second log entry. */
+/** Apply an already validated evaluation choice by starting its project. */
 export function applyEvaluation(
 	state: GameState,
 	request: EvaluationRequest,
 	appendCommand: boolean,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 	const model = state.models.items.find((item) => item.id === request.modelId);
 	if (model === undefined) {
 		throw new Error(`Cannot evaluate unknown model: ${request.modelId}`);
@@ -61,37 +84,53 @@ export function applyEvaluation(
 			"Model must have true scores and estimates before evaluation",
 		);
 	}
-
 	const tuning = BALANCE.evaluations[request.evaluation];
 	if (state.company.insight < tuning.insightCost) {
 		throw new Error(
 			`Insufficient Insight for ${request.evaluation} evaluation cost ${tuning.insightCost}`,
 		);
 	}
-	const emphasis = model.emphasis ?? {
-		capability: 0,
-		reliability: 0,
-		safety: 0,
-		efficiency: 0,
-	};
-	const emphasisBonus =
-		request.evaluation === "safety_reliability"
-			? (emphasis.safety + emphasis.reliability) * tuning.safetyEmphasisBonus
-			: 0;
-	const coverage = Math.min(100, tuning.coveragePercent + emphasisBonus);
-	const relevantDimensions = dimensionsFor(request.evaluation);
-	const estimates = cloneEstimates(model.estimates);
-	for (const dimension of relevantDimensions) {
-		estimates[dimension] = narrowBand(
-			estimates[dimension],
-			model.trueScores[dimension],
-			coverage,
+	if (state.compute.allocated + tuning.computeCost > state.compute.capacity) {
+		throw new Error(
+			`Insufficient Compute capacity for ${request.evaluation} evaluation cost ${tuning.computeCost}`,
 		);
 	}
+	if (
+		state.projects.items.some(
+			(project) =>
+				project.kind === "evaluation" &&
+				project.modelId === request.modelId &&
+				project.evaluation === request.evaluation &&
+				project.status !== "cancelled",
+		)
+	) {
+		throw new Error(
+			`Model ${request.modelId} already has a ${request.evaluation} evaluation`,
+		);
+	}
+	const team = state.teams.items.find(
+		(candidate) => candidate.activeProjectId === null,
+	);
+	if (team === undefined) {
+		throw new Error("An idle team is required to run an evaluation");
+	}
 
-	const allocation = appendCommand
-		? allocateId(state, "command")
-		: { state, id: "" };
+	let allocation = allocateId(state, "project");
+	const projectId = allocation.id;
+	if (appendCommand) {
+		allocation = allocateId(allocation.state, "command");
+	}
+	const commandId = appendCommand ? allocation.id : "";
+	const evaluationProject = {
+		kind: "evaluation" as const,
+		id: projectId,
+		teamId: team.id,
+		status: "active" as const,
+		progress: BALANCE.startingProjectProgress,
+		duration: BALANCE.projectProgressPerWeek.evaluation,
+		modelId: request.modelId,
+		evaluation: request.evaluation,
+	};
 	const nextState: GameState = {
 		...allocation.state,
 		company: {
@@ -100,16 +139,25 @@ export function applyEvaluation(
 		},
 		compute: {
 			...allocation.state.compute,
-			allocated: Math.min(
-				allocation.state.compute.capacity,
-				allocation.state.compute.allocated + tuning.computeCost,
+		},
+		teams: {
+			items: allocation.state.teams.items.map((candidate) =>
+				candidate.id === team.id
+					? { ...candidate, activeProjectId: projectId }
+					: { ...candidate },
 			),
+		},
+		projects: {
+			items: [
+				...allocation.state.projects.items.map((project) => ({ ...project })),
+				evaluationProject,
+			],
 		},
 		models: {
 			...allocation.state.models,
 			items: allocation.state.models.items.map((candidate) =>
 				candidate.id === model.id
-					? { ...candidate, estimates }
+					? { ...candidate, projectId }
 					: cloneModel(candidate),
 			),
 		},
@@ -117,7 +165,7 @@ export function applyEvaluation(
 			? [
 					...allocation.state.commandLog,
 					{
-						id: allocation.id,
+						id: commandId,
 						kind: "run_evaluation",
 						week: state.meta.week,
 						modelId: request.modelId,
@@ -139,17 +187,14 @@ export function applyEvaluation(
 			amount: -tuning.computeCost,
 			week: state.meta.week,
 		},
-		{
-			kind: "evaluation_completed",
-			modelId: request.modelId,
-			evaluation: request.evaluation,
-			coverage,
-			week: state.meta.week,
-		},
 	];
-	assertGameState(nextState);
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState);
 	return {
-		state: nextState,
+		state: recomputedState,
 		facts,
 		pending: nextState.decisions.pending.map((decision) => ({ ...decision })),
 	};
@@ -180,6 +225,42 @@ function normalizeRequest(
 		modelId: modelOrRequest.modelId,
 		evaluation: modelOrRequest.evaluation,
 	};
+}
+
+export function evaluationDimensions(
+	evaluation: EvaluationKind,
+): readonly ModelDimension[] {
+	return dimensionsFor(evaluation);
+}
+
+export function completeEvaluationModel(
+	model: Model,
+	evaluation: EvaluationKind,
+): { model: Model; coverage: number } {
+	if (model.trueScores === undefined || model.estimates === undefined) {
+		throw new Error("Model must have scores before evaluation completion");
+	}
+	const tuning = BALANCE.evaluations[evaluation];
+	const emphasis = model.emphasis ?? {
+		capability: 0,
+		reliability: 0,
+		safety: 0,
+		efficiency: 0,
+	};
+	const emphasisBonus =
+		evaluation === "safety_reliability"
+			? (emphasis.safety + emphasis.reliability) * tuning.safetyEmphasisBonus
+			: 0;
+	const coverage = Math.min(100, tuning.coveragePercent + emphasisBonus);
+	const estimates = cloneEstimates(model.estimates);
+	for (const dimension of dimensionsFor(evaluation)) {
+		estimates[dimension] = narrowBand(
+			estimates[dimension],
+			model.trueScores[dimension],
+			coverage,
+		);
+	}
+	return { model: { ...cloneModel(model), estimates }, coverage };
 }
 
 function dimensionsFor(evaluation: EvaluationKind): readonly ModelDimension[] {

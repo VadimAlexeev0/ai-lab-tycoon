@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { WEEKLY_SYSTEMS } from "./advance-week.js";
 import * as Engine from "./index.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
@@ -725,6 +726,8 @@ describe("hardened component contract", () => {
 			"assignProject",
 			"cancelProject",
 			"designModel",
+			"launchProduct",
+			"runEvaluation",
 			"selectAvailableProjects",
 			"selectNextObjective",
 			"selectResourceBar",
@@ -841,5 +844,21 @@ describe("hardened component contract", () => {
 		};
 
 		expect(system).toBeTypeOf("function");
+	});
+
+	it("declares ownership for every registered weekly system", () => {
+		expect(WEEKLY_SYSTEMS).toHaveLength(11);
+		for (const registration of WEEKLY_SYSTEMS) {
+			expect(registration.reads.length, registration.phase).toBeGreaterThan(0);
+			expect(registration.writes.length, registration.phase).toBeGreaterThan(0);
+		}
+	});
+
+	it("keeps newly created decisions in both state and queue before returning", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const result = advanceWeek(state);
+		expect(result.state.queue.decisionIds).toEqual(
+			result.state.decisions.pending.map((decision) => decision.id),
+		);
 	});
 });

@@ -1,23 +1,26 @@
-import { appendFactsAsReports } from "./advance-week.js";
 import type {
 	DecisionChoice,
 	PendingDecision,
 } from "./components/decisions.js";
 import { assertDecisionChoice } from "./components/decisions.js";
 import { applyEvaluation } from "./evaluations.js";
+import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import { applyProductLaunch } from "./products.js";
 import type { EngineResult, GameState } from "./state.js";
 import { applyFunding } from "./systems/funding.js";
 import { applyIncidentResponse } from "./systems/incidents.js";
+import { appendFactsAsReports } from "./systems/reporting.js";
+import { terminalSystem } from "./systems/terminal.js";
 
 /** Resolve one queued decision without mutating the input state. */
 export function applyDecision(
 	state: GameState,
 	choice: DecisionChoice,
 ): EngineResult {
-	assertGameState(state);
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
+	assertRunActive(state);
 	assertDecisionChoice(choice);
 	const pending = state.decisions.pending.find(
 		(decision) => decision.id === choice.decisionId,
@@ -67,8 +70,28 @@ export function applyDecision(
 			state,
 			pendingIncident(pending),
 			choice.response,
+			pending.id,
 		);
 		remaining = withoutDecision(state.decisions.pending, pending.id);
+		const postResponse: GameState = {
+			...resolved.state,
+			decisions: { pending: remaining },
+			queue: {
+				...resolved.state.queue,
+				decisionIds: remaining.map((decision) => decision.id),
+			},
+		};
+		const terminalResult = terminalSystem(postResponse, {
+			phase: "terminal",
+			week: state.meta.week,
+			facts: resolved.facts,
+		});
+		resolved = {
+			state: terminalResult.state,
+			facts: [...resolved.facts, ...terminalResult.facts],
+			pending: terminalResult.pending,
+		};
+		remaining = terminalResult.pending.map((decision) => ({ ...decision }));
 	} else {
 		resolved = shelveDecision(state, pending);
 		remaining = withoutDecision(state.decisions.pending, pending.id);
@@ -96,7 +119,9 @@ export function applyDecision(
 		],
 	};
 	nextState = appendFactsAsReports(nextState, resolved.facts);
-	assertGameState(nextState);
+	assertGameState(nextState, {
+		allowNegativeCash: nextState.company.cash < 0,
+	});
 	return {
 		state: nextState,
 		facts: resolved.facts,
@@ -119,7 +144,10 @@ function isChoiceCompatible(
 	}
 	switch (decision.kind) {
 		case "launch":
-			return choice.kind === "launch";
+			return (
+				choice.kind === "launch" &&
+				(decision.channel === undefined || decision.channel === choice.channel)
+			);
 		case "evaluation":
 			return false;
 		case "funding":

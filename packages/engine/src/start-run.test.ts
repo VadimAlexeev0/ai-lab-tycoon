@@ -99,6 +99,7 @@ describe("startRun", () => {
 				status: "active",
 				reason: "none",
 				frontierReached: false,
+				contributors: [],
 			},
 		});
 	});

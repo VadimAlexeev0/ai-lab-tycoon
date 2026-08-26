@@ -45,6 +45,7 @@ export type PendingDecision =
 			kind: "launch";
 			id: string;
 			modelId: string;
+			channel?: ProductChannel;
 			blocking: true;
 	  }
 	| {
@@ -178,18 +179,21 @@ export function assertDecisionChoice(
 
 function assertPendingDecision(value: Record<string, unknown>): void {
 	switch (value.kind) {
-		case "launch":
-			assertExactObject(
-				value,
-				["kind", "id", "modelId", "blocking"],
-				"launch decision",
-			);
+		case "launch": {
+			const keys = Object.hasOwn(value, "channel")
+				? ["kind", "id", "modelId", "channel", "blocking"]
+				: ["kind", "id", "modelId", "blocking"];
+			assertExactObject(value, keys, "launch decision");
 			assertIdentifier(value.modelId, "Launch model id");
+			if (Object.hasOwn(value, "channel")) {
+				assertEnum(value.channel, PRODUCT_CHANNELS, "Launch decision channel");
+			}
 			assertBoolean(value.blocking, "Launch decision blocking");
 			if (value.blocking !== true) {
 				throw new Error("Launch decisions must be blocking");
 			}
 			return;
+		}
 		case "evaluation":
 			assertExactObject(
 				value,

@@ -1,11 +1,13 @@
 import type { Model } from "./components/models.js";
 import type { Product, ProductChannel } from "./components/products.js";
 import type { Fact } from "./components/reports.js";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	MODEL_DIMENSIONS,
 	type ModelDimension,
 } from "./data/model-families.js";
+import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import type { EngineResult, GameState } from "./state.js";
@@ -34,6 +36,7 @@ export function launchProduct(
 	channel?: LaunchChannelInput,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 	const request = normalizeRequest(modelOrRequest, channel);
 	return applyProductLaunch(state, request, true);
 }
@@ -45,6 +48,7 @@ export function applyProductLaunch(
 	appendCommand: boolean,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 	const model = state.models.items.find(
 		(candidate) => candidate.id === request.modelId,
 	);
@@ -70,10 +74,9 @@ export function applyProductLaunch(
 			`${request.channel} products require Trust ${tuning.minimumTrust}`,
 		);
 	}
-	if (state.company.hype < tuning.minimumHype) {
-		throw new Error(
-			`${request.channel} products require Hype ${tuning.minimumHype}`,
-		);
+	const minimumHype = rivalLaunchPressure(state, tuning.minimumHype);
+	if (state.company.hype < minimumHype) {
+		throw new Error(`${request.channel} products require Hype ${minimumHype}`);
 	}
 	if (state.company.cash < tuning.launchCost) {
 		throw new Error(
@@ -181,8 +184,67 @@ export function applyProductLaunch(
 			week: state.meta.week,
 		});
 	}
-	assertGameState(nextState);
-	return { state: nextState, facts, pending: [] };
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState);
+	return { state: recomputedState, facts, pending: [] };
+}
+
+export function rivalLaunchPressure(
+	state: GameState,
+	baseMinimumHype: number,
+): number {
+	const maximumProgress = state.rivals.items.reduce(
+		(maximum, rival) =>
+			rival.active ? Math.max(maximum, rival.progress) : maximum,
+		0,
+	);
+	return baseMinimumHype + Math.floor(maximumProgress / 25);
+}
+
+export function isProductLaunchEligible(
+	state: GameState,
+	modelId: string,
+	channel: ProductChannel,
+): boolean {
+	const model = state.models.items.find(
+		(candidate) => candidate.id === modelId,
+	);
+	if (
+		model === undefined ||
+		(model.status !== "ready" && model.status !== "launched")
+	) {
+		return false;
+	}
+	const tuning = BALANCE.productChannels[channel];
+	const minimumHype = rivalLaunchPressure(state, tuning.minimumHype);
+	if (
+		eraIndex(state.meta.era) < eraIndex(tuning.minEra) ||
+		state.company.trust < tuning.minimumTrust ||
+		state.company.hype < minimumHype ||
+		state.company.cash < tuning.launchCost ||
+		state.products.items.some(
+			(product) => product.modelId === modelId && product.channel === channel,
+		)
+	) {
+		return false;
+	}
+	try {
+		assertChannelScore(model, "capability", tuning.minimumCapability, channel);
+		assertChannelScore(model, "coding", tuning.minimumCoding, channel);
+		assertChannelScore(
+			model,
+			"reliability",
+			tuning.minimumReliability,
+			channel,
+		);
+		assertChannelScore(model, "safety", tuning.minimumSafety, channel);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export function effectiveProductQuality(

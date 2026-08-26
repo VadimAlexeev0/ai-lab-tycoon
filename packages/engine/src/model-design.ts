@@ -4,6 +4,7 @@ import type {
 	ModelFoundation,
 	ModelTrueScores,
 } from "./components/models.js";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	DATA_MIX_DIMENSIONS,
@@ -18,6 +19,7 @@ import {
 	type ModelFamilyId,
 	type ModelTier,
 } from "./data/model-families.js";
+import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import { nextInt } from "./rng.js";
@@ -82,6 +84,7 @@ export function designModel(
 	spec: ModelDesignSpec,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 	const normalized = normalizeModelDesignSpec(spec);
 	const family = getFamily(normalized.family);
 	const tier = BALANCE.modelTiers[normalized.tier];
@@ -208,8 +211,12 @@ export function designModel(
 		],
 	};
 
-	assertGameState(nextState);
-	return { state: nextState, facts: [], pending: [] };
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState);
+	return { state: recomputedState, facts: [], pending: [] };
 }
 
 /** Generate hidden scores and separate noisy estimates at training completion. */

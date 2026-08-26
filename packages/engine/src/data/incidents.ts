@@ -7,6 +7,7 @@ import {
 	assertExactObject,
 	assertInteger,
 	assertNonNegativeInteger,
+	assertString,
 } from "../validation.js";
 
 export type IncidentCondition =
@@ -17,19 +18,30 @@ export type IncidentCondition =
 	| "enterprise_risk"
 	| "privacy_exposure";
 
+export type IncidentTarget = "product" | "training_project" | "company";
+export type IncidentResolution =
+	| "pause_product"
+	| "cancel_training"
+	| "disable_exposure";
+
 export type IncidentEffect = Readonly<{
 	cash: number;
 	trust: number;
 	hype: number;
 }>;
 
+export type IncidentResponseEffect = IncidentEffect &
+	Readonly<{ resolution: IncidentResolution }>;
+
 export type IncidentDefinition = Readonly<{
 	type: IncidentType;
 	condition: IncidentCondition;
+	affectedEntity: IncidentTarget;
+	metric: string;
+	threshold: number;
 	baseProbability: number;
-	forcedProbability: number;
 	severity: IncidentEffect;
-	responses: Readonly<Record<IncidentResponse, IncidentEffect>>;
+	responses: Readonly<Record<IncidentResponse, IncidentResponseEffect>>;
 }>;
 
 /** V1 incident content. Rules consume this table rather than embedding prose. */
@@ -37,73 +49,175 @@ export const INCIDENT_DEFINITIONS = [
 	{
 		type: "outage",
 		condition: "serving_overload",
+		affectedEntity: "product",
+		metric: "servingDemand",
+		threshold: 12,
 		baseProbability: 2,
-		forcedProbability: 100,
 		severity: { cash: 80, trust: 5, hype: 3 },
 		responses: {
-			repair: { cash: 60, trust: -2, hype: 0 },
-			reduce_scope: { cash: 15, trust: -4, hype: -2 },
-			disclose: { cash: 10, trust: 0, hype: -5 },
+			repair: {
+				cash: 60,
+				trust: -2,
+				hype: 0,
+				resolution: "pause_product",
+			},
+			reduce_scope: {
+				cash: 15,
+				trust: -4,
+				hype: -2,
+				resolution: "pause_product",
+			},
+			disclose: {
+				cash: 10,
+				trust: 0,
+				hype: -5,
+				resolution: "pause_product",
+			},
 		},
 	},
 	{
 		type: "latency_degradation",
 		condition: "api_overload",
+		affectedEntity: "product",
+		metric: "servingDemand",
+		threshold: 12,
 		baseProbability: 3,
-		forcedProbability: 100,
 		severity: { cash: 50, trust: 3, hype: 2 },
 		responses: {
-			repair: { cash: 45, trust: -1, hype: 0 },
-			reduce_scope: { cash: 10, trust: -3, hype: -2 },
-			disclose: { cash: 8, trust: 0, hype: -3 },
+			repair: {
+				cash: 45,
+				trust: -1,
+				hype: 0,
+				resolution: "pause_product",
+			},
+			reduce_scope: {
+				cash: 10,
+				trust: -3,
+				hype: -2,
+				resolution: "pause_product",
+			},
+			disclose: {
+				cash: 8,
+				trust: 0,
+				hype: -3,
+				resolution: "pause_product",
+			},
 		},
 	},
 	{
 		type: "quality_safety_scandal",
 		condition: "low_quality",
+		affectedEntity: "product",
+		metric: "effectiveQuality",
+		threshold: 30,
 		baseProbability: 4,
-		forcedProbability: 100,
 		severity: { cash: 40, trust: 12, hype: 8 },
 		responses: {
-			repair: { cash: 50, trust: -2, hype: -1 },
-			reduce_scope: { cash: 15, trust: -7, hype: -4 },
-			disclose: { cash: 10, trust: 2, hype: -6 },
+			repair: {
+				cash: 50,
+				trust: -2,
+				hype: -1,
+				resolution: "pause_product",
+			},
+			reduce_scope: {
+				cash: 15,
+				trust: -7,
+				hype: -4,
+				resolution: "pause_product",
+			},
+			disclose: {
+				cash: 10,
+				trust: 2,
+				hype: -6,
+				resolution: "pause_product",
+			},
 		},
 	},
 	{
 		type: "compute_cost_overrun",
 		condition: "training_overload",
+		affectedEntity: "training_project",
+		metric: "trainingDemand",
+		threshold: 12,
 		baseProbability: 3,
-		forcedProbability: 100,
 		severity: { cash: 100, trust: 0, hype: 1 },
 		responses: {
-			repair: { cash: 70, trust: 0, hype: 0 },
-			reduce_scope: { cash: 20, trust: 0, hype: -2 },
-			disclose: { cash: 15, trust: 0, hype: -3 },
+			repair: {
+				cash: 70,
+				trust: 0,
+				hype: 0,
+				resolution: "cancel_training",
+			},
+			reduce_scope: {
+				cash: 20,
+				trust: 0,
+				hype: -2,
+				resolution: "cancel_training",
+			},
+			disclose: {
+				cash: 15,
+				trust: 0,
+				hype: -3,
+				resolution: "cancel_training",
+			},
 		},
 	},
 	{
 		type: "enterprise_sla_breach",
 		condition: "enterprise_risk",
+		affectedEntity: "product",
+		metric: "reliability",
+		threshold: 35,
 		baseProbability: 5,
-		forcedProbability: 100,
 		severity: { cash: 90, trust: 10, hype: 4 },
 		responses: {
-			repair: { cash: 80, trust: -2, hype: 0 },
-			reduce_scope: { cash: 25, trust: -7, hype: -3 },
-			disclose: { cash: 15, trust: 1, hype: -5 },
+			repair: {
+				cash: 80,
+				trust: -2,
+				hype: 0,
+				resolution: "pause_product",
+			},
+			reduce_scope: {
+				cash: 25,
+				trust: -7,
+				hype: -3,
+				resolution: "pause_product",
+			},
+			disclose: {
+				cash: 15,
+				trust: 1,
+				hype: -5,
+				resolution: "pause_product",
+			},
 		},
 	},
 	{
 		type: "data_privacy_incident",
 		condition: "privacy_exposure",
+		affectedEntity: "company",
+		metric: "trust",
+		threshold: 10,
 		baseProbability: 3,
-		forcedProbability: 100,
 		severity: { cash: 70, trust: 15, hype: 10 },
 		responses: {
-			repair: { cash: 65, trust: -5, hype: -2 },
-			reduce_scope: { cash: 20, trust: -8, hype: -5 },
-			disclose: { cash: 25, trust: 2, hype: -7 },
+			repair: {
+				cash: 65,
+				trust: -5,
+				hype: -2,
+				resolution: "disable_exposure",
+			},
+			reduce_scope: {
+				cash: 20,
+				trust: -8,
+				hype: -5,
+				resolution: "disable_exposure",
+			},
+			disclose: {
+				cash: 25,
+				trust: 2,
+				hype: -7,
+				resolution: "disable_exposure",
+			},
 		},
 	},
 ] as const satisfies readonly IncidentDefinition[];
@@ -127,8 +241,10 @@ function assertIncidentDefinitions(
 			[
 				"type",
 				"condition",
+				"affectedEntity",
+				"metric",
+				"threshold",
 				"baseProbability",
-				"forcedProbability",
 				"severity",
 				"responses",
 			],
@@ -161,28 +277,36 @@ function assertIncidentDefinitions(
 			],
 			"Incident condition",
 		);
+		assertEnum(
+			definition.affectedEntity,
+			["product", "training_project", "company"],
+			"Incident affected entity",
+		);
+		assertString(definition.metric, "Incident metric");
+		if (definition.metric.trim().length === 0) {
+			throw new Error("Incident metric must not be empty");
+		}
+		assertInteger(definition.threshold, "Incident threshold");
 		assertNonNegativeInteger(
 			definition.baseProbability,
 			"Incident base probability",
 		);
-		assertNonNegativeInteger(
-			definition.forcedProbability,
-			"Incident forced probability",
-		);
-		if (
-			definition.baseProbability > 100 ||
-			definition.forcedProbability > 100
-		) {
+		if (definition.baseProbability > 100) {
 			throw new Error("Incident probabilities must be between 0 and 100");
 		}
 		assertEffect(definition.severity, "Incident severity");
 		for (const response of ["repair", "reduce_scope", "disclose"] as const) {
 			assertExactObject(
 				definition.responses[response],
-				["cash", "trust", "hype"],
+				["cash", "trust", "hype", "resolution"],
 				`Incident ${definition.type} ${response} response`,
 			);
 			assertEffect(definition.responses[response], "Incident response effect");
+			assertEnum(
+				definition.responses[response].resolution,
+				["pause_product", "cancel_training", "disable_exposure"],
+				"Incident response resolution",
+			);
 		}
 	}
 	if (definitions.length !== 6)

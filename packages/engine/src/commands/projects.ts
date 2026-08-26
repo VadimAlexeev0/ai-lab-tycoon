@@ -1,4 +1,6 @@
 import type { Project } from "../components/projects.js";
+import { withRecomputedCompute } from "../compute-reservations.js";
+import { assertRunActive } from "../guards.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import type { EngineResult, GameState } from "../state.js";
@@ -21,6 +23,7 @@ export function assignProject(
 	projectOrId: Project | string,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 
 	const team = state.teams.items.find((item) => item.id === teamId);
 	if (team === undefined) {
@@ -131,6 +134,7 @@ export function cancelProject(
 	project?: Project | string,
 ): EngineResult {
 	assertGameState(state);
+	assertRunActive(state);
 
 	if (typeof teamOrProject !== "string" && teamOrProject.teamId === null) {
 		throw new Error(
@@ -275,8 +279,12 @@ export function cancelProject(
 		],
 	};
 
-	assertGameState(nextState);
-	return { state: nextState, facts: [], pending: [] };
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState);
+	return { state: recomputedState, facts: [], pending: [] };
 }
 
 function isTrainingOrModelProject(

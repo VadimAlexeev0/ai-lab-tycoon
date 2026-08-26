@@ -324,6 +324,7 @@ describe("Task 6 review regressions", () => {
 		}
 		project.duration = 2;
 		designed.compute.capacity = BALANCE.modelTiers.standard.trainingCompute - 1;
+		designed.compute.allocated = designed.compute.capacity;
 
 		const result = trainingSystem(designed, { phase: "training", week: 1 });
 		expect(result.state.compute.trainingDemand).toBe(

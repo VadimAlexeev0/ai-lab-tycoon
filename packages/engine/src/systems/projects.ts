@@ -1,6 +1,8 @@
 import type { Project } from "../components/projects.js";
 import type { Fact } from "../components/reports.js";
+import { withRecomputedCompute } from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
+import { completeEvaluationModel } from "../evaluations.js";
 import { assertGameState } from "../invariants.js";
 import type { GameSystem } from "./types.js";
 
@@ -9,11 +11,12 @@ import type { GameSystem } from "./types.js";
  * iterated in their serialized order, which keeps facts deterministic.
  */
 export const projectsSystem: GameSystem = (state, context) => {
-	assertGameState(state);
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
 	const completedModelProjectIds = new Set<string>();
+	const nextModels = state.models.items.map((model) => ({ ...model }));
 	const nextProjects: Project[] = state.projects.items.map((project) => {
 		if (project.status !== "active" || project.kind === "training") {
 			return { ...project };
@@ -31,26 +34,43 @@ export const projectsSystem: GameSystem = (state, context) => {
 			});
 		}
 
-		if (nextProgress === project.duration) {
-			completedProjectIds.add(project.id);
-			if (project.kind === "model") {
-				completedModelProjectIds.add(project.id);
-			}
-			facts.push({
-				kind: "project_completed",
-				projectId: project.id,
-				week: context.week,
-			});
-			return {
-				...project,
-				teamId: null,
-				status: "completed",
-				progress: nextProgress,
-			};
+		if (nextProgress !== project.duration) {
+			return { ...project, progress: nextProgress };
 		}
 
+		completedProjectIds.add(project.id);
+		facts.push({
+			kind: "project_completed",
+			projectId: project.id,
+			week: context.week,
+		});
+		if (project.kind === "model") {
+			completedModelProjectIds.add(project.id);
+		}
+		if (project.kind === "evaluation") {
+			const modelIndex = nextModels.findIndex(
+				(model) => model.id === project.modelId,
+			);
+			const model = nextModels[modelIndex];
+			if (model === undefined) {
+				throw new Error(
+					`Evaluation project ${project.id} references an unknown model`,
+				);
+			}
+			const completed = completeEvaluationModel(model, project.evaluation);
+			nextModels[modelIndex] = { ...completed.model, projectId: null };
+			facts.push({
+				kind: "evaluation_completed",
+				modelId: project.modelId,
+				evaluation: project.evaluation,
+				coverage: completed.coverage,
+				week: context.week,
+			});
+		}
 		return {
 			...project,
+			teamId: null,
+			status: "completed",
 			progress: nextProgress,
 		};
 	});
@@ -66,7 +86,7 @@ export const projectsSystem: GameSystem = (state, context) => {
 			),
 		},
 		models: {
-			items: state.models.items.map((model) =>
+			items: nextModels.map((model) =>
 				model.projectId !== null &&
 				completedModelProjectIds.has(model.projectId)
 					? { ...model, projectId: null }
@@ -74,8 +94,17 @@ export const projectsSystem: GameSystem = (state, context) => {
 			),
 			activeModelId: state.models.activeModelId,
 		},
+		compute: {
+			...state.compute,
+		},
 		projects: { items: nextProjects },
 	};
-	assertGameState(nextState);
-	return { state: nextState, facts, pending: [] };
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState, {
+		allowNegativeCash: recomputedState.company.cash < 0,
+	});
+	return { state: recomputedState, facts, pending: [] };
 };

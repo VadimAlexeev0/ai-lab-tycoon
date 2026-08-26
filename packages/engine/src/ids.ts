@@ -24,7 +24,7 @@ export function allocateId(
 	state: GameState,
 	kind: CounterKind,
 ): AllocateIdResult {
-	assertGameState(state);
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 	assertCounterKind(kind);
 
 	const nextAvailable = state.counters[kind];

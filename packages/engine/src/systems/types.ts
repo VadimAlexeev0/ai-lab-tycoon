@@ -28,6 +28,10 @@ export type SystemPhase =
 export type SystemContext = {
 	readonly phase: SystemPhase;
 	readonly week: number;
+	readonly facts?: readonly Fact[];
+	/** Optional deterministic incident rolls used by fixtures and replays. */
+	readonly incidentRolls?: readonly number[];
+	readonly incidentRoll?: number;
 };
 
 export type SystemResult = {
@@ -40,3 +44,14 @@ export type GameSystem = (
 	state: DeepReadonly<GameState>,
 	context: DeepReadonly<SystemContext>,
 ) => SystemResult;
+
+export type SystemDeclaration = Readonly<{
+	reads: readonly string[];
+	writes: readonly string[];
+}>;
+
+export type RegisteredSystem = SystemDeclaration &
+	Readonly<{
+		phase: SystemPhase;
+		system: GameSystem;
+	}>;

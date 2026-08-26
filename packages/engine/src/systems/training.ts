@@ -1,6 +1,10 @@
 import type { Model } from "../components/models.js";
 import type { Project } from "../components/projects.js";
 import type { Fact } from "../components/reports.js";
+import {
+	computeReservations,
+	withRecomputedCompute,
+} from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
 import { assertGameState } from "../invariants.js";
 import { generateTrueScores } from "../model-design.js";
@@ -13,28 +17,20 @@ import type { GameSystem } from "./types.js";
  * is not double-progressed by the generic project phase.
  */
 export const trainingSystem: GameSystem = (state, context) => {
-	assertGameState(state);
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
-	const trainingDemand = state.projects.items.reduce((total, project) => {
-		if (project.kind !== "training" || project.status !== "active") {
-			return total;
-		}
-		const model = state.models.items.find(
-			(candidate) => candidate.id === project.modelId,
-		);
-		if (model?.tier === undefined) {
-			return total;
-		}
-		return total + BALANCE.modelTiers[model.tier].trainingCompute;
-	}, 0);
+	const reservations = computeReservations(state);
+	const trainingDemand = reservations.trainingDemand;
 	const availableTrainingCapacity = Math.max(
 		0,
-		state.compute.capacity - state.compute.allocated,
+		state.compute.capacity -
+			reservations.servingDemand -
+			reservations.evaluationDemand,
 	);
-	// V1 pressure rule: an overloaded training run makes no progress. The
-	// later pressure economy can replace this stall with a graduated slowdown.
+	// Training owns its reservation. Serving and evaluation reservations are
+	// excluded from this check so a run does not subtract itself twice.
 	const trainingProgressRate =
 		trainingDemand > availableTrainingCapacity
 			? 0
@@ -107,25 +103,11 @@ export const trainingSystem: GameSystem = (state, context) => {
 		};
 	});
 
-	const nextTrainingDemand = nextProjects.reduce((total, project) => {
-		if (project.kind !== "training" || project.status !== "active") {
-			return total;
-		}
-		const model = nextModels.find(
-			(candidate) => candidate.id === project.modelId,
-		);
-		if (model?.tier === undefined) {
-			return total;
-		}
-		return total + BALANCE.modelTiers[model.tier].trainingCompute;
-	}, 0);
-
 	const nextState: GameState = {
 		...state,
 		rng: nextRng,
 		compute: {
 			...state.compute,
-			trainingDemand: nextTrainingDemand,
 		},
 		models: {
 			items: nextModels,
@@ -141,8 +123,14 @@ export const trainingSystem: GameSystem = (state, context) => {
 			),
 		},
 	};
-	assertGameState(nextState);
-	return { state: nextState, facts, pending: [] };
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	assertGameState(recomputedState, {
+		allowNegativeCash: recomputedState.company.cash < 0,
+	});
+	return { state: recomputedState, facts, pending: [] };
 };
 
 function cloneProject(project: Project): Project {

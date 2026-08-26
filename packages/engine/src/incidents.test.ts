@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { IncidentType } from "./components/decisions.js";
-import { startRun } from "./index.js";
+import { incidentDefinition } from "./data/incidents.js";
+import { advanceWeek, applyDecision, startRun } from "./index.js";
 import type { GameState } from "./state.js";
-import { incidentsSystem } from "./systems/incidents.js";
+import {
+	applyIncidentResponse,
+	incidentsSystem,
+	isIncidentConditionActive,
+} from "./systems/incidents.js";
 
 const INCIDENTS: readonly IncidentType[] = [
 	"outage",
@@ -90,6 +95,7 @@ describe("incidents", () => {
 			const result = incidentsSystem(forcedState(incident), {
 				phase: "incidents",
 				week: 1,
+				incidentRolls: [0],
 			});
 			expect(result.pending).toContainEqual(
 				expect.objectContaining({ kind: "incident", incident, blocking: true }),
@@ -103,4 +109,147 @@ describe("incidents", () => {
 			);
 		},
 	);
+
+	it("uses base probability with deterministic roll fixtures and persists RNG misses", () => {
+		const state = forcedState("outage");
+		const missed = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRolls: [2],
+		});
+		expect(missed.pending).toHaveLength(0);
+		expect(missed.state.rng).not.toEqual(state.rng);
+
+		const hit = incidentsSystem(state, {
+			phase: "incidents",
+			week: 1,
+			incidentRolls: [0],
+		});
+		expect(hit.pending).toContainEqual(
+			expect.objectContaining({ kind: "incident", incident: "outage" }),
+		);
+	});
+
+	it.each(INCIDENTS)(
+		"resolves the %s trigger mechanically after a response",
+		(incident) => {
+			const occurrence = incidentsSystem(forcedState(incident), {
+				phase: "incidents",
+				week: 1,
+				incidentRolls: [0],
+			});
+			const definition = incidentDefinition(incident);
+			expect(occurrence.facts).toContainEqual(
+				expect.objectContaining({
+					kind: "incident_occurred",
+					condition: definition.condition,
+					metric: expect.any(String),
+					affectedEntity: expect.anything(),
+					severity: expect.any(Number),
+				}),
+			);
+			const resolved = applyIncidentResponse(
+				occurrence.state,
+				incident,
+				"repair",
+			);
+			expect(
+				isIncidentConditionActive(definition.condition, resolved.state),
+			).toBe(false);
+			const resolvedFact = resolved.facts.find(
+				(fact) => fact.kind === "incident_resolved",
+			);
+			if (resolvedFact?.kind !== "incident_resolved") {
+				throw new Error("Expected an incident resolution fact");
+			}
+			expect(resolvedFact.incidentId).toBe(incident);
+			expect(resolved.facts).toContainEqual(
+				expect.objectContaining({
+					kind: "incident_resolved",
+					incident,
+					response: "repair",
+				}),
+			);
+		},
+	);
+
+	it("keeps a trust-zero incident pending until its response is applied", () => {
+		const state = forcedState("data_privacy_incident");
+		state.compute.capacity = 100;
+		const advanced = advanceWeek(state, { incidentRolls: [0] });
+
+		expect(advanced.state.terminal.status).toBe("active");
+		expect(advanced.state.decisions.pending).toHaveLength(1);
+		expect(advanced.state.decisions.pending[0]).toMatchObject({
+			kind: "incident",
+			incident: "data_privacy_incident",
+		});
+		expect(advanced.facts).not.toContainEqual(
+			expect.objectContaining({ kind: "terminal" }),
+		);
+
+		const decision = advanced.state.decisions.pending[0];
+		if (decision?.kind !== "incident")
+			throw new Error("Expected incident decision");
+		const disclosed = applyDecision(advanced.state, {
+			kind: "incident",
+			decisionId: decision.id,
+			response: "disclose",
+		});
+		expect(disclosed.state.company.trust).toBeGreaterThan(0);
+		expect(disclosed.state.terminal.status).toBe("active");
+		expect(disclosed.state.decisions.pending).toHaveLength(0);
+		const disclosedFact = disclosed.facts.find(
+			(fact) => fact.kind === "incident_resolved",
+		);
+		expect(disclosedFact).toMatchObject({
+			kind: "incident_resolved",
+			incidentId: decision.id,
+			incident: "data_privacy_incident",
+			response: "disclose",
+		});
+	});
+
+	it("terminalizes immediately when an incident response leaves Trust at zero", () => {
+		const state = forcedState("data_privacy_incident");
+		state.compute.capacity = 100;
+		const advanced = advanceWeek(state, { incidentRolls: [0] });
+		const decision = advanced.state.decisions.pending[0];
+		if (decision?.kind !== "incident")
+			throw new Error("Expected incident decision");
+
+		const resolved = applyDecision(advanced.state, {
+			kind: "incident",
+			decisionId: decision.id,
+			response: "repair",
+		});
+		expect(resolved.state.company.trust).toBe(0);
+		expect(resolved.state.terminal).toMatchObject({
+			status: "lost",
+			reason: "trust_collapsed",
+		});
+		expect(resolved.facts).toContainEqual(
+			expect.objectContaining({ kind: "terminal", reason: "trust_collapsed" }),
+		);
+	});
+
+	it("returns cash-depleted after an unaffordable outage repair instead of throwing", () => {
+		const state = forcedState("outage");
+		state.compute.capacity = 12;
+		state.company.cash = 50;
+		const advanced = advanceWeek(state, { incidentRolls: [0] });
+		const decision = advanced.state.decisions.pending[0];
+		if (decision?.kind !== "incident")
+			throw new Error("Expected incident decision");
+
+		const resolved = applyDecision(advanced.state, {
+			kind: "incident",
+			decisionId: decision.id,
+			response: "repair",
+		});
+		expect(resolved.state.terminal).toMatchObject({
+			status: "lost",
+			reason: "cash_depleted",
+		});
+	});
 });

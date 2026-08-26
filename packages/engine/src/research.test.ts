@@ -332,6 +332,18 @@ describe("V1 research data", () => {
 				amount: BALANCE.researchInsightPerWeek,
 				week: 1,
 			},
+			{
+				kind: "rival_progressed",
+				rivalId: "rival_001",
+				amount: 7,
+				week: 1,
+			},
+			{
+				kind: "rival_progressed",
+				rivalId: "rival_002",
+				amount: 9,
+				week: 1,
+			},
 		]);
 		expect(state.meta.week).toBe(1);
 	});

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { BALANCE } from "./data/balance.js";
 import { RIVAL_MILESTONES } from "./data/rivals.js";
 import { startRun } from "./index.js";
+import { assertGameState } from "./invariants.js";
+import { rivalLaunchPressure } from "./products.js";
 import { rivalsSystem } from "./systems/rivals.js";
 
 describe("rival progress clocks", () => {
@@ -24,8 +26,16 @@ describe("rival progress clocks", () => {
 		);
 		expect(first.facts).toContainEqual(
 			expect.objectContaining({
+				kind: "rival_progressed",
+				rivalId: rival.id,
+				amount: BALANCE.rivalClocks[rival.archetype].progressPerWeek,
+			}),
+		);
+		expect(first.facts).toContainEqual(
+			expect.objectContaining({
 				kind: "rival_milestone",
 				rivalId: rival.id,
+				milestone: "prototype",
 			}),
 		);
 
@@ -46,5 +56,50 @@ describe("rival progress clocks", () => {
 		expect(
 			assistantResult.state.rivals.items.filter((rival) => rival.active),
 		).toHaveLength(3);
+	});
+
+	it("labels exactly the threshold crossed and rejects progress above 100", () => {
+		for (const [from, expected] of [
+			[24, "prototype"],
+			[49, "launch"],
+			[74, "scale"],
+			[99, "category_lead"],
+		] as const) {
+			const state = startRun({ companyName: "Acme Labs" }, 42);
+			const rival = state.rivals.items[0];
+			if (rival === undefined) throw new Error("Expected rival");
+			rival.progress = from;
+			const result = rivalsSystem(state, { phase: "rivals", week: 1 });
+			expect(result.facts).toContainEqual(
+				expect.objectContaining({
+					kind: "rival_milestone",
+					rivalId: rival.id,
+					milestone: expected,
+				}),
+			);
+		}
+
+		const invalid = startRun({ companyName: "Acme Labs" }, 42);
+		const invalidRival = invalid.rivals.items[0];
+		if (invalidRival === undefined) throw new Error("Expected rival");
+		invalidRival.progress = 101;
+		expect(() => assertGameState(invalid)).toThrow(/progress/i);
+	});
+
+	it("adds launch pressure from active rival progress only", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		expect(rivalLaunchPressure(state, 5)).toBe(5);
+		const firstRival = state.rivals.items[0];
+		const secondRival = state.rivals.items[1];
+		if (firstRival === undefined || secondRival === undefined) {
+			throw new Error("Expected two active rivals");
+		}
+		firstRival.progress = 50;
+		expect(rivalLaunchPressure(state, 5)).toBe(7);
+		secondRival.progress = 100;
+		expect(rivalLaunchPressure(state, 5)).toBe(9);
+		firstRival.active = false;
+		secondRival.active = false;
+		expect(rivalLaunchPressure(state, 5)).toBe(5);
 	});
 });

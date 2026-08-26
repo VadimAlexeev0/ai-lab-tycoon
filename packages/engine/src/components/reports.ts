@@ -1,3 +1,4 @@
+import type { IncidentCondition } from "../data/incidents.js";
 import {
 	assertArray,
 	assertBoolean,
@@ -8,10 +9,12 @@ import {
 	assertNonNegativeInteger,
 	assertObject,
 	assertPositiveInteger,
+	assertString,
 } from "../validation.js";
 import type { IncidentType } from "./decisions.js";
-import type { FundingRound } from "./funding.js";
+import type { FundingGateFactors, FundingRound } from "./funding.js";
 import type { ProductChannel } from "./products.js";
+import type { TerminalContributor } from "./terminal.js";
 
 export type ResourceName = "cash" | "compute" | "insight" | "trust" | "hype";
 
@@ -28,6 +31,7 @@ const FACT_KINDS = [
 	"rival_milestone",
 	"funding_resolved",
 	"incident_occurred",
+	"incident_resolved",
 	"milestone_reached",
 	"terminal",
 ] as const;
@@ -116,11 +120,26 @@ export type Fact =
 			kind: "funding_resolved";
 			round: FundingRound;
 			outcome: "accepted" | "declined";
+			/** Gate measurements captured at the moment the offer was resolved. */
+			factors?: FundingGateFactors;
 			week: number;
 	  }
 	| {
 			kind: "incident_occurred";
 			incident: IncidentType;
+			condition: IncidentCondition;
+			affectedEntity: string;
+			metric: string;
+			measurement: number;
+			threshold: number;
+			severity: number;
+			week: number;
+	  }
+	| {
+			kind: "incident_resolved";
+			incidentId: string;
+			incident: IncidentType;
+			response: "repair" | "reduce_scope" | "disclose";
 			week: number;
 	  }
 	| {
@@ -131,6 +150,7 @@ export type Fact =
 	| {
 			kind: "terminal";
 			reason: "cash_depleted" | "trust_collapsed";
+			contributors: readonly TerminalContributor[];
 			week: number;
 	  };
 
@@ -178,6 +198,27 @@ export function assertReportsState(
 		assertBoolean(item.acknowledged, "Report acknowledged");
 		assertFact(item.fact);
 	}
+}
+
+function assertFundingGateFactors(
+	value: unknown,
+): asserts value is FundingGateFactors {
+	assertExactObject(
+		value,
+		["hype", "trust", "modelScore", "operatingProducts", "cumulativeRevenue"],
+		"Funding gate factors",
+	);
+	assertNonNegativeInteger(value.hype, "Funding factor hype");
+	assertNonNegativeInteger(value.trust, "Funding factor trust");
+	assertNonNegativeInteger(value.modelScore, "Funding factor model score");
+	assertNonNegativeInteger(
+		value.operatingProducts,
+		"Funding factor operating products",
+	);
+	assertNonNegativeInteger(
+		value.cumulativeRevenue,
+		"Funding factor cumulative revenue",
+	);
 }
 
 export function assertFact(value: unknown): asserts value is Fact {
@@ -299,7 +340,9 @@ export function assertFact(value: unknown): asserts value is Fact {
 		case "funding_resolved":
 			assertExactObject(
 				value,
-				["kind", "round", "outcome", "week"],
+				Object.hasOwn(value, "factors")
+					? ["kind", "round", "outcome", "factors", "week"]
+					: ["kind", "round", "outcome", "week"],
 				"funding resolved fact",
 			);
 			assertEnum(value.round, FUNDING_ROUNDS, "Funding fact round");
@@ -308,15 +351,66 @@ export function assertFact(value: unknown): asserts value is Fact {
 				["accepted", "declined"],
 				"Funding fact outcome",
 			);
+			if (Object.hasOwn(value, "factors")) {
+				assertFundingGateFactors(value.factors);
+			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "incident_occurred":
 			assertExactObject(
 				value,
-				["kind", "incident", "week"],
+				[
+					"kind",
+					"incident",
+					"condition",
+					"affectedEntity",
+					"metric",
+					"measurement",
+					"threshold",
+					"severity",
+					"week",
+				],
 				"incident occurred fact",
 			);
 			assertEnum(value.incident, INCIDENT_TYPES, "Incident fact type");
+			assertEnum(
+				value.condition,
+				[
+					"serving_overload",
+					"api_overload",
+					"low_quality",
+					"training_overload",
+					"enterprise_risk",
+					"privacy_exposure",
+				],
+				"Incident fact condition",
+			);
+			assertString(value.affectedEntity, "Incident affected entity");
+			if (value.affectedEntity.trim().length === 0) {
+				throw new Error("Incident affected entity must not be empty");
+			}
+			assertString(value.metric, "Incident fact metric");
+			if (value.metric.trim().length === 0) {
+				throw new Error("Incident fact metric must not be empty");
+			}
+			assertInteger(value.measurement, "Incident fact measurement");
+			assertInteger(value.threshold, "Incident fact threshold");
+			assertInteger(value.severity, "Incident fact severity");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "incident_resolved":
+			assertExactObject(
+				value,
+				["kind", "incidentId", "incident", "response", "week"],
+				"incident resolved fact",
+			);
+			assertIdentifier(value.incidentId, "Resolved incident id");
+			assertEnum(value.incident, INCIDENT_TYPES, "Resolved incident type");
+			assertEnum(
+				value.response,
+				["repair", "reduce_scope", "disclose"],
+				"Incident response",
+			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "milestone_reached":
@@ -328,14 +422,55 @@ export function assertFact(value: unknown): asserts value is Fact {
 			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;
-		case "terminal":
-			assertExactObject(value, ["kind", "reason", "week"], "terminal fact");
+		case "terminal": {
+			assertExactObject(
+				value,
+				["kind", "reason", "contributors", "week"],
+				"terminal fact",
+			);
 			assertEnum(
 				value.reason,
 				["cash_depleted", "trust_collapsed"],
 				"Terminal fact reason",
 			);
+			const contributors =
+				value.contributors as unknown as TerminalContributor[];
+			assertArray(contributors, "Terminal fact contributors");
+			for (const contributor of contributors) {
+				assertExactObject(
+					contributor,
+					["kind", "impact", "week", "index"],
+					"Terminal fact contributor",
+				);
+				assertEnum(contributor.kind, FACT_KINDS, "Terminal contributor kind");
+				assertInteger(contributor.impact, "Terminal contributor impact");
+				assertPositiveInteger(contributor.week, "Terminal contributor week");
+				assertNonNegativeInteger(
+					contributor.index,
+					"Terminal contributor index",
+				);
+			}
+			if (contributors.length !== 3) {
+				throw new Error(
+					"Terminal facts must contain exactly three contributors",
+				);
+			}
+			for (let index = 1; index < contributors.length; index += 1) {
+				const previous = contributors[index - 1];
+				const current = contributors[index];
+				if (previous === undefined || current === undefined) continue;
+				if (
+					Math.abs(previous.impact) < Math.abs(current.impact) ||
+					(Math.abs(previous.impact) === Math.abs(current.impact) &&
+						previous.index > current.index)
+				) {
+					throw new Error(
+						"Terminal fact contributors must be deterministically ordered",
+					);
+				}
+			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		}
 	}
 }

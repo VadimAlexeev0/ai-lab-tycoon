@@ -98,6 +98,8 @@ export type CommandLogEntry =
 	  })
 	| (CommandLogBase & {
 			kind: "advance_week";
+			incidentRolls?: readonly number[];
+			incidentRoll?: number;
 	  })
 	| (CommandLogBase & {
 			kind: "assign_project";

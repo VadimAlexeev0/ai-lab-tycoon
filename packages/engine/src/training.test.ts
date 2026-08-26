@@ -41,6 +41,31 @@ function completedRun(seed = 42): { state: GameState; facts: unknown[] } {
 }
 
 describe("training system", () => {
+	it("reserves aggressive training demand without permanently stalling or leaking compute", () => {
+		const designed = designModel(designableState(), {
+			...SPEC,
+			name: "Aggressive-1",
+			tier: "aggressive",
+		}).state;
+		let state = designed;
+		const duration = BALANCE.modelTiers.aggressive.duration;
+		for (let index = 0; index < duration - 1; index += 1) {
+			state = trainingSystem(state, {
+				phase: "training",
+				week: index + 1,
+			}).state;
+			expect(state.compute.allocated).toBe(8);
+			expect(state.compute.trainingDemand).toBe(8);
+		}
+		const completed = trainingSystem(state, {
+			phase: "training",
+			week: duration,
+		});
+		expect(completed.state.models.items.at(-1)?.status).toBe("ready");
+		expect(completed.state.compute.trainingDemand).toBe(0);
+		expect(completed.state.compute.allocated).toBe(0);
+	});
+
 	it("progresses the active training project and leaves a designing model unfinished", () => {
 		const designed = designModel(designableState(), SPEC).state;
 		const result = trainingSystem(designed, { phase: "training", week: 1 });

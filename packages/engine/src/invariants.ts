@@ -32,6 +32,7 @@ import {
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
+	assertInteger,
 	assertJsonCompatible,
 	assertNonNegativeInteger,
 	assertNullableString,
@@ -330,7 +331,7 @@ function assertCommandLog(
 	value: unknown,
 	state: Pick<
 		GameState,
-		"meta" | "rng" | "company" | "models" | "projects" | "teams"
+		"meta" | "rng" | "company" | "models" | "projects" | "teams" | "products"
 	>,
 ): void {
 	assertArray(value, "Command log");
@@ -391,7 +392,7 @@ function assertCommandLog(
 				assertDecisionChoice(item.choice);
 				break;
 			case "advance_week":
-				assertExactObject(item, ["id", "kind", "week"], "advance_week command");
+				assertAdvanceWeekCommand(item);
 				break;
 			case "assign_project":
 			case "cancel_project":
@@ -445,7 +446,7 @@ function assertCommandLog(
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
 				break;
-			case "run_evaluation":
+			case "run_evaluation": {
 				assertExactObject(
 					item,
 					["id", "kind", "week", "modelId", "evaluation"],
@@ -457,13 +458,27 @@ function assertCommandLog(
 					["capability", "safety_reliability"],
 					"Evaluation command kind",
 				);
-				if (!state.models.items.some((model) => model.id === item.modelId)) {
+				const evaluationModel = state.models.items.find(
+					(model) => model.id === item.modelId,
+				);
+				if (evaluationModel === undefined) {
 					throw new Error(
 						`Evaluation command references an unknown model: ${String(item.modelId)}`,
 					);
 				}
+				if (
+					(evaluationModel.status !== "ready" &&
+						evaluationModel.status !== "launched") ||
+					evaluationModel.trueScores === undefined ||
+					evaluationModel.estimates === undefined
+				) {
+					throw new Error(
+						`Evaluation command references a non-eligible model: ${String(item.modelId)}`,
+					);
+				}
 				break;
-			case "launch_product":
+			}
+			case "launch_product": {
 				assertExactObject(
 					item,
 					["id", "kind", "week", "productId", "modelId", "channel"],
@@ -476,17 +491,59 @@ function assertCommandLog(
 					["chat", "developer_api", "enterprise"],
 					"Launch command channel",
 				);
-				if (!state.models.items.some((model) => model.id === item.modelId)) {
+				const launchModel = state.models.items.find(
+					(model) => model.id === item.modelId,
+				);
+				if (launchModel === undefined) {
 					throw new Error(
 						`Launch command references an unknown model: ${String(item.modelId)}`,
 					);
 				}
+				const launchProduct = state.products.items.find(
+					(product) => product.id === item.productId,
+				);
+				if (launchProduct === undefined) {
+					throw new Error(
+						`Launch command references an unknown product: ${String(item.productId)}`,
+					);
+				}
+				if (
+					launchProduct.modelId !== launchModel.id ||
+					launchProduct.channel !== item.channel
+				) {
+					throw new Error(
+						`Launch command product ${launchProduct.id} does not match its model or channel`,
+					);
+				}
 				break;
+			}
 		}
 	}
 
 	if (!startRunSeen) {
 		throw new Error("Command log must start with a start_run command");
+	}
+}
+
+function assertAdvanceWeekCommand(command: Record<string, unknown>): void {
+	const keys = ["id", "kind", "week"];
+	if (Object.hasOwn(command, "incidentRolls")) keys.push("incidentRolls");
+	if (Object.hasOwn(command, "incidentRoll")) keys.push("incidentRoll");
+	assertExactObject(command, keys, "advance_week command");
+	if (Object.hasOwn(command, "incidentRolls")) {
+		assertArray(command.incidentRolls, "Advance incident rolls");
+		for (const roll of command.incidentRolls) {
+			assertInteger(roll, "Advance incident roll");
+			if (roll < 0 || roll > 99) {
+				throw new Error("Advance incident rolls must be between 0 and 99");
+			}
+		}
+	}
+	if (Object.hasOwn(command, "incidentRoll")) {
+		assertInteger(command.incidentRoll, "Advance incident roll");
+		if (command.incidentRoll < 0 || command.incidentRoll > 99) {
+			throw new Error("Advance incident roll must be between 0 and 99");
+		}
 	}
 }
 
