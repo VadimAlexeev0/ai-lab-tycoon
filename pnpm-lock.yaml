@@ -148,6 +148,9 @@ importers:
       '@ai-lab-tycoon/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@ai-lab-tycoon/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@ai-lab-tycoon/env':
         specifier: workspace:*
         version: link:../../packages/env
