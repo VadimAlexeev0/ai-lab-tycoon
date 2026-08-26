@@ -28,6 +28,8 @@ import IncidentCard from "@/game/components/incident-card";
 import ModelCard from "@/game/components/model-card";
 import ModelDesigner from "@/game/components/model-designer";
 import ProductPanel from "@/game/components/product-panel";
+import ReportHistory from "@/game/components/report-history";
+import ReportQueue from "@/game/components/report-queue";
 import ResearchPanel from "@/game/components/research-panel";
 import RivalsPanel from "@/game/components/rivals-panel";
 import RunResult from "@/game/components/run-result";
@@ -41,7 +43,8 @@ export type DashboardPanel =
 	| "teams"
 	| "research"
 	| "models"
-	| "products";
+	| "products"
+	| "reports";
 
 export type GameRunSnapshot = {
 	state: GameState;
@@ -109,6 +112,13 @@ const PANELS: readonly PanelDefinition[] = [
 		label: "Products",
 		description: "Launch readiness, users, and operating performance.",
 		status: "MODULE 04",
+	},
+	{
+		id: "reports",
+		index: "05",
+		label: "Reports",
+		description: "Blocking warnings, mechanical facts, and run history.",
+		status: "MODULE 05",
 	},
 ];
 
@@ -387,6 +397,18 @@ function DashboardPanels({
 	const activeDefinition =
 		PANELS.find((panel) => panel.id === activePanel) ?? PANELS[0];
 	const [milestoneDismissed, setMilestoneDismissed] = useState(false);
+	const [acknowledgedReportIds, setAcknowledgedReportIds] = useState<
+		ReadonlySet<string>
+	>(new Set<string>());
+	useEffect(() => {
+		setAcknowledgedReportIds(new Set<string>());
+		setMilestoneDismissed(false);
+	}, [state.meta.runId]);
+
+	function acknowledgeReport(reportId: string) {
+		setAcknowledgedReportIds((current) => new Set([...current, reportId]));
+	}
+
 	const bodyFor = (panel: DashboardPanel): ReactNode => {
 		switch (panel) {
 			case "overview":
@@ -442,6 +464,20 @@ function DashboardPanels({
 							milestoneDismissed={milestoneDismissed}
 							onContinueSandbox={() => setMilestoneDismissed(true)}
 							onRestartRun={onRestartRun}
+							state={state}
+						/>
+					</div>
+				);
+			case "reports":
+				return (
+					<div className="space-y-6">
+						<ReportQueue
+							acknowledgedIds={acknowledgedReportIds}
+							onAcknowledge={acknowledgeReport}
+							state={state}
+						/>
+						<ReportHistory
+							acknowledgedIds={acknowledgedReportIds}
 							state={state}
 						/>
 					</div>
@@ -529,6 +565,12 @@ function DashboardPanels({
 					className="lg:col-span-6"
 					id="desktop-panel-products"
 					panel={PANELS[4]}
+				/>
+				<PanelCard
+					body={bodyFor("reports")}
+					className="lg:col-span-6"
+					id="desktop-panel-reports"
+					panel={PANELS[5]}
 				/>
 			</div>
 		</section>
