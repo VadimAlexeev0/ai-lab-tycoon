@@ -1,10 +1,10 @@
 import {
-	selectAvailableProjects,
 	type DecisionChoice,
 	type GameState,
 	type ModelDesignSpec,
 	type ModelFoundation,
 	type ModelTier,
+	selectAvailableProjects,
 } from "@ai-lab-tycoon/engine";
 
 export const BOT_NAMES = [
@@ -131,8 +131,7 @@ export function createBot(name: BotName, seed: number): BotController {
 
 	return {
 		name,
-		chooseDecision: (state) =>
-			chooseDecision(state, name, random, randomRisk),
+		chooseDecision: (state) => chooseDecision(state, name, random, randomRisk),
 		chooseAction: (state) =>
 			chooseAction(
 				state,
@@ -225,7 +224,12 @@ function chooseAction(
 	const hire = chooseHire(state, name, randomTeamTarget, random);
 	if (hire !== undefined) return hire;
 
-	const assignment = chooseResearchAssignment(state, name, random, researchOrder);
+	const assignment = chooseResearchAssignment(
+		state,
+		name,
+		random,
+		researchOrder,
+	);
 	if (assignment !== undefined) return assignment;
 
 	return { kind: "advance_week" };
@@ -238,7 +242,7 @@ function chooseModelDesign(
 ): BotAction | undefined {
 	if (
 		state.models.items.some(
-		(model) => model.status === "designing" || model.status === "training",
+			(model) => model.status === "designing" || model.status === "training",
 		)
 	) {
 		return undefined;
@@ -249,8 +253,7 @@ function chooseModelDesign(
 
 	const family = MODEL_FAMILIES.find((candidate) => {
 		const node = state.research.nodes.find(
-			(researchNode) =>
-				researchNode.id === MODEL_RESEARCH_NODES[candidate],
+			(researchNode) => researchNode.id === MODEL_RESEARCH_NODES[candidate],
 		);
 		const alreadyDesigned = state.models.items.some(
 			(model) => model.family === candidate && model.status !== "shelved",
@@ -262,9 +265,10 @@ function chooseModelDesign(
 	const tier = tierFor(name, family, random);
 	const preferredFoundation = foundationFor(name, family, random);
 	const parent = parentFor(state, family);
-	const foundation = preferredFoundation === "fresh" || parent === undefined
-		? "fresh"
-		: preferredFoundation;
+	const foundation =
+		preferredFoundation === "fresh" || parent === undefined
+			? "fresh"
+			: preferredFoundation;
 	const designCost = TIER_COSTS[tier] + FOUNDATION_COSTS[foundation];
 	if (state.company.cash < designCost) return undefined;
 
@@ -357,8 +361,11 @@ function chooseResearchAssignment(
 			const leftRank = researchOrder.indexOf(left.nodeId);
 			const rightRank = researchOrder.indexOf(right.nodeId);
 			const normalizedLeft = leftRank < 0 ? Number.MAX_SAFE_INTEGER : leftRank;
-			const normalizedRight = rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank;
-			return normalizedLeft - normalizedRight || left.id.localeCompare(right.id);
+			const normalizedRight =
+				rightRank < 0 ? Number.MAX_SAFE_INTEGER : rightRank;
+			return (
+				normalizedLeft - normalizedRight || left.id.localeCompare(right.id)
+			);
 		})[0];
 	}
 	if (selected === undefined) return undefined;
@@ -375,7 +382,8 @@ function tierFor(
 	random: DeterministicRandom,
 ): ModelTier {
 	if (name === "capability-rusher") return "aggressive";
-	if (name === "evaluator") return family === "multimodal" ? "standard" : "standard";
+	if (name === "evaluator")
+		return family === "multimodal" ? "standard" : "standard";
 	if (name === "efficiency-first") return "lean";
 	return MODEL_TIERS[random.nextInt(MODEL_TIERS.length)] ?? "lean";
 }
@@ -441,7 +449,12 @@ function parentFor(
 }
 
 function modelName(family: ModelFamily, ordinal: number): string {
-	const label = family === "text" ? "Text" : family === "assistant" ? "Assistant" : "Fusion";
+	const label =
+		family === "text"
+			? "Text"
+			: family === "assistant"
+				? "Assistant"
+				: "Fusion";
 	return `${label}-Bot-${String(ordinal).padStart(2, "0")}`;
 }
 
@@ -467,7 +480,11 @@ function incidentResponse(
 	riskMode: boolean,
 ): "repair" | "reduce_scope" | "disclose" {
 	if (name === "random") {
-		if (riskMode && (incident === "quality_safety_scandal" || incident === "data_privacy_incident")) {
+		if (
+			riskMode &&
+			(incident === "quality_safety_scandal" ||
+				incident === "data_privacy_incident")
+		) {
 			return "reduce_scope";
 		}
 		return ["repair", "reduce_scope", "disclose"][
@@ -495,7 +512,7 @@ class DeterministicRandom {
 	private value: number;
 
 	public constructor(seed: number) {
-		this.value = (seed >>> 0) || 0x6d2b_79f5;
+		this.value = seed >>> 0 || 0x6d2b_79f5;
 	}
 
 	public nextInt(maxExclusive: number): number {

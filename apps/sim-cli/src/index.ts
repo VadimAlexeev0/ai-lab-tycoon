@@ -5,17 +5,13 @@ import {
 	assignProject,
 	buyCompute,
 	designModel,
+	type GameState,
 	hireTeam,
 	startRun,
-	type GameState,
 } from "@ai-lab-tycoon/engine";
 
-import { BOT_NAMES, createBot, type BotAction, type BotName } from "./bots.js";
-import {
-	renderTable,
-	summarizeRuns,
-	type GameResult,
-} from "./stats.js";
+import { BOT_NAMES, type BotAction, type BotName, createBot } from "./bots.js";
+import { type GameResult, renderTable, summarizeRuns } from "./stats.js";
 
 const DEFAULT_RUNS = 10;
 const MAX_RUNS = 50;
@@ -38,19 +34,19 @@ function parseArgs(argv: readonly string[]): CliOptions {
 			case "--runs=": {
 				const value = nextValue(argv, index, "--runs");
 				if (value.offset > index) index = value.offset;
-				runs = parseInt(value.value, 10);
+				runs = Number.parseInt(value.value, 10);
 				break;
 			}
 			case "--seed": {
 				const value = nextValue(argv, index, "--seed");
 				if (value.offset > index) index = value.offset;
-				seed = parseInt(value.value, 10);
+				seed = Number.parseInt(value.value, 10);
 				break;
 			}
 			case "--max-weeks": {
 				const value = nextValue(argv, index, "--max-weeks");
 				if (value.offset > index) index = value.offset;
-				maxWeeks = parseInt(value.value, 10);
+				maxWeeks = Number.parseInt(value.value, 10);
 				break;
 			}
 			default:
@@ -58,7 +54,9 @@ function parseArgs(argv: readonly string[]): CliOptions {
 		}
 	}
 	if (!Number.isInteger(runs) || runs < 10 || runs > MAX_RUNS) {
-		throw new Error(`--runs must be an integer in the approved range 10..${MAX_RUNS}`);
+		throw new Error(
+			`--runs must be an integer in the approved range 10..${MAX_RUNS}`,
+		);
 	}
 	if (!Number.isInteger(seed) || seed < 0) {
 		throw new Error("--seed must be a non-negative integer");
@@ -89,11 +87,7 @@ function nextValue(
 	return { value, offset: index + 1 };
 }
 
-function playGame(
-	bot: BotName,
-	seed: number,
-	maxWeeks: number,
-): GameResult {
+function playGame(bot: BotName, seed: number, maxWeeks: number): GameResult {
 	let state = startRun({ companyName: `${bot}-${seed}` }, seed);
 	const controller = createBot(bot, seed);
 	const game = newGameResult(bot, seed);
@@ -121,10 +115,7 @@ function playGame(
 
 		// Resolve every pending decision the bot selects.
 		let guard = 0;
-		while (
-			state.decisions.pending.length > 0 &&
-			guard < 16
-		) {
+		while (state.decisions.pending.length > 0 && guard < 16) {
 			guard += 1;
 			const choice = controller.chooseDecision(state);
 			if (choice === null) break;
@@ -148,10 +139,7 @@ function playGame(
 		const currentWeek = state.meta.week;
 
 		// Record milestone.
-		if (
-			milestoneWeek === null &&
-			state.terminal.frontierReached
-		) {
+		if (milestoneWeek === null && state.terminal.frontierReached) {
 			milestoneWeek = currentWeek;
 		}
 
@@ -183,7 +171,9 @@ function playGame(
 	game.milestoneWeek = milestoneWeek;
 	game.terminalWeek = terminalWeek;
 	game.continuedWeeks =
-		milestoneWeek === null ? null : Math.max(0, state.meta.week - milestoneWeek);
+		milestoneWeek === null
+			? null
+			: Math.max(0, state.meta.week - milestoneWeek);
 	game.peakComputeShortage = peakComputeShortage;
 	game.computeShortageWeeks = computeShortageWeeks;
 	game.rivalLeadChanges = rivalLeadChanges;
@@ -251,7 +241,11 @@ function foundationChoices(state: GameState): GameResult["foundationChoices"] {
 	};
 	for (const model of state.models.items) {
 		const foundation = model.foundation;
-		if (foundation === "fresh" || foundation === "continued" || foundation === "distilled") {
+		if (
+			foundation === "fresh" ||
+			foundation === "continued" ||
+			foundation === "distilled"
+		) {
 			counts[foundation] += 1;
 		}
 	}

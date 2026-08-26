@@ -63,11 +63,14 @@ export type SimulationSummary = {
 		averageLeadChanges: number;
 		leaderWeeks: Record<string, number>;
 	};
-	fundingRounds: Record<"seed" | "series_a", {
-		offered: number;
-		accepted: number;
-		declined: number;
-	}>;
+	fundingRounds: Record<
+		"seed" | "series_a",
+		{
+			offered: number;
+			accepted: number;
+			declined: number;
+		}
+	>;
 	foundationChoices: Record<FoundationName, number>;
 	byBot: Record<BotName, BotSummary>;
 };
@@ -107,7 +110,9 @@ export function summarizeRuns(
 	for (const game of games) {
 		if (game.terminalReason === null) lossCauses.active_at_horizon += 1;
 		else lossCauses[game.terminalReason] += 1;
-		for (const foundation of Object.keys(foundationChoices) as FoundationName[]) {
+		for (const foundation of Object.keys(
+			foundationChoices,
+		) as FoundationName[]) {
 			foundationChoices[foundation] += game.foundationChoices[foundation];
 		}
 		for (const [rivalId, weeks] of Object.entries(game.rivalLeaderWeeks)) {
@@ -143,7 +148,8 @@ export function summarizeRuns(
 			runs: botGames.length,
 			milestoneReached: botMilestones,
 			milestoneReachRate: ratio(botMilestones, botGames.length),
-			terminalRuns: botGames.filter((game) => game.terminalReason !== null).length,
+			terminalRuns: botGames.filter((game) => game.terminalReason !== null)
+				.length,
 			averageFinalWeek: average(botGames.map((game) => game.finalWeek)),
 		};
 	}
@@ -181,9 +187,8 @@ export function summarizeRuns(
 			),
 		},
 		computeShortages: {
-			runsWithShortage: games.filter(
-				(game) => game.computeShortageWeeks > 0,
-			).length,
+			runsWithShortage: games.filter((game) => game.computeShortageWeeks > 0)
+				.length,
 			shortageWeeks,
 			averageShortageWeeks: average(
 				games.map((game) => game.computeShortageWeeks),
@@ -242,7 +247,10 @@ export function renderTable(report: SimulationReport): string {
 	].join("\n");
 }
 
-function percentileSet(values: readonly number[], notReached: number): WeekPercentiles {
+function percentileSet(
+	values: readonly number[],
+	notReached: number,
+): WeekPercentiles {
 	const sorted = [...values].sort((left, right) => left - right);
 	return {
 		p10: percentile(sorted, 0.1),
@@ -252,15 +260,23 @@ function percentileSet(values: readonly number[], notReached: number): WeekPerce
 	};
 }
 
-function percentile(sorted: readonly number[], quantile: number): number | null {
+function percentile(
+	sorted: readonly number[],
+	quantile: number,
+): number | null {
 	if (sorted.length === 0) return null;
-	const index = Math.min(sorted.length - 1, Math.ceil(quantile * sorted.length) - 1);
+	const index = Math.min(
+		sorted.length - 1,
+		Math.ceil(quantile * sorted.length) - 1,
+	);
 	return sorted[index] ?? null;
 }
 
 function average(values: readonly number[]): number {
 	if (values.length === 0) return 0;
-	return round(values.reduce((total, value) => total + value, 0) / values.length);
+	return round(
+		values.reduce((total, value) => total + value, 0) / values.length,
+	);
 }
 
 function ratio(numerator: number, denominator: number): number {
@@ -286,7 +302,9 @@ function formatRecord(values: Readonly<Record<string, number>>): string {
 		: entries.map(([key, value]) => `${key}:${value}`).join(",");
 }
 
-function sortRecordByKey(values: Readonly<Record<string, number>>): Record<string, number> {
+function sortRecordByKey(
+	values: Readonly<Record<string, number>>,
+): Record<string, number> {
 	return Object.fromEntries(
 		Object.entries(values).sort(([left], [right]) => left.localeCompare(right)),
 	);
