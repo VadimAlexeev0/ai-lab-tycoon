@@ -169,7 +169,9 @@ function useRunController(userId: string | null) {
 			await client.gameSave.deleteActiveRun();
 			// Read back the same user's save so a successful response cannot leave
 			// the UI claiming deletion while a row is still present.
-			const remaining = normalizeActiveRun(await client.gameSave.getActiveRun());
+			const remaining = normalizeActiveRun(
+				await client.gameSave.getActiveRun(),
+			);
 			if (remaining !== null) {
 				throw new Error("The run still exists after the delete request.");
 			}
@@ -219,12 +221,16 @@ function HomeComponent() {
 		<GameShell
 			blockingDecisionId={blockingDecisionId}
 			companyName={activeState?.company.name}
+			gameState={activeState}
 			hasActiveRun={activeState !== undefined}
+			onRestartRun={run.chooseNewRun}
 			onRetrySession={session.retry}
+			onRunUpdated={run.handleAdvanced}
 			sessionError={session.status === "error" ? session.message : undefined}
 			sessionLabel={sessionLabel}
 			sessionStatus={session.status}
 			week={activeState?.meta.week}
+			revision={run.activeRun?.record.revision}
 		>
 			{session.status === "ready" ? <RunConsole controller={run} /> : null}
 		</GameShell>
