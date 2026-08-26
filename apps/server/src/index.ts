@@ -1,5 +1,6 @@
 import { createContext } from "@ai-lab-tycoon/api/context";
 import { appRouter } from "@ai-lab-tycoon/api/routers/index";
+import { createDb } from "@ai-lab-tycoon/db";
 import { env } from "@ai-lab-tycoon/env/server";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -10,7 +11,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
+import { auth } from "./auth";
+import { sessionMiddleware } from "./session-middleware";
+
 const app = new Hono();
+const db = createDb();
 
 app.use(logger());
 app.use(
@@ -18,8 +23,17 @@ app.use(
 	cors({
 		origin: env.CORS_ORIGIN,
 		allowMethods: ["GET", "POST", "OPTIONS"],
+		allowHeaders: ["Content-Type", "Authorization"],
+		credentials: true,
 	}),
 );
+
+// Better Auth must mount before the oRPC catch-all. It owns /api/auth/*.
+app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+// Resolve the authenticated session once per request for the oRPC/API routes.
+app.use("/rpc/*", sessionMiddleware);
+app.use("/api-reference/*", sessionMiddleware);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
 	plugins: [
@@ -43,7 +57,11 @@ export const rpcHandler = new RPCHandler(appRouter, {
 });
 
 app.use("/*", async (c, next) => {
-	const context = await createContext({ context: c });
+	const context = await createContext({
+		context: c,
+		auth,
+		db,
+	});
 
 	const rpcResult = await rpcHandler.handle(c.req.raw, {
 		prefix: "/rpc",

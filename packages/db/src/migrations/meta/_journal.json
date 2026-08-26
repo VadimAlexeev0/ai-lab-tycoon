@@ -8,6 +8,13 @@
 			"when": 1787566807276,
 			"tag": "0000_robust_the_order",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1787630000000,
+			"tag": "0001_task8_auth",
+			"breakpoints": true
 		}
 	]
 }

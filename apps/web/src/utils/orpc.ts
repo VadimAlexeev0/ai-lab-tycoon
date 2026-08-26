@@ -62,6 +62,13 @@ function getServerUrl(url: string) {
 }
 const link = new RPCLink({
 	url: `${getServerUrl(env.VITE_SERVER_URL)}/rpc`,
+	// The auth middleware keys saves by the browser's session cookie; keep
+	// credentials on every RPC request, including mutations.
+	fetch: (request, init) =>
+		fetch(request, {
+			...init,
+			credentials: "include",
+		}),
 });
 
 const getORPCClient = () => {

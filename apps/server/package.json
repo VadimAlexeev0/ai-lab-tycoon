@@ -11,9 +11,11 @@
 		"@ai-lab-tycoon/api": "workspace:*",
 		"@ai-lab-tycoon/db": "workspace:*",
 		"@ai-lab-tycoon/env": "workspace:*",
+		"@better-auth/drizzle-adapter": "1.7.1",
 		"@orpc/openapi": "catalog:",
 		"@orpc/server": "catalog:",
 		"@orpc/zod": "catalog:",
+		"better-auth": "1.7.1",
 		"dotenv": "catalog:",
 		"hono": "catalog:",
 		"zod": "catalog:"
