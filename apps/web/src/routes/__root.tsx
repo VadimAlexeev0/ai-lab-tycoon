@@ -1,4 +1,9 @@
 import { Toaster } from "@ai-lab-tycoon/ui/components/sonner";
+import {
+	THEME_INIT_SCRIPT,
+	ThemeProvider,
+} from "@ai-lab-tycoon/ui/components/theme-provider";
+import { ThemeSwitcher } from "@ai-lab-tycoon/ui/components/theme-switcher";
 import type { QueryClient } from "@tanstack/react-query";
 import {
 	createRootRouteWithContext,
@@ -49,19 +54,39 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
 function RootDocument() {
 	return (
-		<html lang="en" className="dark">
+		<html
+			lang="en"
+			className="dark"
+			data-mode="dark"
+			data-theme="midnight"
+			data-theme-mode="dark"
+			suppressHydrationWarning
+		>
 			<head>
+				<script
+					dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+					id="ailt-theme-init"
+				/>
 				<HeadContent />
 			</head>
 			<body>
-				<a className="skip-link" href="#main-content">
-					Skip to main content
-				</a>
-				<div className="grid h-svh grid-rows-[auto_1fr]">
-					<Header />
-					<Outlet />
-				</div>
-				<Toaster richColors />
+				<ThemeProvider>
+					<a className="skip-link" href="#main-content">
+						Skip to main content
+					</a>
+					<div className="grid h-svh grid-rows-[auto_1fr]">
+						<div className="relative">
+							<Header />
+							<div className="pointer-events-none absolute inset-x-0 top-full z-20 flex justify-end px-4 pt-2 sm:px-6 lg:px-8">
+								<div className="pointer-events-auto">
+									<ThemeSwitcher />
+								</div>
+							</div>
+						</div>
+						<Outlet />
+					</div>
+					<Toaster richColors />
+				</ThemeProvider>
 				<Scripts />
 			</body>
 		</html>
