@@ -5,6 +5,21 @@ export type RivalsPanelProps = {
 	state: GameState;
 };
 
+const RIVAL_ART = {
+	research_lab: {
+		alt: "Rival: research hacker",
+		src: "/art/rival-hacker.png",
+	},
+	platform: {
+		alt: "Rival: consumer-app mogul",
+		src: "/art/rival-mogul.png",
+	},
+	efficiency: {
+		alt: "Rival: enterprise operator",
+		src: "/art/rival-enterprise.png",
+	},
+} as const;
+
 /** Show only the public rival clock and the launch pressure it creates. */
 export default function RivalsPanel({ state }: RivalsPanelProps) {
 	const rivals = selectRivals(state);
@@ -44,13 +59,22 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 							key={rival.id}
 						>
 							<div className="flex items-start justify-between gap-2">
-								<div className="min-w-0">
-									<p className="truncate font-medium text-foreground text-xs">
-										{rival.name}
-									</p>
-									<p className="mt-1 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
-										{rival.focus} focus
-									</p>
+								<div className="flex min-w-0 items-start gap-2">
+									<img
+										alt={RIVAL_ART[rival.archetype].alt}
+										className="size-10 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_14px_rgba(34,211,238,0.2)] ring-1 ring-cyan-300/35"
+										decoding="async"
+										loading="lazy"
+										src={RIVAL_ART[rival.archetype].src}
+									/>
+									<div className="min-w-0">
+										<p className="truncate font-medium text-foreground text-xs">
+											{rival.name}
+										</p>
+										<p className="mt-1 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+											{rival.focus} focus
+										</p>
+									</div>
 								</div>
 								<span className="font-mono font-semibold text-foreground text-xs">
 									{rival.progress}%

@@ -673,11 +673,31 @@ function PanelCard({
 				className,
 			)}
 		>
+			{panel.id === "overview" ? (
+				<div
+					className="pointer-events-none absolute inset-x-0 top-0 h-16 overflow-hidden"
+					aria-hidden="true"
+				>
+					<img
+						alt=""
+						className="h-full w-full object-cover opacity-[0.12]"
+						decoding="async"
+						loading="lazy"
+						src="/art/key-art-command-center.png"
+						style={{
+							maskImage:
+								"linear-gradient(to bottom, black 0%, transparent 100%)",
+							WebkitMaskImage:
+								"linear-gradient(to bottom, black 0%, transparent 100%)",
+						}}
+					/>
+				</div>
+			) : null}
 			<div
 				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/70 via-primary/10 to-transparent"
 				aria-hidden="true"
 			/>
-			<div className="flex items-start justify-between gap-3">
+			<div className="relative z-10 flex items-start justify-between gap-3">
 				<div>
 					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
 						{panel.status}

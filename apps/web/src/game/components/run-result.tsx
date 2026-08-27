@@ -14,6 +14,11 @@ export type RunResultProps = {
 	onRestartRun?: () => void;
 };
 
+const OPS_ADVISOR = {
+	alt: "Advisor: Ops",
+	src: "/art/advisor-ops.png",
+} as const;
+
 /** Terminal loss evidence and the one-time frontier milestone handoff. */
 export default function RunResult({
 	disabled = false,
@@ -34,9 +39,17 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Run result"
-				className="border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
+				className="relative isolate overflow-hidden border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
 			>
-				<div className="flex items-start gap-2">
+				<ResultArtBackdrop />
+				<div className="relative z-10 flex items-start gap-2">
+					<img
+						alt={OPS_ADVISOR.alt}
+						className="size-10 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_14px_rgba(34,211,238,0.2)] ring-1 ring-cyan-300/35"
+						decoding="async"
+						loading="lazy"
+						src={OPS_ADVISOR.src}
+					/>
 					<Flag
 						className="mt-0.5 size-4 shrink-0 text-[var(--game-negative)]"
 						aria-hidden="true"
@@ -55,7 +68,7 @@ export default function RunResult({
 						</p>
 					</div>
 				</div>
-				<div className="mt-3 border-border/70 border-t pt-3">
+				<div className="relative z-10 mt-3 border-border/70 border-t pt-3">
 					<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
 						Top contributing facts
 					</p>
@@ -79,7 +92,7 @@ export default function RunResult({
 					<Button
 						disabled={disabled}
 						onClick={onRestartRun}
-						className="mt-3"
+						className="relative z-10 mt-3"
 						type="button"
 					>
 						<RotateCcw data-icon="inline-start" aria-hidden="true" />
@@ -94,9 +107,10 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Frontier milestone"
-				className="border border-primary/50 bg-primary/10 p-3"
+				className="relative isolate overflow-hidden border border-primary/50 bg-primary/10 p-3"
 			>
-				<div className="flex items-start gap-2">
+				<ResultArtBackdrop />
+				<div className="relative z-10 flex items-start gap-2">
 					<Trophy
 						className="mt-0.5 size-4 shrink-0 text-primary"
 						aria-hidden="true"
@@ -119,7 +133,7 @@ export default function RunResult({
 					<Button
 						disabled={disabled}
 						onClick={onContinueSandbox}
-						className="mt-3"
+						className="relative z-10 mt-3"
 						type="button"
 						variant="outline"
 					>
@@ -131,6 +145,25 @@ export default function RunResult({
 	}
 
 	return null;
+}
+
+function ResultArtBackdrop() {
+	return (
+		<>
+			<img
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.15]"
+				decoding="async"
+				loading="lazy"
+				src="/art/key-art-command-center.png"
+			/>
+			<div
+				className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/90 via-background/75 to-background/55"
+				aria-hidden="true"
+			/>
+		</>
+	);
 }
 
 function factLabel(kind: string): string {

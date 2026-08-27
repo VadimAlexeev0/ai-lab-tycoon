@@ -19,6 +19,17 @@ const PRIORITY_ORDER = {
 	informational: 2,
 } as const;
 
+const ADVISOR_ART = {
+	maya: {
+		alt: "Advisor: Maya",
+		src: "/art/advisor-maya.png",
+	},
+	ops: {
+		alt: "Advisor: Ops",
+		src: "/art/advisor-ops.png",
+	},
+} as const;
+
 /** Surface at most three reports, retaining blocking-first engine order. */
 export default function ReportQueue({
 	acknowledgedIds = new Set<string>(),
@@ -98,6 +109,7 @@ function QueueReport({
 }) {
 	const blocking = report.priority === "blocking";
 	const important = report.priority === "important";
+	const advisor = advisorForReport(report);
 	return (
 		<article
 			className={
@@ -109,6 +121,13 @@ function QueueReport({
 			}
 		>
 			<div className="flex items-start gap-2">
+				<img
+					alt={advisor.alt}
+					className="size-9 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_12px_rgba(34,211,238,0.18)] ring-1 ring-cyan-300/35"
+					decoding="async"
+					loading="lazy"
+					src={advisor.src}
+				/>
 				{blocking ? (
 					<AlertTriangle
 						className="mt-0.5 size-3.5 shrink-0 text-[var(--game-negative)]"
@@ -156,6 +175,17 @@ function QueueReport({
 			) : null}
 		</article>
 	);
+}
+
+function advisorForReport(report: VisibleReport) {
+	switch (report.fact.kind) {
+		case "research_completed":
+		case "model_trained":
+		case "evaluation_completed":
+			return ADVISOR_ART.maya;
+		default:
+			return ADVISOR_ART.ops;
+	}
 }
 
 function factSummary(fact: Fact): string {

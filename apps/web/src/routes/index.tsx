@@ -8,7 +8,7 @@ import {
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Play, RotateCcw, Save, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import AdvanceWeekButton from "@/game/components/advance-week-button";
 import GameShell from "@/game/components/game-shell";
@@ -275,14 +275,20 @@ function RunConsole({
 		);
 	}
 
-	if (screen === "selection" && savedRun !== null) {
+	if (screen === "selection") {
 		return (
-			<ResumeRunState
-				onDelete={deleteRun}
-				onNewRun={chooseNewRun}
-				onResume={resumeRun}
-				run={savedRun}
-			/>
+			<SelectionScreen>
+				{savedRun !== null ? (
+					<ResumeRunState
+						onDelete={deleteRun}
+						onNewRun={chooseNewRun}
+						onResume={resumeRun}
+						run={savedRun}
+					/>
+				) : (
+					<StartRunForm hasExistingRun={false} onStarted={handleStarted} />
+				)}
+			</SelectionScreen>
 		);
 	}
 
@@ -291,6 +297,46 @@ function RunConsole({
 			hasExistingRun={savedRun !== null}
 			onStarted={handleStarted}
 		/>
+	);
+}
+
+function SelectionScreen({ children }: { children: ReactNode }) {
+	return (
+		<section
+			aria-labelledby="run-selection-heading"
+			className="relative isolate overflow-hidden border border-border/70 bg-background p-4 sm:p-5"
+		>
+			<img
+				alt=""
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.4]"
+				decoding="async"
+				loading="eager"
+				src="/art/key-art-command-center.png"
+			/>
+			<div
+				className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/65 to-transparent"
+				aria-hidden="true"
+			/>
+			<div className="relative z-10 space-y-5">
+				<div className="max-w-2xl">
+					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.28em]">
+						Command center / run selection
+					</p>
+					<h2
+						id="run-selection-heading"
+						className="mt-2 font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+					>
+						Choose your next run
+					</h2>
+					<p className="mt-2 max-w-xl text-muted-foreground text-sm leading-6">
+						Enter the lab, resume an autosave, or initialize a deterministic
+						sandbox from the command floor.
+					</p>
+				</div>
+				{children}
+			</div>
+		</section>
 	);
 }
 

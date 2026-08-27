@@ -2,6 +2,7 @@ import { type GameState, type RunSetup, startRun } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { Input } from "@ai-lab-tycoon/ui/components/input";
 import { Label } from "@ai-lab-tycoon/ui/components/label";
+import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Loader2, Play, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
@@ -16,6 +17,39 @@ export type StartRunFormProps = {
 
 const MAX_UNSIGNED_SEED = 4_294_967_295;
 
+const FOUNDER_ARCHETYPES = [
+	{
+		id: "purist",
+		label: "The Purist",
+		src: "/art/founder-purist.png",
+	},
+	{
+		id: "hype",
+		label: "The Hype Builder",
+		src: "/art/founder-hype.png",
+	},
+	{
+		id: "infra",
+		label: "The Infrastructure Lead",
+		src: "/art/founder-infra.png",
+	},
+	{
+		id: "enterprise",
+		label: "The Enterprise Operator",
+		src: "/art/founder-enterprise.png",
+	},
+	{
+		id: "safety",
+		label: "The Safety Steward",
+		src: "/art/founder-safety.png",
+	},
+	{
+		id: "opensource",
+		label: "The Open Source Builder",
+		src: "/art/founder-opensource.png",
+	},
+] as const;
+
 export default function StartRunForm({
 	onStarted,
 	hasExistingRun = false,
@@ -24,6 +58,9 @@ export default function StartRunForm({
 	const [seedInput, setSeedInput] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [isStarting, setIsStarting] = useState(false);
+	const [selectedFounder, setSelectedFounder] = useState<
+		(typeof FOUNDER_ARCHETYPES)[number]["id"] | null
+	>(null);
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -122,6 +159,42 @@ export default function StartRunForm({
 						/>
 					</div>
 				</div>
+
+				<fieldset className="space-y-2">
+					<legend className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+						Founder archetype{" "}
+						<span className="font-normal text-primary/80">(cosmetic)</span>
+					</legend>
+					<div className="flex gap-2 overflow-x-auto pb-1">
+						{FOUNDER_ARCHETYPES.map((founder) => (
+							<button
+								aria-label={`Select ${founder.label}`}
+								aria-pressed={selectedFounder === founder.id}
+								className={cn(
+									"size-12 shrink-0 rounded-full border border-cyan-300/60 bg-background/70 p-0.5 shadow-[0_0_14px_rgba(34,211,238,0.16)] transition-transform duration-150 hover:scale-105",
+									selectedFounder === founder.id
+										? "scale-105 shadow-[0_0_18px_rgba(34,211,238,0.38)] ring-2 ring-cyan-300"
+										: "ring-1 ring-cyan-300/35",
+								)}
+								disabled={isStarting}
+								onClick={() => setSelectedFounder(founder.id)}
+								type="button"
+							>
+								<img
+									alt={`Founder archetype: ${founder.label}`}
+									className="size-full rounded-full object-cover"
+									decoding="async"
+									loading="lazy"
+									src={founder.src}
+								/>
+								<span className="sr-only">{founder.label}</span>
+							</button>
+						))}
+					</div>
+					<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+						Flavor only · does not affect the simulation.
+					</p>
+				</fieldset>
 
 				{hasExistingRun ? (
 					<p className="border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] text-xs leading-5">

@@ -128,6 +128,11 @@ const INCIDENT_INFO: Record<IncidentType, IncidentInfo> = {
 	},
 };
 
+const OPS_ADVISOR = {
+	alt: "Advisor: Ops",
+	src: "/art/advisor-ops.png",
+} as const;
+
 export type IncidentCardProps = {
 	state: GameState;
 	disabled?: boolean;
@@ -209,6 +214,13 @@ function IncidentDecision({
 			id={`incident-card-${decision.id}`}
 		>
 			<div className="flex items-start gap-2">
+				<img
+					alt={OPS_ADVISOR.alt}
+					className="size-10 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_14px_rgba(34,211,238,0.2)] ring-1 ring-cyan-300/35"
+					decoding="async"
+					loading="lazy"
+					src={OPS_ADVISOR.src}
+				/>
 				<AlertOctagon
 					className="mt-0.5 size-4 shrink-0 text-[var(--game-negative)]"
 					aria-hidden="true"
