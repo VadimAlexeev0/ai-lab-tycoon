@@ -6,6 +6,9 @@ import ReportQueue from "@/game/components/report-queue";
 import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/reports")({
+	head: () => ({
+		meta: [{ title: "Reports · AI Startup Lab Tycoon" }],
+	}),
 	component: ReportsRoute,
 });
 

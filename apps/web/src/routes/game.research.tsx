@@ -6,6 +6,9 @@ import { useGameState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/research")({
+	head: () => ({
+		meta: [{ title: "Research · AI Startup Lab Tycoon" }],
+	}),
 	component: ResearchRoute,
 });
 

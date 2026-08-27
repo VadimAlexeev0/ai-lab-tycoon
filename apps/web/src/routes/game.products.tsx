@@ -9,6 +9,9 @@ import RunResult from "@/game/components/run-result";
 import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/products")({
+	head: () => ({
+		meta: [{ title: "Products · AI Startup Lab Tycoon" }],
+	}),
 	component: ProductsRoute,
 });
 

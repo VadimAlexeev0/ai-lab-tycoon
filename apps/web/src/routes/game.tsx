@@ -44,6 +44,9 @@ export type GameSearch = {
 };
 
 export const Route = createFileRoute("/game")({
+	head: () => ({
+		meta: [{ title: "Operations · AI Startup Lab Tycoon" }],
+	}),
 	validateSearch: validateGameSearch,
 	component: GameRoute,
 });
@@ -69,6 +72,16 @@ function GameLayout() {
 		(decision) => decision.id === search.decision,
 	);
 	const isActive = game.activeRun !== null && game.screen === "active";
+	const reportCountThisWeek =
+		state === null
+			? 0
+			: state.reports.items.filter(
+					(report) => report.fact.week === state.meta.week,
+				).length;
+	const liveAnnouncement =
+		state === null
+			? ""
+			: `Week ${state.meta.week}. ${reportCountThisWeek} new ${reportCountThisWeek === 1 ? "report" : "reports"}.`;
 
 	useEffect(() => {
 		if (
@@ -128,7 +141,15 @@ function GameLayout() {
 				tabIndex={-1}
 				className="game-shell min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
 			>
-				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-4 px-4 py-4 pb-24 sm:gap-5 sm:px-6 sm:py-5 sm:pb-8 lg:px-8 lg:py-7">
+				<div
+					aria-atomic="true"
+					aria-live="polite"
+					className="sr-only"
+					role="status"
+				>
+					{isActive ? liveAnnouncement : ""}
+				</div>
+				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-4 px-4 py-4 pb-24 sm:gap-5 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
 					<header className="flex flex-col gap-3 border-border/70 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="min-w-0 space-y-1.5">
 							<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.28em]">
@@ -239,8 +260,8 @@ function Navigation() {
 	const location = useLocation();
 	return (
 		<nav
-			aria-label="Game destinations"
-			className="hidden min-w-0 items-center gap-1 overflow-x-auto border-border/70 border-y py-1 sm:flex"
+			aria-label="Desktop game destinations"
+			className="hidden min-w-0 items-center gap-1 overflow-x-auto border-border/70 border-y py-1 lg:flex"
 		>
 			{DESTINATIONS.map((destination) => {
 				const active = isDestinationActive(location.pathname, destination.to);
@@ -271,7 +292,7 @@ function MobileNavigation() {
 	return (
 		<nav
 			aria-label="Game destinations"
-			className="fixed inset-x-0 bottom-0 z-40 flex border-border border-t bg-card/95 px-1 pt-1 backdrop-blur-sm sm:hidden"
+			className="fixed inset-x-0 bottom-0 z-40 flex border-border border-t bg-card/95 px-1 pt-1 backdrop-blur-sm lg:hidden"
 			style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
 		>
 			{DESTINATIONS.map((destination) => {

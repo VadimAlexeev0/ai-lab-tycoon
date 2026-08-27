@@ -6,6 +6,9 @@ import ModelDesigner from "@/game/components/model-designer";
 import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/models")({
+	head: () => ({
+		meta: [{ title: "Models · AI Startup Lab Tycoon" }],
+	}),
 	component: ModelsRoute,
 });
 

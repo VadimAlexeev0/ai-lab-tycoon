@@ -158,8 +158,14 @@ export default function GameShell({
 	const [liveAnnouncement, setLiveAnnouncement] = useState("");
 	const isReady = sessionStatus === "ready";
 	const liveWeek = gameState?.meta.week;
-	const latestReportId = gameState?.reports.items.at(-1)?.id;
-	const latestReportPriority = gameState?.reports.items.at(-1)?.priority;
+	const reportCountThisWeek =
+		liveWeek === undefined
+			? 0
+			: (
+					gameState?.reports.items.filter(
+						(report) => report.fact.week === liveWeek,
+					) ?? []
+				).length;
 
 	useEffect(() => {
 		if (liveWeek === undefined) {
@@ -167,9 +173,9 @@ export default function GameShell({
 			return;
 		}
 		setLiveAnnouncement(
-			`Week ${liveWeek}.${latestReportId === undefined ? "" : ` New ${latestReportPriority} report ${latestReportId}.`}`,
+			`Week ${liveWeek}. ${reportCountThisWeek} new ${reportCountThisWeek === 1 ? "report" : "reports"}.`,
 		);
-	}, [liveWeek, latestReportId, latestReportPriority]);
+	}, [liveWeek, reportCountThisWeek]);
 
 	useEffect(() => {
 		if (blockingDecisionId === null) return;
@@ -460,6 +466,8 @@ function DashboardPanels({
 	const panelTabRefs = useRef<
 		Partial<Record<DashboardPanel, HTMLButtonElement | null>>
 	>({});
+	// The run id is an intentional trigger for resetting panel-local state.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset local state when a new run loads
 	useEffect(() => {
 		setAcknowledgedReportIds(new Set<string>());
 		setMilestoneDismissed(false);

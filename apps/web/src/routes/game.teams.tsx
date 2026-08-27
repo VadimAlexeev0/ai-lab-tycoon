@@ -5,6 +5,9 @@ import TeamPanel from "@/game/components/team-panel";
 import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/teams")({
+	head: () => ({
+		meta: [{ title: "Teams and projects · AI Startup Lab Tycoon" }],
+	}),
 	component: TeamsRoute,
 });
 
