@@ -5,7 +5,7 @@ import * as schema from "./schema";
 
 // Re-export the Drizzle operators so consumers share the exact drizzle-orm
 // instance this package compiled against (avoids dual-instance type drift).
-export { and, eq, sql } from "drizzle-orm";
+export { and, desc, eq, sql } from "drizzle-orm";
 export type {
 	Account,
 	NewRun,

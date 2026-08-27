@@ -279,6 +279,9 @@ importers:
       '@ai-lab-tycoon/db':
         specifier: workspace:*
         version: link:../db
+      '@ai-lab-tycoon/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@ai-lab-tycoon/env':
         specifier: workspace:*
         version: link:../env

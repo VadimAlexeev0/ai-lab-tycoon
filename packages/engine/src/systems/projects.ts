@@ -1,9 +1,13 @@
 import type { Project } from "../components/projects.js";
 import type { Fact } from "../components/reports.js";
-import { withRecomputedCompute } from "../compute-reservations.js";
+import {
+	applyInfrastructureGain,
+	withRecomputedCompute,
+} from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
 import { completeEvaluationModel } from "../evaluations.js";
 import { assertGameState } from "../invariants.js";
+import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
 /**
@@ -15,6 +19,7 @@ export const projectsSystem: GameSystem = (state, context) => {
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
+	const completedInfrastructureProjectIds = new Set<string>();
 	const completedModelProjectIds = new Set<string>();
 	const nextModels = state.models.items.map((model) => ({ ...model }));
 	const nextProjects: Project[] = state.projects.items.map((project) => {
@@ -39,6 +44,9 @@ export const projectsSystem: GameSystem = (state, context) => {
 		}
 
 		completedProjectIds.add(project.id);
+		if (project.kind === "infrastructure" && project.target === "compute") {
+			completedInfrastructureProjectIds.add(project.id);
+		}
 		facts.push({
 			kind: "project_completed",
 			projectId: project.id,
@@ -75,7 +83,7 @@ export const projectsSystem: GameSystem = (state, context) => {
 		};
 	});
 
-	const nextState = {
+	let nextState: GameState = {
 		...state,
 		teams: {
 			items: state.teams.items.map((team) =>
@@ -99,6 +107,9 @@ export const projectsSystem: GameSystem = (state, context) => {
 		},
 		projects: { items: nextProjects },
 	};
+	for (const projectId of completedInfrastructureProjectIds) {
+		nextState = applyInfrastructureGain(nextState, projectId);
+	}
 	const recomputedState = {
 		...nextState,
 		compute: withRecomputedCompute(nextState),

@@ -117,6 +117,46 @@ describe("project commands", () => {
 		});
 	});
 
+	it("awards compute capacity exactly once when infrastructure completes", () => {
+		const state = startRunWithInsight();
+		const team = state.teams.items[0];
+		if (team === undefined) {
+			throw new Error("Expected the opening team");
+		}
+		const projectId = "project_infrastructure";
+		state.projects.items.push({
+			kind: "infrastructure",
+			id: projectId,
+			teamId: team.id,
+			status: "active",
+			progress: 0,
+			duration: 1,
+			target: "compute",
+		});
+		team.activeProjectId = projectId;
+
+		const completed = projectsSystem(state, {
+			phase: "projects",
+			week: 2,
+		});
+		const resumed = projectsSystem(completed.state, {
+			phase: "projects",
+			week: 3,
+		});
+
+		expect(completed.state.compute.capacity).toBe(
+			BALANCE.startingComputeCapacity + BALANCE.infrastructureCapacityGain,
+		);
+		expect(resumed.state.compute.capacity).toBe(
+			BALANCE.startingComputeCapacity + BALANCE.infrastructureCapacityGain,
+		);
+		expect(completed.state.projects.items.at(-1)).toMatchObject({
+			id: projectId,
+			status: "completed",
+			progress: 1,
+		});
+	});
+
 	it("cancels an active project and releases its team", () => {
 		const state = startRunWithInsight();
 		const team = state.teams.items[0];

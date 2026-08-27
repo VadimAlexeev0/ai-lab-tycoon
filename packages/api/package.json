@@ -12,6 +12,7 @@
 	"scripts": {},
 	"dependencies": {
 		"@ai-lab-tycoon/db": "workspace:*",
+		"@ai-lab-tycoon/engine": "workspace:*",
 		"@ai-lab-tycoon/env": "workspace:*",
 		"@orpc/client": "catalog:",
 		"@orpc/openapi": "catalog:",
