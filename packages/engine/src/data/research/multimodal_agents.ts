@@ -45,7 +45,7 @@ export const MULTIMODAL_AGENTS_NODES = [
 		category: "multimodal_agents",
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"zero_shot_transfer",
@@ -79,7 +79,7 @@ export const MULTIMODAL_AGENTS_NODES = [
 		category: "multimodal_agents",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"tool_calling",
@@ -113,7 +113,7 @@ export const MULTIMODAL_AGENTS_NODES = [
 		category: "multimodal_agents",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"rag_memory",

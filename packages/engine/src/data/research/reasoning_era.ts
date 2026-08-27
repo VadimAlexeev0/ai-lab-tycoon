@@ -19,7 +19,7 @@ export const REASONING_ERA_NODES = [
 		category: "reasoning_era",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [ASSISTANT_MODELS_KEYSTONE_ID, "chain_of_thought"],
 		description:
 			"The model spends extra tokens thinking before it answers, turning inference time into a new frontier budget.",
@@ -32,7 +32,7 @@ export const REASONING_ERA_NODES = [
 		category: "reasoning_era",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"test_time_compute",
@@ -49,7 +49,7 @@ export const REASONING_ERA_NODES = [
 		category: "reasoning_era",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"test_time_compute",
@@ -66,7 +66,7 @@ export const REASONING_ERA_NODES = [
 		category: "reasoning_era",
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"constitutional_ai",

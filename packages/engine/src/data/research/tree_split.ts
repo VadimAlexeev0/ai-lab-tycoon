@@ -37,7 +37,7 @@ export const TREE_SPLIT_NODES = [
 		category: "tree_split",
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"task_finetuning",
@@ -71,7 +71,7 @@ export const TREE_SPLIT_NODES = [
 		category: "tree_split",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"text_products_evaluation",

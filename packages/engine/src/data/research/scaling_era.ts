@@ -23,7 +23,7 @@ export const SCALING_ERA_NODES = [
 		category: "scaling_era",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [TEXT_MODELS_KEYSTONE_ID, PARALLEL_TRAINING_ID],
 		description:
 			"The curve starts speaking: data, parameters, and compute reveal how tomorrow's capability will be bought.",
@@ -53,7 +53,7 @@ export const SCALING_ERA_NODES = [
 		category: "scaling_era",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"gpt3_scale_params",

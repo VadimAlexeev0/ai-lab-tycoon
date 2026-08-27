@@ -19,7 +19,7 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		category: "efficiency_school",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"scaling_laws_keystone",
@@ -36,7 +36,7 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		category: "efficiency_school",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"sparse_moe",
@@ -66,7 +66,7 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		category: "efficiency_school",
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"gpt_decoder",
@@ -83,7 +83,7 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		category: "efficiency_school",
 		branch: INFRASTRUCTURE_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 2,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"int4_quantization",

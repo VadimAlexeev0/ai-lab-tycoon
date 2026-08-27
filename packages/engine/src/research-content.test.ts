@@ -72,8 +72,11 @@ describe("LLM-history research content", () => {
 			),
 		).toBe(true);
 		expect(
-			nodes.reduce((total, node) => total + Number(node.insightCost), 0),
-		).toBeLessThanOrEqual(50);
+			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
+		).toBeGreaterThanOrEqual(70);
+		expect(
+			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
+		).toBeLessThanOrEqual(80);
 	});
 
 	it("makes capability and efficiency schools depend on each other across branches", () => {

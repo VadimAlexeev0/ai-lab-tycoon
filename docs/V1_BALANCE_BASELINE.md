@@ -55,3 +55,52 @@ next pass, measured against this harness:
 2. Make `trust_collapsed` reachable (quality/scandal pressure paths).
 3. Reduce post-launch compute-shortage severity.
 4. Pull milestone timing from ~week 63 toward the session target.
+
+## Tuning pass (paused)
+
+The first current-engine audit used the required deterministic harness after
+fixing a simulator policy bug that tried to design an already-completed model
+family in a later era. Across seeds 42, 43, and 44 (10 runs × 4 bots each,
+120 games, 80-week horizon), the measured baseline was:
+
+| Metric | Measured baseline |
+|---|---:|
+| Pre-week-8 losses | 83/120 (69.2%) |
+| Loss causes | cash_depleted 86; trust_collapsed 0; active at horizon 34 |
+| Milestone reach | 0/120; 0 by week 45 |
+| First launch | p10=5, p50=5, p90=6 |
+| Bots with funding or rival-pressure proxy | 2/4 (random, efficiency-first) |
+| Funding offers | 34/120; seed accepted in all offered runs |
+| Rival-pressure proxy | 34/120 |
+| Compute-pressure proxy | 34/120 |
+
+The three early-game criteria are not met by this baseline: early deaths are
+well above 40%, only two policies reach instrumented mid-game proxies, and one
+loss cause dominates. Targeted engine tests cover incident, funding, and rival
+paths, but the CLI result schema does not retain incident chronology, so
+incident reachability is not inferred from the table.
+
+A pacing checkpoint was prepared but not fully simulated before this pass was
+paused. The research tree now has a tiered 74-Insight budget: early nodes stay
+at 1, intermediate branch/efficiency/reasoning nodes use 2, the Assistant
+keystone costs 3, and the convergence trio costs 4/3/4. The two existing
+keystones are therefore materially more consequential without making the tree
+unbounded. The updated research-content and research tests both pass with the
+70–80 budget guard. The proposed `STARTING_CASH` 1,000 → 1,400 and
+`RESEARCH_INSIGHT_PER_WEEK` 1 → 2 changes were deliberately restored before
+this checkpoint commit because their full three-seed comparison did not
+complete; retest those constants together with the 74-point curve next.
+
+| Tuning candidate | Current | Proposed | Criterion | Status |
+|---|---:|---:|---|---|
+| Research tree total Insight | 50 | 74 | pacing / meaningful branch decisions | kept in this checkpoint |
+| Starting cash | 1,000 | 1,400 | early-game fairness | restored; retest |
+| Insight per team-week | 1 | 2 | milestone pacing | restored; retest |
+
+Methodology: each CLI invocation is 4 bots × 10 seeded games; results were
+parsed by `/opt/data/cache/balance/analyze_balance.py`. `terminalWeek < 8`
+counts as a pre-week-8 loss, while `active_at_horizon` is not a death.
+`tuned1-seed-42.txt` completed with the experimental constants, but the next
+seed timed out, so no experimental after-rate is claimed here. Remaining
+balance iterations, the full before/after table, and the README gameplay
+refresh are deferred to the post-gold tuning session.

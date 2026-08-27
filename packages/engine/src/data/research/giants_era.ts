@@ -21,7 +21,7 @@ export const GIANTS_ERA_NODES = [
 		category: "giants_era",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 1,
+		insightCost: 3,
 		prerequisites: [
 			TEXT_MODELS_KEYSTONE_ID,
 			"gpt3_scale_params",

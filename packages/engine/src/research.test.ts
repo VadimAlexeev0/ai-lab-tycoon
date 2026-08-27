@@ -88,7 +88,10 @@ describe("LLM-history research data", () => {
 		).toBe(true);
 		expect(
 			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
-		).toBeLessThanOrEqual(50);
+		).toBeGreaterThanOrEqual(70);
+		expect(
+			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
+		).toBeLessThanOrEqual(80);
 
 		const keystone = RESEARCH_NODES.find(
 			(node) => node.id === TEXT_MODELS_KEYSTONE_ID,
