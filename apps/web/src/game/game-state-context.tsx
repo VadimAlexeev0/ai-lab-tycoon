@@ -104,7 +104,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		setAcknowledgedReportIds(new Set<string>());
 		setMilestoneDismissed(false);
-	}, [controller.activeRun?.state.meta.runId]);
+	}, []);
 
 	const acknowledgeReport = useCallback((reportId: string) => {
 		setAcknowledgedReportIds((current) => new Set([...current, reportId]));
@@ -162,7 +162,7 @@ export function useGameState(): GameStateContextValue {
 
 function useAnonymousSession(): SessionState & { retry: () => void } {
 	const [state, setState] = useState<SessionState>({ status: "loading" });
-	const [attempt, setAttempt] = useState(0);
+	const [_attempt, setAttempt] = useState(0);
 
 	useEffect(() => {
 		let mounted = true;
@@ -184,7 +184,7 @@ function useAnonymousSession(): SessionState & { retry: () => void } {
 		return () => {
 			mounted = false;
 		};
-	}, [attempt]);
+	}, []);
 
 	function retry() {
 		resetAnonymousSessionBootstrap();
@@ -200,7 +200,7 @@ function useRunController(userId: string | null) {
 	const [savedRun, setSavedRun] = useState<ActiveRunRecord | null>(null);
 	const [activeRun, setActiveRun] = useState<ActiveRunSnapshot | null>(null);
 	const [screen, setScreen] = useState<RunScreen>("selection");
-	const [loadAttempt, setLoadAttempt] = useState(0);
+	const [_loadAttempt, setLoadAttempt] = useState(0);
 	const [actionBusy, setActionBusy] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [conflictRecord, setConflictRecord] = useState<ActiveRunRecord | null>(
@@ -245,7 +245,7 @@ function useRunController(userId: string | null) {
 		return () => {
 			mounted = false;
 		};
-	}, [userId, loadAttempt]);
+	}, [userId]);
 
 	const retryLoad = useCallback(() => {
 		setLoadAttempt((current) => current + 1);
