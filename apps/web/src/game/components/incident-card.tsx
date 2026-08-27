@@ -165,7 +165,7 @@ export default function IncidentCard({
 						className="size-3.5 text-[var(--game-positive)]"
 						aria-hidden="true"
 					/>
-					<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
+					<h3 className="font-semibold text-muted-foreground text-xs">
 						No incident response required
 					</h3>
 				</div>
@@ -215,7 +215,7 @@ function IncidentDecision({
 		);
 	return (
 		<article
-			className="border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
+			className="surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 			id={`incident-card-${decision.id}`}
 		>
 			<div className="flex items-start gap-2">
@@ -237,7 +237,7 @@ function IncidentDecision({
 					tint="bg-[var(--game-negative)]/10"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">
+					<p className="font-semibold text-[var(--game-negative)] text-xs">
 						Blocking incident
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">
@@ -266,7 +266,7 @@ function IncidentDecision({
 			) : null}
 
 			<div className="mt-3 space-y-2">
-				<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
+				<p className="font-semibold text-muted-foreground text-xs">
 					Choose a mechanical response
 				</p>
 				<div className="grid gap-2 md:grid-cols-3">
@@ -275,7 +275,7 @@ function IncidentDecision({
 							const effect = info.responses[response];
 							return (
 								<div
-									className="border border-border/70 bg-background/35 p-2"
+									className="surface-card bg-background/35 p-2"
 									key={response}
 								>
 									<p className="font-medium text-foreground text-xs">
@@ -308,7 +308,7 @@ function IncidentDecision({
 					)}
 				</div>
 			</div>
-			<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+			<p className="mt-2 text-muted-foreground text-xs">
 				Queue reference: {decision.id}
 			</p>
 		</article>
@@ -318,9 +318,7 @@ function IncidentDecision({
 function Fact({ label, value }: { label: string; value: string }) {
 	return (
 		<div>
-			<dt className="font-mono text-muted-foreground uppercase tracking-[0.08em]">
-				{label}
-			</dt>
+			<dt className="text-muted-foreground">{label}</dt>
 			<dd className="mt-0.5 text-foreground">{value}</dd>
 		</div>
 	);

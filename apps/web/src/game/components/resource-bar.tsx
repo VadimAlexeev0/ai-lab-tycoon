@@ -72,7 +72,7 @@ export default function ResourceBar({ state }: ResourceBarProps) {
 	return (
 		<section
 			aria-labelledby="resource-bar-heading"
-			className="border border-border bg-card/70"
+			className="surface-card"
 			data-next-objective={visibleState.nextObjective.kind}
 		>
 			<h2 id="resource-bar-heading" className="sr-only">
@@ -84,10 +84,8 @@ export default function ResourceBar({ state }: ResourceBarProps) {
 						<Gauge className="size-4" aria-hidden="true" />
 					</div>
 					<div>
-						<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
-							Time
-						</p>
-						<p className="mt-1 font-mono font-semibold text-foreground text-lg leading-none">
+						<p className="meta-label text-muted-foreground">Time</p>
+						<p className="numeric-value mt-1 font-semibold text-foreground text-lg leading-none">
 							Week {state.meta.week}
 						</p>
 					</div>
@@ -110,11 +108,9 @@ function ResourceCell({ item }: { item: ResourceItem }) {
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
-						{item.label}
-					</p>
+					<p className="meta-label text-muted-foreground">{item.label}</p>
 					<p
-						className={`mt-1 font-mono font-semibold text-base ${item.accent}`}
+						className={`numeric-value mt-1 font-semibold text-base ${item.accent}`}
 					>
 						{item.value}
 					</p>

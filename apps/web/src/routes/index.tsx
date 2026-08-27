@@ -89,7 +89,7 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 	return (
 		<section
 			aria-labelledby="run-selection-heading"
-			className="relative isolate overflow-hidden rounded-xl border border-border/70 bg-background p-4 sm:p-5"
+			className="surface-card relative isolate overflow-hidden p-4 sm:p-5"
 		>
 			<div
 				aria-hidden="true"
@@ -120,12 +120,12 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 			/>
 			<div className="relative z-10 space-y-5">
 				<div className="max-w-2xl">
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.28em]">
+					<p className="meta-label text-primary">
 						Command center / run selection
 					</p>
 					<h1
 						id="run-selection-heading"
-						className="mt-2 font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+						className="mt-2 font-display font-semibold text-3xl text-foreground sm:text-4xl"
 					>
 						Build the next AI lab
 					</h1>
@@ -156,16 +156,16 @@ function ResumeRunState({
 	return (
 		<section
 			aria-labelledby="resume-run-heading"
-			className="border border-primary/40 bg-primary/5 p-4 sm:p-5"
+			className="surface-card bg-primary/5 p-4 ring-1 ring-primary/40 sm:p-5"
 		>
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+			<div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-semibold text-[10px] text-primary">
 						Saved run found
 					</p>
 					<h2
 						id="resume-run-heading"
-						className="mt-2 font-mono font-semibold text-base text-foreground uppercase tracking-[0.08em]"
+						className="mt-2 font-semibold text-base text-foreground"
 					>
 						{run.state.company.name}
 					</h2>
@@ -176,7 +176,7 @@ function ResumeRunState({
 				</div>
 				<Save className="size-5 text-primary/70" aria-hidden="true" />
 			</div>
-			<div className="mt-4 grid gap-2 border-border/70 border-y py-3 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em] sm:grid-cols-3">
+			<div className="mt-4 grid gap-2 border-border/70 border-y py-3 text-[10px] text-muted-foreground sm:grid-cols-3">
 				<span>Week {run.currentWeek}</span>
 				<span>Seed {run.seed}</span>
 				<span>Revision {run.revision}</span>
@@ -212,11 +212,11 @@ function SessionLoadingState() {
 	return (
 		<section
 			aria-live="polite"
-			className="flex min-h-48 flex-col items-center justify-center gap-3 border border-border bg-card/70 px-6 text-center"
+			className="surface-card flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
 		>
 			<Save className="size-5 animate-pulse text-primary" aria-hidden="true" />
 			<div>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Establishing anonymous session
 				</h2>
 				<p className="mt-1 text-muted-foreground text-sm">
@@ -237,14 +237,14 @@ function SessionErrorState({
 	return (
 		<section
 			role="alert"
-			className="flex min-h-48 flex-col items-center justify-center gap-4 border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 px-6 text-center"
+			className="surface-card flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
 		>
 			<AlertCircle
 				className="size-5 text-[var(--game-negative)]"
 				aria-hidden="true"
 			/>
 			<div>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Session unavailable
 				</h2>
 				<p className="mt-1 max-w-lg text-muted-foreground text-sm leading-6">
@@ -263,11 +263,11 @@ function SaveLoadingState() {
 	return (
 		<section
 			aria-live="polite"
-			className="flex min-h-32 items-center gap-3 border border-border bg-card/70 px-4"
+			className="surface-card flex min-h-32 items-center gap-3 px-4"
 		>
 			<Save className="size-4 animate-pulse text-primary" aria-hidden="true" />
 			<div>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Reading autosave
 				</h2>
 				<p className="mt-1 text-muted-foreground text-sm">
@@ -288,14 +288,14 @@ function SaveErrorState({
 	return (
 		<section
 			role="alert"
-			className="flex min-h-32 flex-col items-start gap-3 border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 px-4 py-4 sm:flex-row sm:items-center"
+			className="surface-card flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
 		>
 			<AlertCircle
 				className="size-5 shrink-0 text-[var(--game-negative)]"
 				aria-hidden="true"
 			/>
 			<div className="min-w-0 flex-1">
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Autosave unavailable
 				</h2>
 				<p className="mt-1 text-muted-foreground text-sm leading-6">

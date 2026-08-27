@@ -27,35 +27,27 @@ function DashboardRoute() {
 			title="Command overview"
 			description="Read the lab's current health, resource posture, and next mechanical objective before choosing the next route."
 		>
-			<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,0.34fr)]">
+			<div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,0.34fr)]">
 				<OverviewPanel state={state} />
 				<aside
 					aria-labelledby="your-lab-heading"
-					className="relative overflow-hidden border border-border bg-card/70 p-3"
+					className="surface-card relative overflow-hidden p-3"
 				>
-					<div
-						aria-hidden="true"
-						className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/80 via-primary/20 to-transparent"
-					/>
 					<div className="relative z-10 flex items-start justify-between gap-3">
 						<div>
-							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
-								Live system / telemetry
-							</p>
+							<p className="meta-label text-primary">Live system / telemetry</p>
 							<h2
 								id="your-lab-heading"
-								className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+								className="mt-1 font-semibold text-foreground text-sm"
 							>
 								Your Lab
 							</h2>
 						</div>
-						<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
-							Core 01
-						</span>
+						<span className="text-muted-foreground text-xs">Core 01</span>
 					</div>
 					<section
 						aria-labelledby="lab-identity-heading"
-						className="relative z-10 mt-3 overflow-hidden border border-border/70 bg-background/35"
+						className="relative z-10 mt-3 overflow-hidden rounded-lg bg-background/35 ring-1 ring-white/5"
 					>
 						<ArtFrame
 							alt=""
@@ -63,13 +55,11 @@ function DashboardRoute() {
 							src="/art-v2/four-monoliths.png"
 							tint="bg-background/10"
 						/>
-						<div className="relative mx-2.5 -mt-10 mb-2.5 border border-border/70 bg-background/80 p-2 backdrop-blur-sm">
-							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
-								Lab identity
-							</p>
+						<div className="relative mx-2.5 -mt-10 mb-2.5 rounded-lg bg-background/80 p-2 shadow-black/20 shadow-lg ring-1 ring-white/5 backdrop-blur-sm">
+							<p className="font-semibold text-primary text-xs">Lab identity</p>
 							<h3
 								id="lab-identity-heading"
-								className="mt-1 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]"
+								className="mt-1 font-semibold text-foreground text-xs"
 							>
 								Four signals / one lab
 							</h3>
@@ -95,7 +85,7 @@ function DashboardRoute() {
 					/>
 					<section
 						aria-label="AGI program teaser"
-						className="relative z-10 mt-2 flex items-center gap-2 border border-[var(--game-amber)]/40 bg-[var(--game-amber)]/5 px-2 py-2"
+						className="surface-card relative z-10 mt-2 flex items-center gap-2 bg-[var(--game-amber)]/5 px-2 py-2 ring-1 ring-[var(--game-amber)]/40"
 					>
 						<ArtFrame
 							alt=""
@@ -104,7 +94,7 @@ function DashboardRoute() {
 							tint="bg-[var(--game-amber)]/10"
 						/>
 						<div className="min-w-0">
-							<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]">
+							<p className="font-semibold text-[var(--game-amber)] text-xs">
 								AGI program / seed signal
 							</p>
 							<p className="mt-1 text-muted-foreground text-xs leading-4">
@@ -112,7 +102,7 @@ function DashboardRoute() {
 							</p>
 						</div>
 					</section>
-					<p className="relative z-10 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="relative z-10 border-border/70 border-t pt-2 text-muted-foreground text-xs">
 						Drag to rotate · telemetry is live
 					</p>
 				</aside>

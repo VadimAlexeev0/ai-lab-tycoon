@@ -134,12 +134,12 @@ export default function LineageGallery({ state }: LineageGalleryProps) {
 		<section aria-labelledby="lineage-gallery-heading" className="space-y-5">
 			<header className="flex flex-col gap-3 border-border/70 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
 				<div className="max-w-3xl">
-					<div className="flex items-center gap-2 font-mono font-semibold text-[var(--game-cyan)] text-xs uppercase tracking-[0.18em]">
+					<div className="flex items-center gap-2 font-semibold text-[var(--game-cyan)] text-xs">
 						<GitBranch className="size-4" aria-hidden="true" />
 						<span>Family wall / public register</span>
 					</div>
 					<h2
-						className="mt-1 font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+						className="mt-1 font-display font-semibold text-3xl text-foreground sm:text-4xl"
 						id="lineage-gallery-heading"
 					>
 						Model lineage gallery
@@ -150,7 +150,7 @@ export default function LineageGallery({ state }: LineageGalleryProps) {
 						gallery projection.
 					</p>
 				</div>
-				<div className="shrink-0 border border-[var(--game-cyan)]/35 bg-[var(--game-cyan)]/5 px-3 py-2 font-mono text-xs uppercase tracking-[0.1em]">
+				<div className="surface-card bg-[var(--game-cyan)]/5 px-3 py-2 text-xs ring-1 ring-[var(--game-cyan)]/35">
 					<p className="text-[var(--game-cyan)]">Public register</p>
 					<p className="mt-1 font-semibold text-foreground">
 						{state.models.items.length} model
@@ -183,13 +183,13 @@ function EmptyLineageState() {
 	return (
 		<section
 			aria-label="Empty model lineage"
-			className="border border-[var(--game-cyan)]/30 border-dashed bg-[var(--game-cyan)]/5 px-5 py-12 text-center"
+			className="surface-card bg-[var(--game-cyan)]/5 px-5 py-12 text-center ring-1 ring-[var(--game-cyan)]/30"
 		>
 			<Layers3
 				className="mx-auto size-7 text-[var(--game-cyan)] opacity-80"
 				aria-hidden="true"
 			/>
-			<h3 className="mt-4 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+			<h3 className="mt-4 font-semibold text-foreground text-sm">
 				(no models yet)
 			</h3>
 			<p className="mx-auto mt-2 max-w-md text-muted-foreground text-xs leading-5">
@@ -207,22 +207,22 @@ function FamilyWall({ family }: { family: LineageFamily }) {
 	return (
 		<section
 			aria-labelledby={`lineage-family-${family.id}`}
-			className="relative overflow-hidden border border-border/70 bg-background/25 p-3 sm:p-4"
+			className="surface-card bg-[var(--game-cyan)]/5 p-3 ring-1 ring-white/5 sm:p-4"
 			style={{ minHeight: `${wallHeight}px` }}
 		>
 			<div className="relative z-10 flex items-center justify-between gap-3 border-border/60 border-b pb-2">
 				<div>
-					<p className="font-mono font-semibold text-[var(--game-cyan)] text-xs uppercase tracking-[0.16em]">
+					<p className="font-semibold text-[var(--game-cyan)] text-xs">
 						Foundation family
 					</p>
 					<h3
-						className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]"
+						className="mt-1 font-semibold text-foreground text-sm"
 						id={`lineage-family-${family.id}`}
 					>
 						{family.label}
 					</h3>
 				</div>
-				<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+				<span className="text-muted-foreground text-xs">
 					{family.models.length} branch{family.models.length === 1 ? "" : "es"}
 				</span>
 			</div>
@@ -295,7 +295,7 @@ function LineageModelCard({
 				: "border-[var(--game-cyan)]/55 text-[var(--game-cyan)]";
 
 	return (
-		<article className="relative min-h-24 overflow-hidden border border-border/70 bg-card/80 p-3">
+		<article className="surface-card relative min-h-24 overflow-hidden bg-card/80 p-3">
 			<div
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-0 bg-center bg-cover opacity-20"
@@ -313,17 +313,17 @@ function LineageModelCard({
 							{model.name}
 						</h4>
 					</div>
-					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="mt-1 text-muted-foreground text-xs">
 						{model.id} · {model.family} · {model.tier ?? "tier pending"}
 					</p>
 				</div>
 				<span
-					className={`shrink-0 rotate-[-1deg] border bg-background/55 px-2 py-1 font-mono font-semibold text-xs uppercase tracking-[0.1em] ${fateStyle}`}
+					className={`shrink-0 rotate-[-1deg] border bg-background/55 px-2 py-1 font-semibold text-xs ${fateStyle}`}
 				>
 					{model.fate}
 				</span>
 			</div>
-			<div className="relative mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-border/50 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+			<div className="relative mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-border/50 border-t pt-2 text-muted-foreground text-xs">
 				<span>{humanize(model.foundation)} foundation</span>
 				{parentName ? <span>← {parentName}</span> : <span>root branch</span>}
 			</div>

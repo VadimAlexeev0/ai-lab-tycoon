@@ -99,16 +99,16 @@ export default function StartRunForm({
 	return (
 		<section
 			aria-labelledby="new-run-heading"
-			className="border border-primary/40 bg-primary/5 p-4 sm:p-5"
+			className="surface-card bg-primary/5 p-4 ring-1 ring-primary/40 sm:p-5"
 		>
 			<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Run initialization
 					</p>
 					<h2
 						id="new-run-heading"
-						className="mt-2 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-2 font-semibold text-foreground text-sm"
 					>
 						Start a new company
 					</h2>
@@ -161,7 +161,7 @@ export default function StartRunForm({
 				</div>
 
 				<fieldset className="space-y-2">
-					<legend className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+					<legend className="font-semibold text-muted-foreground text-xs">
 						Founder archetype{" "}
 						<span className="font-normal text-primary/80">(cosmetic)</span>
 					</legend>
@@ -191,13 +191,13 @@ export default function StartRunForm({
 							</button>
 						))}
 					</div>
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="text-muted-foreground text-xs">
 						Flavor only · does not affect the simulation.
 					</p>
 				</fieldset>
 
 				{hasExistingRun ? (
-					<p className="border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] text-xs leading-5">
+					<p className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/50">
 						A saved run already exists. Starting here will replace it after
 						confirmation.
 					</p>

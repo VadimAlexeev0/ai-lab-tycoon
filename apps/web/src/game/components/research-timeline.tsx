@@ -102,10 +102,7 @@ export default function ResearchTimeline({
 					);
 				})}
 			</svg>
-			<div
-				aria-hidden="true"
-				className="flex justify-between gap-2 font-mono text-xs uppercase tracking-[0.06em]"
-			>
+			<div aria-hidden="true" className="flex justify-between gap-2 text-xs">
 				{points.map((point, index) => (
 					<span
 						className={cn(

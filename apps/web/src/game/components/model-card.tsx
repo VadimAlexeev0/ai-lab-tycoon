@@ -33,10 +33,10 @@ export default function ModelCard({
 	const visibleModels = selectVisibleModels(state);
 	if (visibleModels.length === 0) {
 		return (
-			<section className="border border-border/70 bg-background/35 px-3 py-4">
+			<section className="surface-card px-3 py-4">
 				<div className="flex items-center gap-2">
 					<FlaskConical className="size-4 text-primary" aria-hidden="true" />
-					<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+					<h3 className="font-semibold text-muted-foreground text-xs">
 						No model designs yet
 					</h3>
 				</div>
@@ -51,12 +51,10 @@ export default function ModelCard({
 	return (
 		<section aria-label="Model cards" className="space-y-3">
 			<div className="flex items-center justify-between gap-2">
-				<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+				<h3 className="font-semibold text-muted-foreground text-xs">
 					Public model register
 				</h3>
-				<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
-					Estimates only
-				</span>
+				<span className="text-muted-foreground text-xs">Estimates only</span>
 			</div>
 			<div className="grid gap-3 xl:grid-cols-2">
 				{visibleModels.map((visibleModel) => {
@@ -100,7 +98,7 @@ function ModelRegisterCard({
 	const activeEvaluation = model.projectId;
 	const project = model.projectId;
 	return (
-		<article className="border border-border bg-background/35 p-3">
+		<article className="surface-card p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<div className="flex items-center gap-2">
@@ -119,7 +117,7 @@ function ModelRegisterCard({
 							{visible.name}
 						</h4>
 					</div>
-					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+					<p className="mt-1 text-muted-foreground text-xs">
 						{model.id} · {model.family ?? "unclassified"} ·{" "}
 						{model.tier ?? "n/a"}
 					</p>
@@ -128,7 +126,7 @@ function ModelRegisterCard({
 			</div>
 
 			{project ? (
-				<p className="mt-3 border border-primary/25 bg-primary/5 px-2 py-1.5 font-mono text-primary text-xs uppercase tracking-[0.1em]">
+				<p className="mt-3 border border-primary/25 bg-primary/5 px-2 py-1.5 text-primary text-xs">
 					Project active · {project}
 				</p>
 			) : null}
@@ -139,14 +137,9 @@ function ModelRegisterCard({
 						const band = visible.estimates?.[dimension];
 						if (band === undefined) return null;
 						return (
-							<div
-								className="border border-border/70 px-2 py-1.5"
-								key={dimension}
-							>
-								<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
-									{dimension}
-								</p>
-								<p className="mt-1 font-mono font-semibold text-foreground text-xs">
+							<div className="surface-card px-2 py-1.5" key={dimension}>
+								<p className="text-muted-foreground text-xs">{dimension}</p>
+								<p className="mt-1 font-semibold text-foreground text-xs">
 									{estimateLabel(band)}
 								</p>
 							</div>
@@ -162,7 +155,7 @@ function ModelRegisterCard({
 
 			{model.status === "ready" || model.status === "launched" ? (
 				<div className="mt-3 space-y-2 border-border/70 border-t pt-3">
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="text-muted-foreground text-xs">
 						Narrow the uncertainty band
 					</p>
 					<div className="flex flex-wrap gap-2">
@@ -207,7 +200,7 @@ function StatusLabel({ status }: { status: Model["status"] }) {
 			? "Designing"
 			: status[0]?.toUpperCase() + status.slice(1);
 	return (
-		<span className="shrink-0 border border-border/70 px-2 py-1 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]">
+		<span className="shrink-0 border border-border/70 px-2 py-1 font-semibold text-foreground text-xs">
 			{label}
 		</span>
 	);

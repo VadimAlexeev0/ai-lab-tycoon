@@ -59,12 +59,12 @@ export default function ComputeGrid({ state }: { state: GameState }) {
 		<section aria-labelledby="compute-grid-heading" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Compute / allocation grid
 					</p>
 					<h3
 						id="compute-grid-heading"
-						className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-1 font-semibold text-foreground text-sm"
 					>
 						Live server slots
 					</h3>
@@ -72,8 +72,8 @@ export default function ComputeGrid({ state }: { state: GameState }) {
 				<Cpu className="size-4 text-primary" aria-hidden="true" />
 			</div>
 
-			<div className="border border-border/70 bg-background/35 p-3">
-				<div className="flex items-center justify-between gap-3 font-mono text-xs uppercase tracking-[0.1em]">
+			<div className="surface-card p-3">
+				<div className="flex items-center justify-between gap-3 text-xs">
 					<span className="inline-flex items-center gap-1.5 text-muted-foreground">
 						<Server className="size-3.5 text-primary" aria-hidden="true" />
 						Allocation
@@ -124,7 +124,7 @@ export default function ComputeGrid({ state }: { state: GameState }) {
 						);
 					})}
 				</div>
-				<div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+				<div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground text-xs">
 					<span>Training {signals.trainingDemand}</span>
 					<span>Serving {signals.servingDemand}</span>
 					<span>Evaluation {signals.evaluationDemand}</span>

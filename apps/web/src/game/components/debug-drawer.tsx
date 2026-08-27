@@ -57,17 +57,17 @@ export default function DebugDrawer({
 			{open ? (
 				<section
 					aria-labelledby="debug-drawer-heading"
-					className="w-[min(22rem,calc(100vw-1.5rem))] border border-[var(--game-amber)]/60 bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-sm"
+					className="surface-card w-[min(22rem,calc(100vw-1.5rem))] bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-[var(--game-amber)]/60 backdrop-blur-sm"
 					id="debug-drawer"
 					role="dialog"
 				>
 					<div className="flex items-start justify-between gap-3 border-[var(--game-amber)]/30 border-b pb-2">
 						<div>
-							<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.18em]">
+							<p className="font-semibold text-[var(--game-amber)] text-xs">
 								Preview controls
 							</p>
 							<h2
-								className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+								className="mt-1 font-semibold text-foreground text-sm"
 								id="debug-drawer-heading"
 							>
 								Debug drawer
@@ -142,7 +142,7 @@ export default function DebugDrawer({
 						</div>
 
 						<label className="block space-y-1.5" htmlFor="debug-quarter">
-							<span className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+							<span className="flex items-center justify-between gap-3 text-muted-foreground text-xs">
 								<span>Quarter number</span>
 								<strong className="text-foreground">{quarter} / 6</strong>
 							</span>
@@ -163,7 +163,7 @@ export default function DebugDrawer({
 						</label>
 
 						<label className="block space-y-1.5" htmlFor="debug-rival-progress">
-							<span className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+							<span className="flex items-center justify-between gap-3 text-muted-foreground text-xs">
 								<span>Rival progress</span>
 								<strong className="text-foreground">{rivalProgress}%</strong>
 							</span>
@@ -184,7 +184,7 @@ export default function DebugDrawer({
 						</label>
 
 						<label className="block space-y-1.5" htmlFor="debug-agi-override">
-							<span className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+							<span className="flex items-center justify-between gap-3 text-muted-foreground text-xs">
 								<span>AGI socket override</span>
 								<strong className="text-foreground">{agiOverride} / 6</strong>
 							</span>
@@ -215,7 +215,7 @@ export default function DebugDrawer({
 				aria-controls="debug-drawer"
 				aria-expanded={open}
 				aria-label={open ? "Close debug controls" : "Open debug controls"}
-				className="border-[var(--game-amber)]/60 bg-card/95 text-[var(--game-amber)] shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:bg-[var(--game-amber)]/10"
+				className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-[var(--game-amber)]/60 hover:bg-[var(--game-amber)]/10"
 				onClick={() => setOpen((current) => !current)}
 				size="icon"
 				title="Open debug controls"

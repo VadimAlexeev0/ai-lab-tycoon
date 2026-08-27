@@ -107,14 +107,14 @@ export default function NewsTicker({
 					className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden px-3 py-2 text-left hover:bg-[var(--game-amber)]/5 sm:px-5"
 					to="/game/pulse"
 				>
-					<span className="flex shrink-0 items-center gap-1.5 font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.14em]">
+					<span className="flex shrink-0 items-center gap-1.5 font-semibold text-[var(--game-amber)] text-xs">
 						<Radio className="size-3.5" aria-hidden="true" />
 						<span className="hidden sm:inline">Industry pulse</span>
 						<span className="sm:hidden">Pulse</span>
 					</span>
 					<div className="min-w-0 flex-1 overflow-hidden" aria-hidden="true">
 						<div
-							className="ailt-news-ticker-track flex min-w-max items-center gap-8 whitespace-nowrap font-mono text-muted-foreground text-xs"
+							className="ailt-news-ticker-track flex min-w-max items-center gap-8 whitespace-nowrap text-muted-foreground text-xs"
 							data-paused={paused}
 						>
 							{[...headlines, ...headlines].map((headline, index) => (
@@ -186,20 +186,16 @@ export function IndustryPulse({ state, rivalProgressPct }: IndustryPulseProps) {
 	return (
 		<article
 			aria-labelledby="industry-pulse-heading"
-			className="relative overflow-hidden border border-[var(--game-amber)]/55 border-dashed bg-card/70 p-4 sm:p-5 lg:p-6"
+			className="surface-card relative overflow-hidden bg-card/70 p-4 ring-1 ring-[var(--game-amber)]/55 sm:p-5 lg:p-6"
 		>
-			<div
-				aria-hidden="true"
-				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--game-amber)]/80 via-[var(--game-amber)]/20 to-transparent"
-			/>
 			<header className="relative flex flex-col gap-4 border-[var(--game-amber)]/30 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
 				<div className="max-w-3xl space-y-2">
 					<PlaceholderBadge />
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Archive / public signal desk
 					</p>
 					<h2
-						className="font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+						className="font-display font-semibold text-3xl text-foreground sm:text-4xl"
 						id="industry-pulse-heading"
 					>
 						Industry pulse
@@ -211,7 +207,7 @@ export function IndustryPulse({ state, rivalProgressPct }: IndustryPulseProps) {
 				</div>
 				<div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
 					<TickerToggle />
-					<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<span className="text-muted-foreground text-xs">
 						Week {state.meta.week} · {headlines.length} dispatches
 					</span>
 				</div>
@@ -258,7 +254,7 @@ export function HeadlineCard({
 
 	return (
 		<article
-			className="group flex min-h-64 min-w-0 flex-col border border-border/70 bg-background/35 p-3 transition-colors hover:border-[var(--game-amber)]/55 hover:bg-background/55"
+			className="group surface-card relative flex min-h-64 min-w-0 flex-col bg-background/35 p-3 transition-colors hover:bg-background/55"
 			data-headline-id={headline.id}
 			data-sentiment={headline.sentiment}
 		>
@@ -275,7 +271,7 @@ export function HeadlineCard({
 				</span>
 			</div>
 			<div className="mt-4 flex-1">
-				<h3 className="font-mono font-semibold text-foreground text-sm leading-5">
+				<h3 className="font-semibold text-foreground text-sm leading-5">
 					{headline.headline}
 				</h3>
 				<p className="mt-2 text-muted-foreground text-xs leading-5">
@@ -284,13 +280,11 @@ export function HeadlineCard({
 			</div>
 			{relatedRivals.length > 0 ? (
 				<div className="mt-4 border-border/60 border-t pt-3">
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
-						Related rival clock
-					</p>
+					<p className="text-muted-foreground text-xs">Related rival clock</p>
 					<div className="mt-2 flex flex-wrap gap-1.5">
 						{relatedRivals.map(({ name, rival }) => (
 							<span
-								className="inline-flex max-w-full items-center gap-1.5 border border-primary/25 bg-primary/5 px-1.5 py-1 font-mono text-foreground text-xs"
+								className="inline-flex max-w-full items-center gap-1.5 border border-primary/25 bg-primary/5 px-1.5 py-1 text-foreground text-xs"
 								data-rival-id={rival?.id}
 								key={name}
 							>
@@ -317,14 +311,12 @@ export function HeadlineCard({
 			) : null}
 			{headline.relatedNodeIds.length > 0 ? (
 				<div className="mt-4 border-border/60 border-t pt-3">
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
-						Related research
-					</p>
+					<p className="text-muted-foreground text-xs">Related research</p>
 					<div className="mt-2 flex flex-wrap gap-1.5">
 						{headline.relatedNodeIds.map((nodeId) => (
 							<Link
 								aria-label={`Open research node ${humanizeResearchNode(nodeId)}`}
-								className="inline-flex max-w-full items-center border border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 px-1.5 py-1 font-mono text-foreground text-xs hover:border-[var(--game-amber)]/70"
+								className="inline-flex max-w-full items-center border border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 px-1.5 py-1 text-foreground text-xs hover:border-[var(--game-amber)]/70"
 								data-research-node-id={nodeId}
 								key={nodeId}
 								search={{ node: nodeId }}
@@ -336,7 +328,7 @@ export function HeadlineCard({
 					</div>
 				</div>
 			) : null}
-			<div className="mt-4 flex items-center justify-between gap-2 border-border/60 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+			<div className="mt-4 flex items-center justify-between gap-2 border-border/60 border-t pt-2 text-muted-foreground text-xs">
 				<time>{relativeTimestamp(timestampWeek, currentWeek)}</time>
 				<span>Dispatch {String(index + 1).padStart(2, "0")}</span>
 			</div>
@@ -366,7 +358,7 @@ export function TickerToggle() {
 	return (
 		<button
 			aria-pressed={enabled}
-			className="inline-flex min-h-9 items-center gap-2 border border-border/70 bg-background/40 px-2.5 py-1.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em] hover:border-primary/50 hover:text-foreground"
+			className="inline-flex min-h-9 items-center gap-2 border border-border/70 bg-background/40 px-2.5 py-1.5 text-muted-foreground text-xs hover:border-primary/50 hover:text-foreground"
 			onClick={toggle}
 			type="button"
 		>
@@ -393,12 +385,12 @@ function readTickerPreference(): boolean {
 
 function sentimentClass(sentiment: SampleHeadline["sentiment"]): string {
 	if (sentiment === "positive") {
-		return "border-[var(--game-positive)]/40 bg-[var(--game-positive)]/10 px-1.5 py-1 font-mono text-[var(--game-positive)] text-xs uppercase";
+		return "border-[var(--game-positive)]/40 bg-[var(--game-positive)]/10 px-1.5 py-1 text-[var(--game-positive)] text-xs";
 	}
 	if (sentiment === "negative") {
-		return "border-[var(--game-negative)]/40 bg-[var(--game-negative)]/10 px-1.5 py-1 font-mono text-[var(--game-negative)] text-xs uppercase";
+		return "border-[var(--game-negative)]/40 bg-[var(--game-negative)]/10 px-1.5 py-1 text-[var(--game-negative)] text-xs";
 	}
-	return "border-border bg-muted/60 px-1.5 py-1 font-mono text-muted-foreground text-xs uppercase";
+	return "border-border bg-muted/60 px-1.5 py-1 text-muted-foreground text-xs";
 }
 
 function sentimentDotClass(sentiment: SampleHeadline["sentiment"]): string {

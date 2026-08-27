@@ -73,10 +73,10 @@ export default function FundingPanel({
 		<section aria-label="Funding" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Capital / eligibility
 					</p>
-					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<h3 className="mt-1 font-semibold text-foreground text-sm">
 						Funding path
 					</h3>
 				</div>
@@ -138,11 +138,11 @@ function RoundCard({
 	).length;
 	const locked = status === "locked";
 	return (
-		<article className="border border-border bg-background/35 p-3">
+		<article className="surface-card p-3">
 			<div className="flex items-start justify-between gap-2">
 				<div>
 					<p className="font-medium text-foreground text-sm">{info.label}</p>
-					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="mt-1 text-muted-foreground text-xs">
 						Grant ${info.grant} · {status}
 					</p>
 				</div>
@@ -162,7 +162,7 @@ function RoundCard({
 					/>
 				)}
 			</div>
-			<p className="mt-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+			<p className="mt-3 text-muted-foreground text-xs">
 				Eligibility odds: {metCount} / {entries.length} factors met
 			</p>
 			<ul

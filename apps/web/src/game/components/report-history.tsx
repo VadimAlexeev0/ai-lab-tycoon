@@ -51,10 +51,10 @@ export default function ReportHistory({
 		<section aria-label="Report history" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Reports / history
 					</p>
-					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<h3 className="mt-1 font-semibold text-foreground text-sm">
 						Trace the fact stream
 					</h3>
 				</div>
@@ -66,8 +66,8 @@ export default function ReportHistory({
 						aria-pressed={filter === candidate}
 						className={
 							filter === candidate
-								? "border border-primary bg-primary/10 px-2 py-1 font-mono text-primary text-xs uppercase tracking-[0.1em]"
-								: "border border-border/70 px-2 py-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em] hover:border-primary/50 hover:text-foreground"
+								? "border border-primary bg-primary/10 px-2 py-1 text-primary text-xs"
+								: "border border-border/70 px-2 py-1 text-muted-foreground text-xs hover:border-primary/50 hover:text-foreground"
 						}
 						key={candidate}
 						onClick={() => setFilter(candidate)}
@@ -81,15 +81,12 @@ export default function ReportHistory({
 			{filteredReports.length > 0 ? (
 				<ul className="space-y-2" aria-label={`${filter} report facts`}>
 					{filteredReports.map((report) => (
-						<li
-							className="border border-border/70 bg-background/35 px-3 py-2"
-							key={report.id}
-						>
+						<li className="surface-card px-3 py-2" key={report.id}>
 							<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-								<span className="font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]">
+								<span className="font-semibold text-foreground text-xs">
 									{report.priority} · {report.id}
 								</span>
-								<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+								<span className="text-muted-foreground text-xs">
 									Week {report.fact.week}
 								</span>
 							</div>
@@ -97,7 +94,7 @@ export default function ReportHistory({
 								{factSummary(report.fact)}
 							</p>
 							{report.acknowledged || acknowledgedIds.has(report.id) ? (
-								<p className="mt-1 font-mono text-[var(--game-positive)] text-xs uppercase tracking-[0.1em]">
+								<p className="mt-1 text-[var(--game-positive)] text-xs">
 									Acknowledged in this console
 								</p>
 							) : null}
@@ -105,7 +102,7 @@ export default function ReportHistory({
 					))}
 				</ul>
 			) : (
-				<p className="border border-border/70 bg-background/35 px-3 py-3 text-muted-foreground text-xs">
+				<p className="surface-card px-3 py-3">
 					No {filter === "all" ? "facts" : `${filter} facts`} in the report
 					history.
 				</p>

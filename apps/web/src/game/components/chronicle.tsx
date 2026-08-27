@@ -133,7 +133,7 @@ export default function Chronicle({
 	return (
 		<article
 			aria-labelledby="chronicle-surface-heading"
-			className="relative isolate overflow-hidden border border-[var(--game-amber)]/45 bg-[var(--game-amber)]/5 p-4 text-foreground shadow-[0_18px_55px_rgba(0,0,0,0.16)] sm:p-5 lg:p-7"
+			className="surface-card bg-[var(--game-amber)]/5 p-4 text-foreground shadow-black/20 shadow-lg ring-1 ring-[var(--game-amber)]/45 sm:p-5 lg:p-7"
 		>
 			<div
 				aria-hidden="true"
@@ -148,23 +148,23 @@ export default function Chronicle({
 			<header className="relative border-[var(--game-amber)]/35 border-b pb-5">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 					<div className="max-w-3xl space-y-2">
-						<div className="flex items-center gap-2 font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.2em]">
+						<div className="flex items-center gap-2 font-semibold text-[var(--game-amber)] text-xs">
 							<BookOpen className="size-4" aria-hidden="true" />
 							<span>Private manuscript / run record</span>
 						</div>
 						<h2
-							className="font-serif text-3xl leading-tight tracking-tight sm:text-4xl"
+							className="font-display font-semibold text-3xl leading-tight sm:text-4xl"
 							id="chronicle-surface-heading"
 						>
 							Company chronicle
 						</h2>
-						<p className="max-w-2xl font-serif text-sm italic leading-6 opacity-80">
+						<p className="max-w-2xl text-sm italic leading-6 opacity-80">
 							A quiet account of the choices, discoveries, and consequences that
 							shaped this run. Mechanical entries are copied from the engine
 							report history; blank weeks remain blank.
 						</p>
 					</div>
-					<div className="shrink-0 border border-[var(--game-amber)]/35 bg-background/35 px-3 py-2 font-mono text-xs uppercase tracking-[0.12em]">
+					<div className="shrink-0 border border-[var(--game-amber)]/35 bg-background/35 px-3 py-2 text-xs">
 						<p className="text-[var(--game-amber)]">Run ledger</p>
 						<p className="mt-1 font-semibold text-foreground">
 							{timeline.length} quarter{timeline.length === 1 ? "" : "s"}{" "}
@@ -184,17 +184,17 @@ export default function Chronicle({
 			>
 				<div className="flex items-end justify-between gap-3">
 					<div>
-						<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.18em]">
+						<p className="font-semibold text-[var(--game-amber)] text-xs">
 							Timeline / evidence
 						</p>
 						<h3
-							className="mt-1 font-serif text-xl tracking-tight"
+							className="mt-1 font-display font-semibold text-xl"
 							id="chronicle-timeline-heading"
 						>
 							The work as it happened
 						</h3>
 					</div>
-					<span className="font-mono text-xs uppercase tracking-[0.1em] opacity-70">
+					<span className="text-xs opacity-70">
 						{countChronicleEvents(timeline)} entries
 					</span>
 				</div>
@@ -206,12 +206,12 @@ export default function Chronicle({
 						))}
 					</div>
 				) : (
-					<div className="mt-4 border border-[var(--game-amber)]/30 border-dashed bg-background/30 px-4 py-8 text-center">
+					<div className="surface-card bg-background/30 px-4 py-8 text-center">
 						<CircleDot
 							className="mx-auto size-5 text-[var(--game-amber)]"
 							aria-hidden="true"
 						/>
-						<p className="mt-3 font-serif text-sm italic opacity-80">
+						<p className="mt-3 text-sm italic opacity-80">
 							The first page is waiting for a mechanical record.
 						</p>
 						<p className="mt-1 text-xs opacity-65">
@@ -232,12 +232,12 @@ function QuarterChapter({ quarter }: { quarter: ChronicleQuarter }) {
 		>
 			<div className="flex flex-wrap items-baseline justify-between gap-2 border-[var(--game-amber)]/25 border-b pb-2">
 				<h4
-					className="font-semibold font-serif text-lg"
+					className="font-display font-semibold text-2xl"
 					id={`chronicle-quarter-${quarter.quarter}`}
 				>
 					Chapter {romanNumeral(quarter.quarter)}
 				</h4>
-				<span className="font-mono text-xs uppercase tracking-[0.1em] opacity-65">
+				<span className="text-xs opacity-65">
 					Weeks {quarter.firstWeek}–{quarter.lastWeek}
 				</span>
 			</div>
@@ -246,7 +246,7 @@ function QuarterChapter({ quarter }: { quarter: ChronicleQuarter }) {
 					item.kind === "break" ? (
 						<li
 							aria-label={`No recorded events from week ${item.fromWeek} to week ${item.toWeek}`}
-							className="relative py-1 font-serif text-xs italic opacity-55"
+							className="relative py-1 text-xs italic opacity-55"
 							key={item.id}
 						>
 							<span className="absolute top-3 -left-[1.86rem] size-2 rounded-full border border-[var(--game-amber)]/45 bg-background sm:-left-[2.05rem]" />
@@ -280,7 +280,7 @@ function ChronicleEventRow({ event }: { event: ChronicleEvent }) {
 						: "absolute top-4 -left-[1.61rem] size-2 rounded-full bg-[var(--game-amber)] sm:-left-[1.8rem]"
 				}
 			/>
-			<article className={`border p-3 ${accent}`}>
+			<article className={`surface-card p-3 ${accent}`}>
 				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
 					<div className="flex min-w-0 items-center gap-2">
 						{event.marker === "milestone" ? (
@@ -289,18 +289,12 @@ function ChronicleEventRow({ event }: { event: ChronicleEvent }) {
 								aria-hidden="true"
 							/>
 						) : null}
-						<h5 className="font-semibold font-serif text-sm">{event.title}</h5>
+						<h5 className="font-semibold text-sm">{event.title}</h5>
 					</div>
-					<span className="shrink-0 font-mono text-xs uppercase tracking-[0.08em] opacity-65">
-						Week {event.week}
-					</span>
+					<span className="shrink-0 text-xs opacity-65">Week {event.week}</span>
 				</div>
-				<p className="mt-1 font-serif text-sm leading-6 opacity-85">
-					{event.detail}
-				</p>
-				<p className="mt-2 font-mono text-xs uppercase tracking-[0.1em] opacity-55">
-					{event.source}
-				</p>
+				<p className="mt-1 text-sm leading-6 opacity-85">{event.detail}</p>
+				<p className="mt-2 text-xs opacity-55">{event.source}</p>
 			</article>
 		</li>
 	);
@@ -318,12 +312,8 @@ function DeathCertificate({
 	return (
 		<aside
 			aria-label="Death certificate"
-			className="relative mt-5 overflow-hidden border border-[var(--game-negative)]/50 bg-[var(--game-negative)]/8 p-4 sm:p-5"
+			className="surface-card bg-[var(--game-negative)]/8 p-4 ring-1 ring-[var(--game-negative)]/50 sm:p-5"
 		>
-			<div
-				aria-hidden="true"
-				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--game-negative)]/80 via-[var(--game-negative)]/20 to-transparent"
-			/>
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start">
 				<img
 					alt=""
@@ -333,22 +323,24 @@ function DeathCertificate({
 				/>
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.18em]">
+						<p className="font-semibold text-[var(--game-negative)] text-xs">
 							Death certificate
 						</p>
 						{certificate.preview ? (
-							<span className="border border-[var(--game-amber)]/55 px-2 py-1 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em]">
+							<span className="border border-[var(--game-amber)]/55 px-2 py-1 text-[var(--game-amber)] text-xs">
 								Debug preview
 							</span>
 						) : null}
 					</div>
-					<h3 className="mt-1 font-serif text-2xl">Run closed</h3>
-					<p className="mt-2 font-serif text-sm leading-6 opacity-85">
+					<h3 className="mt-1 font-display font-semibold text-2xl">
+						Run closed
+					</h3>
+					<p className="mt-2 text-sm leading-6 opacity-85">
 						Cause: <strong>{cause}</strong>. The certificate reads the terminal
 						projection and does not alter the saved run.
 					</p>
 					{certificate.contributorKinds.length > 0 ? (
-						<p className="mt-2 font-mono text-xs uppercase tracking-[0.1em] opacity-65">
+						<p className="mt-2 text-xs opacity-65">
 							Contributors:{" "}
 							{certificate.contributorKinds.map(humanize).join(" · ")}
 						</p>
@@ -361,7 +353,7 @@ function DeathCertificate({
 						className="size-3.5 text-[var(--game-negative)]"
 						aria-hidden="true"
 					/>
-					<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">
+					<p className="font-semibold text-[var(--game-negative)] text-xs">
 						What-if forks
 					</p>
 				</div>
@@ -369,15 +361,13 @@ function DeathCertificate({
 					{WHAT_IF_OPTIONS.map((option) => (
 						<button
 							aria-disabled="true"
-							className="min-h-16 cursor-not-allowed border border-[var(--game-negative)]/30 bg-background/20 px-3 py-2 text-left font-serif text-sm opacity-55 grayscale"
+							className="min-h-16 cursor-not-allowed border border-[var(--game-negative)]/30 bg-background/20 px-3 py-2 text-left text-sm opacity-55 grayscale"
 							data-placeholder-disabled="true"
 							key={option}
 							onClick={() => toast("Replay forks ship later")}
 							type="button"
 						>
-							<span className="block font-mono text-xs uppercase tracking-[0.1em]">
-								{option}
-							</span>
+							<span className="block text-xs">{option}</span>
 							<span className="mt-1 block text-xs italic opacity-80">
 								Replay forks ship later
 							</span>

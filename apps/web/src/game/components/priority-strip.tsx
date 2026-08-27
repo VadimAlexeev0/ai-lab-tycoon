@@ -82,10 +82,10 @@ export default function PriorityStrip({
 	return (
 		<section
 			aria-label="Priority action"
-			className="mt-3 flex min-w-0 items-center gap-2 border border-primary/35 bg-primary/5 px-2.5 py-2"
+			className="surface-card mt-3 flex min-w-0 items-center gap-2 bg-primary/5 px-2.5 py-2 ring-1 ring-primary/35"
 		>
 			<div className="flex min-w-0 flex-1 items-center gap-2">
-				<span className="shrink-0 font-mono font-semibold text-primary text-xs uppercase tracking-[0.12em]">
+				<span className="shrink-0 font-semibold text-primary text-xs">
 					Priority
 				</span>
 				<p className="min-w-0 truncate text-muted-foreground text-xs">
@@ -114,7 +114,7 @@ function PriorityControl({
 	onResolveDecision: (decisionId: string) => void;
 }) {
 	const className =
-		"inline-flex h-7 shrink-0 items-center gap-1 border border-primary bg-primary px-2 font-mono font-semibold text-primary-foreground text-xs uppercase tracking-[0.06em] transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+		"inline-flex h-7 shrink-0 items-center gap-1 border border-primary bg-primary px-2 font-semibold text-primary-foreground text-xs transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 
 	switch (action.kind) {
 		case "resolve_decision":
@@ -147,7 +147,7 @@ function PriorityControl({
 		case "advance_week":
 			return (
 				<Button
-					className="h-7 px-2 font-mono font-semibold text-xs uppercase tracking-[0.06em]"
+					className="h-7 px-2 font-semibold text-xs"
 					disabled={disabled}
 					onClick={onAdvance}
 					size="sm"

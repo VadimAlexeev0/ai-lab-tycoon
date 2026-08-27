@@ -32,7 +32,7 @@ export default function ProjectPicker({
 
 	if (availableProjects.length === 0) {
 		return (
-			<p className="border border-border/70 bg-background/40 px-3 py-2 text-muted-foreground text-xs leading-5">
+			<p className="surface-card bg-background/40 px-3 py-2 text-muted-foreground text-xs leading-5">
 				No projects are ready for assignment. Advance the week to reveal the
 				next research action.
 			</p>
@@ -43,7 +43,7 @@ export default function ProjectPicker({
 		<div className="flex flex-col gap-2 border-border/70 border-t pt-3 sm:flex-row sm:items-end">
 			<div className="min-w-0 flex-1 space-y-1.5">
 				<label
-					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
+					className="font-semibold text-muted-foreground text-xs"
 					htmlFor={selectId}
 				>
 					Assign a project

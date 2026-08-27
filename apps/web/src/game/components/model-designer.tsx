@@ -233,14 +233,12 @@ export default function ModelDesigner({
 		<section aria-label="Model designer" className="space-y-4">
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
-						Model workbench
-					</p>
-					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<p className="font-semibold text-primary text-xs">Model workbench</p>
+					<h3 className="mt-1 font-semibold text-foreground text-sm">
 						Design a training run
 					</h3>
 				</div>
-				<div className="flex items-center gap-1.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
 					<WandSparkles className="size-3.5 text-primary" aria-hidden="true" />
 					Step {step} / 3
 				</div>
@@ -251,8 +249,8 @@ export default function ModelDesigner({
 					<div
 						className={
 							index + 1 <= step
-								? "border border-primary/40 bg-primary/10 px-2 py-1.5 font-mono text-primary text-xs uppercase tracking-[0.1em]"
-								: "border border-border/70 px-2 py-1.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]"
+								? "border border-primary/40 bg-primary/10 px-2 py-1.5 text-primary text-xs"
+								: "border border-border/70 px-2 py-1.5 text-muted-foreground text-xs"
 						}
 						key={label}
 					>
@@ -324,10 +322,10 @@ export default function ModelDesigner({
 
 				{validation.length > 0 ? (
 					<div
-						className="border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-3 py-2"
+						className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 ring-1 ring-[var(--game-amber)]/50"
 						role="status"
 					>
-						<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]">
+						<p className="font-semibold text-[var(--game-amber)] text-xs">
 							Cannot continue yet
 						</p>
 						<ul className="mt-1 list-inside list-disc text-muted-foreground text-xs leading-5">
@@ -436,7 +434,7 @@ function BasicsStep({
 			</div>
 
 			<div className="space-y-2">
-				<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
+				<p className="font-semibold text-muted-foreground text-xs">
 					Model family
 				</p>
 				<div className="grid gap-2 md:grid-cols-3">
@@ -448,8 +446,8 @@ function BasicsStep({
 								aria-pressed={family === candidate}
 								className={
 									family === candidate
-										? "border border-primary bg-primary/10 p-3 text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
-										: "border border-border/70 bg-background/35 p-3 text-left outline-none hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-ring"
+										? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+										: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 								}
 								disabled={!available}
 								key={candidate}
@@ -461,11 +459,9 @@ function BasicsStep({
 										{info.label}
 									</strong>
 									{available ? (
-										<span className="font-mono text-primary text-xs uppercase">
-											Available
-										</span>
+										<span className="text-primary text-xs">Available</span>
 									) : (
-										<span className="flex items-center gap-1 font-mono text-muted-foreground text-xs uppercase">
+										<span className="flex items-center gap-1 text-muted-foreground text-xs">
 											<Lock className="size-3" aria-hidden="true" />
 											Locked
 										</span>
@@ -476,7 +472,7 @@ function BasicsStep({
 										? info.description
 										: `Requires completed ${info.researchNode} research.`}
 								</span>
-								<span className="mt-2 block font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+								<span className="mt-2 block text-muted-foreground text-xs">
 									{info.era} era · min {info.requirements.general}/
 									{info.requirements.code}/{info.requirements.multimodal} data
 								</span>
@@ -493,7 +489,7 @@ function BasicsStep({
 			</div>
 
 			<div className="space-y-2">
-				<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
+				<p className="font-semibold text-muted-foreground text-xs">
 					Foundation / inheritance tradeoff
 				</p>
 				<div className="grid gap-2 md:grid-cols-3">
@@ -507,8 +503,8 @@ function BasicsStep({
 									aria-pressed={foundation === candidate}
 									className={
 										foundation === candidate
-											? "border border-primary bg-primary/10 p-3 text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
-											: "border border-border/70 bg-background/35 p-3 text-left outline-none hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-ring"
+											? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+											: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 									}
 									disabled={!available}
 									key={candidate}
@@ -519,7 +515,7 @@ function BasicsStep({
 										<strong className="font-medium text-foreground text-xs">
 											{info.label}
 										</strong>
-										<span className="font-mono text-muted-foreground text-xs uppercase">
+										<span className="text-muted-foreground text-xs">
 											+${info.cost} · +{info.duration} wk
 										</span>
 									</span>
@@ -528,7 +524,7 @@ function BasicsStep({
 											? info.description
 											: "Unavailable — no compatible scored parent yet."}
 									</span>
-									<span className="mt-2 block font-mono text-primary text-xs uppercase tracking-[0.08em]">
+									<span className="mt-2 block text-primary text-xs">
 										{info.floor === 0
 											? "No inherited floor"
 											: `${info.floor}% inherited floor`}
@@ -613,7 +609,7 @@ function ReviewStep({
 	return (
 		<div className="space-y-4">
 			<div className="space-y-2">
-				<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
+				<p className="font-semibold text-muted-foreground text-xs">
 					Compute tier forecast
 				</p>
 				<div className="grid gap-2 md:grid-cols-3">
@@ -624,8 +620,8 @@ function ReviewStep({
 								aria-pressed={tier === candidate}
 								className={
 									tier === candidate
-										? "border border-primary bg-primary/10 p-3 text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
-										: "border border-border/70 bg-background/35 p-3 text-left outline-none hover:border-primary/50 focus-visible:ring-1 focus-visible:ring-ring"
+										? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+										: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 								}
 								key={candidate}
 								onClick={() => onTierChange(candidate)}
@@ -634,7 +630,7 @@ function ReviewStep({
 								<strong className="font-medium text-foreground text-xs">
 									{info.label}
 								</strong>
-								<span className="mt-1 block font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+								<span className="mt-1 block text-muted-foreground text-xs">
 									${info.cost} · {info.duration} wk · {info.compute} compute
 								</span>
 								<span className="mt-1 block text-muted-foreground text-xs">
@@ -674,10 +670,8 @@ function ReviewStep({
 function Forecast({ label, value }: { label: string; value: string }) {
 	return (
 		<div>
-			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
-				{label}
-			</p>
-			<p className="mt-1 truncate font-mono font-semibold text-foreground text-xs">
+			<p className="text-muted-foreground text-xs">{label}</p>
+			<p className="mt-1 truncate font-semibold text-foreground text-xs">
 				{value}
 			</p>
 		</div>

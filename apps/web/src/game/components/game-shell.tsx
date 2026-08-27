@@ -228,17 +228,17 @@ export default function GameShell({
 			>
 				{liveAnnouncement}
 			</div>
-			<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-5 px-4 py-5 sm:px-6 lg:gap-6 lg:px-8 lg:py-7">
+			<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
 				<header className="flex flex-col gap-5 border-border/70 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
 					<div className="space-y-2">
-						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.28em]">
+						<p className="meta-label text-primary">
 							Operations / command console
 						</p>
 						<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-							<h1 className="font-mono font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
+							<h1 className="font-display font-semibold text-3xl text-foreground sm:text-4xl">
 								AI Startup Lab Tycoon
 							</h1>
-							<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.2em]">
+							<span className="text-muted-foreground text-xs">
 								V1 / deterministic sandbox
 							</span>
 						</div>
@@ -250,7 +250,7 @@ export default function GameShell({
 					</div>
 
 					<div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 self-start lg:self-end">
-						<div className="flex min-w-0 max-w-full items-center gap-2 rounded-none border border-border bg-card px-3 py-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.16em]">
+						<div className="surface-card meta-label flex min-w-0 max-w-full items-center gap-2 px-3 py-2 text-muted-foreground">
 							<span
 								className={cn(
 									"size-2 rounded-full",
@@ -268,7 +268,7 @@ export default function GameShell({
 							<EraBadge era={gameState.research.currentEra} size="compact" />
 						) : null}
 						{hasActiveRun && week !== undefined ? (
-							<div className="border border-primary/35 bg-primary/10 px-3 py-2 font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
+							<div className="surface-card bg-primary/10 px-3 py-2 text-primary ring-1 ring-primary/35">
 								Week {week}
 							</div>
 						) : null}
@@ -276,7 +276,7 @@ export default function GameShell({
 				</header>
 
 				{hasActiveRun && companyName ? (
-					<div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border border-border/70 bg-card/60 px-3 py-2.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.14em]">
+					<div className="surface-card flex min-w-0 flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-muted-foreground text-xs">
 						<span className="min-w-0 break-words">
 							Company <strong className="text-foreground">{companyName}</strong>
 						</span>
@@ -298,16 +298,16 @@ export default function GameShell({
 								tabIndex={-1}
 								aria-live="assertive"
 								aria-label="Required decision"
-								className="flex scroll-mt-6 flex-col gap-2 border border-[var(--game-amber)]/60 bg-[var(--game-amber)]/10 px-4 py-3 outline-none focus-visible:ring-1 focus-visible:ring-[var(--game-amber)]"
+								className="surface-card flex scroll-mt-6 flex-col gap-2 bg-[var(--game-amber)]/10 px-4 py-3 outline-none ring-1 ring-[var(--game-amber)]/60 focus-visible:ring-2 focus-visible:ring-[var(--game-amber)]"
 							>
-								<div className="flex items-center gap-2 font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.2em]">
+								<div className="flex items-center gap-2 font-semibold text-[var(--game-amber)] text-xs">
 									<Radio className="size-3.5" aria-hidden="true" />
 									<h2>Decision required</h2>
 								</div>
 								<p className="font-medium text-foreground text-sm">
 									Resolve the highlighted decision before advancing the week.
 								</p>
-								<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+								<p className="text-muted-foreground text-xs">
 									Queue reference: {blockingDecisionId}
 								</p>
 							</section>
@@ -379,14 +379,14 @@ function SessionLoadingState() {
 	return (
 		<section
 			aria-live="polite"
-			className="flex min-h-48 flex-col items-center justify-center gap-3 border border-border bg-card/70 px-6 text-center"
+			className="surface-card flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
 		>
 			<Loader2
 				className="size-5 animate-spin text-primary"
 				aria-hidden="true"
 			/>
 			<div>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Establishing anonymous session
 				</h2>
 				<p className="mt-1 text-muted-foreground text-sm">
@@ -407,14 +407,14 @@ function SessionErrorState({
 	return (
 		<section
 			role="alert"
-			className="flex min-h-48 flex-col items-center justify-center gap-4 border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 px-6 text-center"
+			className="surface-card flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
 		>
 			<AlertCircle
 				className="size-5 text-[var(--game-negative)]"
 				aria-hidden="true"
 			/>
 			<div>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Session unavailable
 				</h2>
 				<p className="mt-1 max-w-lg text-muted-foreground text-sm leading-6">
@@ -592,7 +592,7 @@ function DashboardPanels({
 			</h2>
 			{actionError ? (
 				<div
-					className="mb-3 flex items-start gap-2 border border-[var(--game-negative)]/50 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5"
+					className="surface-card mb-3 flex items-start gap-2 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5 ring-1 ring-[var(--game-negative)]/50"
 					role="alert"
 				>
 					<AlertCircle
@@ -603,7 +603,7 @@ function DashboardPanels({
 					{conflictRecord !== null ? (
 						<button
 							type="button"
-							className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-xs uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
+							className="shrink-0 border border-[var(--game-negative)] px-2 py-1 text-xs hover:bg-[var(--game-negative)]/20"
 							onClick={() => {
 								onAdoptConflictRecord(conflictRecord);
 							}}
@@ -618,7 +618,7 @@ function DashboardPanels({
 				role="tablist"
 				aria-label="Operations modules"
 				aria-orientation="horizontal"
-				className="flex gap-1 overflow-x-auto border-border/70 border-y py-1 lg:hidden"
+				className="flex gap-1 overflow-x-auto rounded-lg bg-card/40 p-1 lg:hidden"
 			>
 				{PANELS.map((panel, index) => (
 					<button
@@ -635,7 +635,7 @@ function DashboardPanels({
 							panelTabRefs.current[panel.id] = element;
 						}}
 						className={cn(
-							"flex min-h-9 shrink-0 items-center gap-2 px-2.5 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]",
+							"flex min-h-9 shrink-0 items-center gap-2 px-2.5 font-semibold text-muted-foreground text-xs",
 							activePanel === panel.id
 								? "bg-primary text-primary-foreground"
 								: "hover:bg-muted hover:text-foreground",
@@ -682,7 +682,7 @@ function PanelCard({
 			id={id}
 			role="tabpanel"
 			className={cn(
-				"group relative flex min-h-52 min-w-0 flex-col overflow-hidden border border-border bg-card p-4 lg:min-h-36",
+				"group surface-card relative flex min-h-52 min-w-0 flex-col overflow-hidden p-4 lg:min-h-36",
 				className,
 			)}
 		>
@@ -699,18 +699,12 @@ function PanelCard({
 					/>
 				</div>
 			) : null}
-			<div
-				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/70 via-primary/10 to-transparent"
-				aria-hidden="true"
-			/>
 			<div className="relative z-10 flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
-						{panel.status}
-					</p>
+					<p className="font-semibold text-primary text-xs">{panel.status}</p>
 					<h2
 						id={`panel-heading-${panel.id}`}
-						className="mt-2 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-2 font-semibold text-foreground text-sm"
 					>
 						{panel.label}
 					</h2>
@@ -759,7 +753,7 @@ function OverviewPanel({ state }: { state: GameState }) {
 				<Metric label="Trust" value={`${visible.resourceBar.trust}`} />
 				<Metric label="Hype" value={`${visible.resourceBar.hype}`} />
 			</div>
-			<div className="flex flex-wrap gap-x-4 gap-y-1 border-border/70 border-t pt-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+			<div className="flex flex-wrap gap-x-4 gap-y-1 border-border/70 border-t pt-3 text-muted-foreground text-xs">
 				<span>Era {state.meta.era}</span>
 				<span>Teams {visible.teams.length}</span>
 				<span>Models {visible.models.length}</span>
@@ -772,12 +766,8 @@ function OverviewPanel({ state }: { state: GameState }) {
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="border border-border/70 bg-background/35 px-2.5 py-2">
-			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
-				{label}
-			</p>
-			<p className="mt-1 font-mono font-semibold text-foreground text-sm">
-				{value}
-			</p>
+			<p className="text-muted-foreground text-xs">{label}</p>
+			<p className="mt-1 font-semibold text-foreground text-sm">{value}</p>
 		</div>
 	);
 }

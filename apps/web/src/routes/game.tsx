@@ -170,17 +170,17 @@ function GameLayout() {
 				>
 					{isActive ? liveAnnouncement : ""}
 				</div>
-				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-4 px-4 py-4 pb-24 sm:gap-5 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
+				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
 					<header className="flex flex-col gap-3 border-border/70 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="min-w-0 space-y-1.5">
-							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.28em]">
+							<p className="meta-label text-primary">
 								Operations / command console
 							</p>
 							<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-								<h1 className="font-mono font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
+								<h1 className="font-display font-semibold text-3xl text-foreground sm:text-4xl">
 									AI Startup Lab Tycoon
 								</h1>
-								<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.2em]">
+								<span className="text-muted-foreground text-xs">
 									V1 / deterministic sandbox
 								</span>
 							</div>
@@ -234,16 +234,14 @@ function GameLayout() {
 						<>
 							<div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.38fr)]">
 								<ResourceBar state={state} />
-								<div className="flex min-w-0 items-center justify-between gap-3 border border-primary/35 bg-primary/10 px-3 py-2">
+								<div className="surface-card flex min-w-0 items-center justify-between gap-3 bg-primary/10 px-3 py-2 ring-1 ring-primary/35">
 									<div className="min-w-0">
-										<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.18em]">
-											Current week
-										</p>
-										<p className="mt-1 font-mono font-semibold text-foreground text-lg leading-none">
+										<p className="meta-label text-primary">Current week</p>
+										<p className="numeric-value mt-1 font-semibold text-foreground text-lg leading-none">
 											Week {state.meta.week}
 										</p>
 									</div>
-									<span className="hidden font-mono text-muted-foreground text-xs uppercase tracking-[0.12em] sm:block">
+									<span className="hidden text-muted-foreground text-xs sm:block">
 										Era {state.meta.era}
 									</span>
 								</div>
@@ -394,7 +392,7 @@ function Navigation() {
 		<div className="hidden min-w-0 lg:block">
 			<nav
 				aria-label="Desktop game destinations"
-				className="flex min-w-0 items-center gap-1 overflow-x-auto border-border/70 border-y py-1"
+				className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-lg bg-card/40 p-1"
 			>
 				{DESTINATIONS.map((destination) => {
 					const active = isDestinationActive(location.pathname, destination.to);
@@ -403,7 +401,7 @@ function Navigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-9 shrink-0 items-center gap-2 px-3 font-mono font-semibold text-xs uppercase tracking-[0.12em]",
+								"flex min-h-9 shrink-0 items-center gap-2 px-3 font-semibold text-xs",
 								active
 									? "bg-primary text-primary-foreground"
 									: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -419,9 +417,9 @@ function Navigation() {
 			</nav>
 			<nav
 				aria-label="Archive destinations"
-				className="mt-2 flex min-w-0 items-center gap-1 overflow-x-auto border-border/50 border-b border-dashed pb-1"
+				className="mt-2 flex min-w-0 items-center gap-1 overflow-x-auto rounded-lg bg-card/30 p-1"
 			>
-				<div className="flex shrink-0 items-center gap-1.5 px-2 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+				<div className="flex shrink-0 items-center gap-1.5 px-2 font-semibold text-muted-foreground text-xs">
 					<Archive className="size-3.5" aria-hidden="true" />
 					<span>Archive</span>
 				</div>
@@ -432,7 +430,7 @@ function Navigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-8 shrink-0 items-center gap-1.5 px-2 font-mono text-xs uppercase tracking-[0.1em]",
+								"flex min-h-8 shrink-0 items-center gap-1.5 px-2 text-xs",
 								active
 									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
 									: "text-muted-foreground/80 hover:bg-muted hover:text-foreground",
@@ -444,7 +442,7 @@ function Navigation() {
 							{destination.to === "/game/notebook"
 								? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
 								: destination.label}
-							<span className="border border-[var(--game-amber)]/50 px-1 py-0.5 font-mono text-[10px] text-[var(--game-amber)] leading-none">
+							<span className="border border-[var(--game-amber)]/50 px-1 py-0.5 text-[10px] text-[var(--game-amber)] leading-none">
 								Preview
 							</span>
 						</Link>
@@ -474,7 +472,7 @@ function MobileNavigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-11 min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
+								"flex min-h-11 min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-xs",
 								active
 									? "bg-primary text-primary-foreground"
 									: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -493,7 +491,7 @@ function MobileNavigation() {
 					aria-hidden="true"
 					className="mx-1 my-1 w-px shrink-0 bg-border/70"
 				/>
-				<div className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.04em]">
+				<div className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-muted-foreground text-xs">
 					<Archive className="size-4" aria-hidden="true" />
 					<span>Archive</span>
 				</div>
@@ -504,7 +502,7 @@ function MobileNavigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-11 min-w-[5.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
+								"flex min-h-11 min-w-[5.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-xs",
 								active
 									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
 									: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -518,9 +516,7 @@ function MobileNavigation() {
 									? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
 									: destination.shortLabel}
 							</span>
-							<span className="font-mono text-[10px] leading-none">
-								Preview
-							</span>
+							<span className="text-[10px] leading-none">Preview</span>
 						</Link>
 					);
 				})}
@@ -621,7 +617,7 @@ function SessionBadge({
 	status: "loading" | "ready" | "error";
 }) {
 	return (
-		<div className="flex min-w-0 max-w-full items-center gap-2 border border-border bg-card px-3 py-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.16em]">
+		<div className="surface-card meta-label flex min-w-0 max-w-full items-center gap-2 px-3 py-2 text-muted-foreground">
 			<span
 				aria-hidden="true"
 				className={cn(
@@ -654,14 +650,14 @@ function ActionFeedback({
 	if (actionError === null) return null;
 	return (
 		<div
-			className="flex flex-wrap items-start gap-2 border border-[var(--game-negative)]/50 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5"
+			className="surface-card flex flex-wrap items-start gap-2 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5 ring-1 ring-[var(--game-negative)]/50"
 			role="alert"
 		>
 			<AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
 			<span className="min-w-0 flex-1">{actionError}</span>
 			{conflictRecord !== null ? (
 				<button
-					className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-xs uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
+					className="shrink-0 border border-[var(--game-negative)] px-2 py-1 text-xs hover:bg-[var(--game-negative)]/20"
 					onClick={() => onAdopt(conflictRecord)}
 					type="button"
 				>
@@ -686,13 +682,13 @@ function GameRouteState() {
 		return (
 			<section
 				aria-live="polite"
-				className="flex min-h-48 flex-col items-center justify-center gap-3 border border-border bg-card/70 px-6 text-center"
+				className="surface-card flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
 			>
 				<Loader2
 					className="size-5 animate-spin text-primary"
 					aria-hidden="true"
 				/>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Establishing anonymous session
 				</h2>
 			</section>
@@ -702,13 +698,13 @@ function GameRouteState() {
 		return (
 			<section
 				role="alert"
-				className="flex min-h-48 flex-col items-center justify-center gap-4 border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 px-6 text-center"
+				className="surface-card flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
 			>
 				<AlertCircle
 					className="size-5 text-[var(--game-negative)]"
 					aria-hidden="true"
 				/>
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.16em]">
+				<h2 className="font-semibold text-foreground text-sm">
 					Session unavailable
 				</h2>
 				<p className="max-w-lg text-muted-foreground text-sm leading-6">
@@ -725,14 +721,14 @@ function GameRouteState() {
 		return (
 			<section
 				aria-live="polite"
-				className="flex min-h-32 items-center gap-3 border border-border bg-card/70 px-4"
+				className="surface-card flex min-h-32 items-center gap-3 px-4"
 			>
 				<Loader2
 					className="size-4 animate-spin text-primary"
 					aria-hidden="true"
 				/>
 				<div>
-					<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]">
+					<h2 className="font-semibold text-foreground text-sm">
 						Reading autosave
 					</h2>
 					<p className="mt-1 text-muted-foreground text-sm">
@@ -746,14 +742,14 @@ function GameRouteState() {
 		return (
 			<section
 				role="alert"
-				className="flex min-h-32 flex-col items-start gap-3 border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 px-4 py-4 sm:flex-row sm:items-center"
+				className="surface-card flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
 			>
 				<AlertCircle
 					className="size-5 shrink-0 text-[var(--game-negative)]"
 					aria-hidden="true"
 				/>
 				<div className="min-w-0 flex-1">
-					<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]">
+					<h2 className="font-semibold text-foreground text-sm">
 						Autosave unavailable
 					</h2>
 					<p className="mt-1 text-muted-foreground text-sm leading-6">
@@ -773,19 +769,17 @@ function GameRouteState() {
 		);
 	}
 	return (
-		<section className="border border-border bg-card/70 px-4 py-5">
+		<section className="surface-card px-4 py-5">
 			<div className="flex items-center gap-2">
 				<Settings2 className="size-4 text-primary" aria-hidden="true" />
-				<h2 className="font-mono font-semibold text-foreground text-sm uppercase tracking-[0.12em]">
-					No active run
-				</h2>
+				<h2 className="font-semibold text-foreground text-sm">No active run</h2>
 			</div>
 			<p className="mt-2 max-w-xl text-muted-foreground text-sm leading-6">
 				Start or resume a run from the command center before entering a game
 				module.
 			</p>
 			<Link
-				className="mt-4 inline-flex min-h-11 items-center gap-2 border border-primary bg-primary px-3 py-2 font-mono font-semibold text-primary-foreground text-xs uppercase tracking-[0.1em]"
+				className="mt-4 inline-flex min-h-11 items-center gap-2 border border-primary bg-primary px-3 py-2 font-semibold text-primary-foreground text-xs"
 				to="/"
 			>
 				<ArrowRight className="size-3.5" aria-hidden="true" />
@@ -876,7 +870,7 @@ function EvaluationDecision({
 					aria-hidden="true"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.14em]">
+					<p className="font-semibold text-[var(--game-amber)] text-xs">
 						Evaluation decision required
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">
@@ -934,9 +928,7 @@ function FundingDecision({
 					aria-hidden="true"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.14em]">
-						Funding offer
-					</p>
+					<p className="font-semibold text-primary text-xs">Funding offer</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">{label}</h3>
 					<p className="mt-1 text-muted-foreground text-xs leading-5">
 						This offer is non-blocking. Accepting adds the round's grant;

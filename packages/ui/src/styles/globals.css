@@ -372,8 +372,9 @@
 }
 
 @theme inline {
-	--font-sans: "Inter Variable", sans-serif;
-	--font-display: "Chakra Petch", "Space Grotesk", "Inter Variable", sans-serif;
+	--font-sans: "Inter Variable", "Inter", sans-serif;
+	--font-display:
+		"Space Grotesk Variable", "Space Grotesk", "Inter Variable", sans-serif;
 	--font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 	--color-navy: var(--game-navy);
 	--color-cyan: var(--game-cyan);
@@ -434,18 +435,12 @@
 		@apply bg-background font-sans text-foreground;
 		background-attachment: fixed;
 		background-color: var(--background);
-		background-image:
-			radial-gradient(ellipse at 50% 0%, var(--game-horizon), transparent 62%),
-			repeating-linear-gradient(
-				135deg,
-				var(--game-grid) 0,
-				var(--game-grid) 1px,
-				transparent 1px,
-				transparent 7px
-			);
-		background-size:
-			100% 100%,
-			auto;
+		background-image: radial-gradient(
+			ellipse at 50% 0%,
+			var(--game-horizon),
+			transparent 62%
+		);
+		background-size: 100% 100%;
 		overflow-x: clip;
 	}
 
@@ -476,6 +471,20 @@
 
 	.game-shell :is(input[type="range"]) {
 		min-height: 2.75rem;
+	}
+}
+
+@layer components {
+	.surface-card {
+		@apply rounded-xl border-0 bg-card/60 shadow-lg shadow-black/20 ring-1 ring-white/5;
+	}
+
+	.meta-label {
+		@apply font-mono text-[0.6875rem] font-medium uppercase tracking-[0.08em];
+	}
+
+	.numeric-value {
+		@apply font-mono tabular-nums;
 	}
 }
 

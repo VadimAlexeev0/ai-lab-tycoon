@@ -1,3 +1,6 @@
+import "@fontsource-variable/inter";
+import "@fontsource-variable/space-grotesk";
+
 import { Toaster } from "@ai-lab-tycoon/ui/components/sonner";
 import {
 	THEME_INIT_SCRIPT,

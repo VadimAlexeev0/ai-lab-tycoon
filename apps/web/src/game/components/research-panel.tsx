@@ -25,17 +25,17 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 		<section aria-labelledby="research-panel-heading" className="space-y-4">
 			<div className="flex flex-wrap items-end justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Research / frontier
 					</p>
 					<h2
 						id="research-panel-heading"
-						className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-1 font-semibold text-foreground text-sm"
 					>
 						Choose the next unlock
 					</h2>
 				</div>
-				<span className="border border-primary/30 bg-primary/5 px-2 py-1 font-mono text-primary text-xs uppercase tracking-[0.12em]">
+				<span className="border border-primary/30 bg-primary/5 px-2 py-1 text-primary text-xs">
 					Era: {state.research.currentEra}
 				</span>
 			</div>
@@ -59,7 +59,7 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 					);
 				})}
 			</ul>
-			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+			<p className="text-muted-foreground text-xs">
 				Select a research project from an idle team to spend Insight and advance
 				this catalogue.
 			</p>
@@ -103,11 +103,11 @@ function ResearchCard({
 	return (
 		<article
 			aria-label={`${humanize(source.id)} research node`}
-			className="flex min-h-52 flex-col border border-border bg-background/35 p-3"
+			className="surface-card flex min-h-52 flex-col bg-background/35 p-3"
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0">
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+					<p className="text-muted-foreground text-xs">
 						{humanize(source.branch)}
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm leading-5">
@@ -117,7 +117,7 @@ function ResearchCard({
 				<StatusBadge status={status} />
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-y py-2 font-mono text-xs uppercase tracking-[0.1em]">
+			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-y py-2 text-xs">
 				<span className="text-muted-foreground">
 					Era <strong className="ml-1 text-foreground">{source.era}</strong>
 				</span>
@@ -167,7 +167,7 @@ function StatusBadge({ status }: { status: VisibleResearchNode["status"] }) {
 	const Icon = content.icon;
 	return (
 		<span
-			className={`inline-flex shrink-0 items-center gap-1 border border-border/70 px-2 py-1 font-mono font-semibold text-xs uppercase tracking-[0.1em] ${content.className}`}
+			className={`inline-flex shrink-0 items-center gap-1 border border-border/70 px-2 py-1 font-semibold text-xs ${content.className}`}
 		>
 			<Icon className="size-3" aria-hidden="true" />
 			{content.label}

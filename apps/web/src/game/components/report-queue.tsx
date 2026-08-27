@@ -54,10 +54,8 @@ export default function ReportQueue({
 		<section aria-label="Report queue" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
-						Reports / queue
-					</p>
-					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<p className="font-semibold text-primary text-xs">Reports / queue</p>
+					<h3 className="mt-1 font-semibold text-foreground text-sm">
 						Current mechanical facts
 					</h3>
 				</div>
@@ -79,20 +77,20 @@ export default function ReportQueue({
 					))}
 				</div>
 			) : (
-				<div className="border border-[var(--game-positive)]/30 bg-[var(--game-positive)]/5 px-3 py-3">
+				<div className="surface-card px-3 py-3">
 					<div className="flex items-center gap-2">
 						<Info
 							className="size-3.5 text-[var(--game-positive)]"
 							aria-hidden="true"
 						/>
-						<p className="font-mono font-semibold text-foreground text-xs uppercase tracking-[0.12em]">
+						<p className="font-semibold text-foreground text-xs">
 							No unacknowledged reports
 						</p>
 					</div>
 				</div>
 			)}
 			{remaining > 0 ? (
-				<p className="font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]">
+				<p className="text-[var(--game-amber)] text-xs">
 					{remaining} more report{remaining === 1 ? "" : "s"} remain in order.
 				</p>
 			) : null}
@@ -114,10 +112,10 @@ function QueueReport({
 		<article
 			className={
 				blocking
-					? "border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
+					? "surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 					: important
-						? "border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 p-3"
-						: "border border-border/70 bg-background/35 p-3"
+						? "surface-card bg-[var(--game-amber)]/10 p-3 ring-1 ring-[var(--game-amber)]/50"
+						: "surface-card p-3"
 			}
 		>
 			<div className="flex items-start gap-2">
@@ -141,17 +139,15 @@ function QueueReport({
 				)}
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center justify-between gap-2">
-						<p className="font-mono font-semibold text-foreground text-xs uppercase tracking-[0.12em]">
+						<p className="font-semibold text-foreground text-xs">
 							{report.priority}
 						</p>
-						<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
-							{report.id}
-						</span>
+						<span className="text-muted-foreground text-xs">{report.id}</span>
 					</div>
 					<p className="mt-1 text-foreground text-xs leading-5">
 						{factSummary(report.fact)}
 					</p>
-					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="mt-1 text-muted-foreground text-xs">
 						Week {report.fact.week}
 					</p>
 				</div>
@@ -169,7 +165,7 @@ function QueueReport({
 				</Button>
 			) : null}
 			{important ? (
-				<p className="mt-2 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em]">
+				<p className="mt-2 text-[var(--game-amber)] text-xs">
 					Important fact · inspect history for detail
 				</p>
 			) : null}

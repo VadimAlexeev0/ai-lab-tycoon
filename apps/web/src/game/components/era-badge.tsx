@@ -62,7 +62,7 @@ export default function EraBadge({
 		<span
 			aria-label={`${ERA_LABELS[era]}${progressLabel ? `, ${progressLabel}` : ""}`}
 			className={cn(
-				"inline-flex min-w-0 items-center gap-2 border border-primary/40 bg-primary/10 px-2 font-mono text-primary",
+				"inline-flex min-w-0 items-center gap-2 border border-primary/40 bg-primary/10 px-2 text-primary",
 				isHeader ? "h-10 max-w-full" : "h-8",
 			)}
 			data-era={era}
@@ -76,12 +76,12 @@ export default function EraBadge({
 				tint="bg-primary/10"
 			/>
 			<span className="min-w-0">
-				<span className="block truncate font-semibold text-xs uppercase tracking-[0.1em]">
+				<span className="block truncate font-semibold text-xs">
 					{ERA_LABELS[era]}
 				</span>
 				{isHeader && progress ? (
 					<>
-						<span className="mt-0.5 block truncate font-mono text-muted-foreground text-xs normal-case tracking-normal">
+						<span className="mt-0.5 block truncate text-muted-foreground text-xs normal-case">
 							{progressLabel}
 						</span>
 						<span

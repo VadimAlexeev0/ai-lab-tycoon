@@ -30,7 +30,7 @@ export default function DataMixControl({
 
 	return (
 		<fieldset className="space-y-3" disabled={disabled}>
-			<legend className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+			<legend className="font-semibold text-muted-foreground text-xs">
 				Training data mix
 			</legend>
 			<div className="space-y-3">
@@ -65,9 +65,7 @@ export default function DataMixControl({
 									type="number"
 									value={value[dimension]}
 								/>
-								<span className="font-mono text-muted-foreground text-xs">
-									%
-								</span>
+								<span className="text-muted-foreground text-xs">%</span>
 								<Button
 									aria-label={`Increase ${dimension} data by five points`}
 									onClick={() => onChange(dimension, value[dimension] + 5)}
@@ -97,8 +95,8 @@ export default function DataMixControl({
 			<p
 				className={
 					total === 100
-						? "font-mono text-[var(--game-positive)] text-xs uppercase tracking-[0.12em]"
-						: "font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]"
+						? "text-[var(--game-positive)] text-xs"
+						: "text-[var(--game-amber)] text-xs"
 				}
 			>
 				Total: {total}% {total === 100 ? "· valid" : "· must equal 100%"}

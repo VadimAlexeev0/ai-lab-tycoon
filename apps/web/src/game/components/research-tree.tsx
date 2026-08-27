@@ -113,12 +113,12 @@ export default function ResearchTree({
 			<style>{RESEARCH_TREE_STYLES}</style>
 			<div className="flex flex-wrap items-end justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Research / frontier map
 					</p>
 					<h2
 						id="research-tree-heading"
-						className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-1 font-semibold text-foreground text-sm"
 					>
 						Trace the research DAG
 					</h2>
@@ -173,7 +173,7 @@ export default function ResearchTree({
 											</span>
 										) : null}
 									</div>
-									<div className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+									<div className="mt-1 text-muted-foreground text-xs">
 										Era column / tier depth
 									</div>
 								</div>
@@ -224,7 +224,7 @@ export default function ResearchTree({
 				</section>
 			)}
 
-			<div className="flex flex-wrap gap-x-4 gap-y-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+			<div className="flex flex-wrap gap-x-4 gap-y-2 text-muted-foreground text-xs">
 				<LegendIcon icon={<LockKeyhole className="size-3" />} label="Locked" />
 				<LegendIcon
 					icon={<CircleDashed className="size-3" />}
@@ -272,14 +272,14 @@ function ResearchNodeCard({
 			aria-label={`${humanize(node.node.id)} research node, ${node.state}${node.state === "locked" && prerequisiteLabel.length > 0 ? `, requires ${prerequisiteLabel}` : ""}`}
 			aria-pressed={selected}
 			className={cn(
-				"absolute flex flex-col gap-2 border bg-card p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+				"surface-card absolute flex flex-col gap-2 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
 				node.state === "completed"
-					? "border-[var(--game-positive)]/60 bg-[var(--game-positive)]/5"
+					? "bg-[var(--game-positive)]/5 ring-1 ring-[var(--game-positive)]/60"
 					: node.state === "available"
-						? "research-available border-primary/80"
+						? "research-available bg-primary/5 ring-1 ring-primary/80"
 						: node.state === "in-progress"
-							? "border-primary/70 bg-primary/5"
-							: "frost-lock border-border/70",
+							? "bg-primary/5 ring-1 ring-primary/70"
+							: "frost-lock",
 				selected ? "ring-2 ring-primary" : undefined,
 			)}
 			data-research-state={node.state}
@@ -294,7 +294,7 @@ function ResearchNodeCard({
 		>
 			<div className="flex min-w-0 items-start justify-between gap-2">
 				<div className="min-w-0">
-					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+					<p className="text-muted-foreground text-xs">
 						{humanize(node.source.branch)}
 					</p>
 					<h3 className="mt-1 truncate font-medium text-foreground text-xs">
@@ -318,7 +318,7 @@ function ResearchNodeCard({
 					Requires: {prerequisiteLabel || "an earlier research node"}
 				</p>
 			) : null}
-			<div className="mt-auto flex items-center justify-between gap-2 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+			<div className="mt-auto flex items-center justify-between gap-2 border-border/70 border-t pt-2 text-muted-foreground text-xs">
 				<span>Tier {node.tier}</span>
 				<span className="text-[var(--game-amber)]">
 					{node.node.insightCost} Insight
@@ -403,12 +403,12 @@ function ResearchDetailPane({
 		>
 			<div className="flex items-start justify-between gap-3 border-border/70 border-b pb-3">
 				<div className="min-w-0">
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Research node detail
 					</p>
 					<h2
 						id="research-detail-heading"
-						className="mt-1 font-mono font-semibold text-base text-foreground uppercase tracking-[0.08em]"
+						className="mt-1 font-semibold text-base text-foreground"
 					>
 						{humanize(node.node.id)}
 					</h2>
@@ -423,7 +423,7 @@ function ResearchDetailPane({
 				</button>
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-b pb-3 font-mono text-xs uppercase tracking-[0.1em]">
+			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-b pb-3 text-xs">
 				<DetailValue label="Status" value={node.state} />
 				<DetailValue label="Tier" value={`${node.tier}`} />
 				<DetailValue label="Cost" value={`${node.node.insightCost} Insight`} />
@@ -436,7 +436,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-effects-heading"
-					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
+					className="font-semibold text-muted-foreground text-xs"
 				>
 					Effects
 				</h3>
@@ -455,7 +455,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-prereqs-heading"
-					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
+					className="font-semibold text-muted-foreground text-xs"
 				>
 					Prerequisites
 				</h3>
@@ -477,7 +477,7 @@ function ResearchDetailPane({
 									</span>
 									<span
 										className={cn(
-											"shrink-0 font-mono text-xs uppercase tracking-[0.08em]",
+											"shrink-0 text-xs",
 											completed
 												? "text-[var(--game-positive)]"
 												: "text-[var(--game-amber)]",
@@ -502,7 +502,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-assign-heading"
-					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
+					className="font-semibold text-muted-foreground text-xs"
 				>
 					Assign team
 				</h3>
@@ -590,10 +590,8 @@ function ResearchDiscoveryState() {
 				tint="bg-primary/10"
 			/>
 			<div>
-				<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
-					Discovery state
-				</p>
-				<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+				<p className="font-semibold text-primary text-xs">Discovery state</p>
+				<h3 className="mt-1 font-semibold text-foreground text-sm">
 					The frontier map is quiet
 				</h3>
 				<p className="mt-2 max-w-md text-muted-foreground text-xs leading-5">

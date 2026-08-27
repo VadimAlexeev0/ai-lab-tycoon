@@ -47,20 +47,16 @@ export default function QuarterlyReview({
 	return (
 		<article
 			aria-labelledby="quarterly-review-surface-heading"
-			className="relative overflow-hidden border border-[var(--game-amber)]/55 border-dashed bg-card/70 p-4 sm:p-5 lg:p-6"
+			className="surface-card bg-card/70 p-4 ring-1 ring-[var(--game-amber)]/55 sm:p-5 lg:p-6"
 		>
-			<div
-				aria-hidden="true"
-				className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-[var(--game-amber)]/80 via-[var(--game-amber)]/20 to-transparent"
-			/>
 			<header className="relative flex flex-col gap-4 border-[var(--game-amber)]/30 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
 				<div className="max-w-3xl space-y-2">
 					<PlaceholderBadge />
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Quarter {quarter} / archive draft
 					</p>
 					<h2
-						className="font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+						className="font-display font-semibold text-3xl text-foreground sm:text-4xl"
 						id="quarterly-review-surface-heading"
 					>
 						The quarter in review
@@ -71,7 +67,7 @@ export default function QuarterlyReview({
 						review copy is clearly marked as a preview.
 					</p>
 				</div>
-				<div className="shrink-0 border border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 px-3 py-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+				<div className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-muted-foreground text-xs ring-1 ring-[var(--game-amber)]/35">
 					<p>Current checkpoint</p>
 					<p className="mt-1 font-semibold text-foreground">
 						Week {state.meta.week} · Era {state.meta.era}
@@ -83,17 +79,17 @@ export default function QuarterlyReview({
 				<section aria-labelledby="quarterly-stats-heading" className="min-w-0">
 					<div className="flex items-end justify-between gap-3">
 						<div>
-							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.18em]">
+							<p className="font-semibold text-primary text-xs">
 								Mechanical summary
 							</p>
 							<h3
-								className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+								className="mt-1 font-semibold text-foreground text-sm"
 								id="quarterly-stats-heading"
 							>
 								Run health at a glance
 							</h3>
 						</div>
-						<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+						<span className="text-muted-foreground text-xs">
 							{stats.length} signals
 						</span>
 					</div>
@@ -109,11 +105,11 @@ export default function QuarterlyReview({
 					className="min-w-0"
 				>
 					<div>
-						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.18em]">
+						<p className="font-semibold text-primary text-xs">
 							Board expectations
 						</p>
 						<h3
-							className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+							className="mt-1 font-semibold text-foreground text-sm"
 							id="board-expectations-heading"
 						>
 							What the room wants next
@@ -143,10 +139,10 @@ function ReviewStatRow({ stat }: { stat: ReviewStat }) {
 	return (
 		<div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
 			<div className="min-w-0 sm:w-[42%]">
-				<dt className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.13em]">
+				<dt className="font-semibold text-muted-foreground text-xs">
 					{stat.label}
 				</dt>
-				<dd className="mt-1 font-mono font-semibold text-base text-foreground">
+				<dd className="mt-1 font-semibold text-base text-foreground">
 					{stat.value}
 				</dd>
 				<p className="mt-1 text-muted-foreground text-xs leading-5">
@@ -162,7 +158,7 @@ function ReviewStatRow({ stat }: { stat: ReviewStat }) {
 						points={stat.trend.points}
 					/>
 				</div>
-				<span className="shrink-0 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+				<span className="shrink-0 text-muted-foreground text-xs">
 					{stat.trend.illustrative ? "Illustrative" : "Engine history"}
 				</span>
 			</div>
@@ -228,7 +224,7 @@ function ExpectationMeter({ expectation }: { expectation: BoardExpectation }) {
 				? "On track"
 				: "Watch";
 	return (
-		<div className="border border-border/70 bg-background/35 p-3">
+		<div className="surface-card bg-background/35 p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<p className="font-medium text-foreground text-sm">
@@ -238,7 +234,7 @@ function ExpectationMeter({ expectation }: { expectation: BoardExpectation }) {
 						{expectation.detail}
 					</p>
 				</div>
-				<span className="shrink-0 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.08em]">
+				<span className="shrink-0 text-[var(--game-amber)] text-xs">
 					{statusLabel}
 				</span>
 			</div>
@@ -255,7 +251,7 @@ function ExpectationMeter({ expectation }: { expectation: BoardExpectation }) {
 					style={{ width: `${expectation.progress}%` }}
 				/>
 			</div>
-			<p className="mt-1 text-right font-mono text-muted-foreground text-xs">
+			<p className="mt-1 text-right text-muted-foreground text-xs">
 				{expectation.progress}% confidence
 			</p>
 		</div>
@@ -266,15 +262,15 @@ function StrategicQuestionCard({ question }: { question: StrategicQuestion }) {
 	return (
 		<section
 			aria-labelledby="strategic-question-heading"
-			className="relative mt-5 border border-[var(--game-amber)]/45 bg-[var(--game-amber)]/5 p-4 sm:p-5"
+			className="surface-card relative mt-5 bg-[var(--game-amber)]/5 p-4 ring-1 ring-[var(--game-amber)]/45 sm:p-5"
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.18em]">
+					<p className="font-semibold text-[var(--game-amber)] text-xs">
 						Strategic question / {question.id.replaceAll("-", " ")}
 					</p>
 					<h3
-						className="mt-2 max-w-3xl font-mono font-semibold text-base text-foreground leading-6"
+						className="mt-2 max-w-3xl font-semibold text-base text-foreground leading-6"
 						id="strategic-question-heading"
 					>
 						{question.prompt}
@@ -283,7 +279,7 @@ function StrategicQuestionCard({ question }: { question: StrategicQuestion }) {
 						{question.context}
 					</p>
 				</div>
-				<span className="shrink-0 border border-[var(--game-amber)]/40 px-2 py-1 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em]">
+				<span className="shrink-0 border border-[var(--game-amber)]/40 px-2 py-1 text-[var(--game-amber)] text-xs">
 					Decision preview
 				</span>
 			</div>
@@ -303,7 +299,7 @@ function StrategicQuestionCard({ question }: { question: StrategicQuestion }) {
 						<span className="text-muted-foreground text-xs leading-5">
 							{choice.hint}
 						</span>
-						<span className="font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em] opacity-0 transition-opacity group-hover:opacity-100">
+						<span className="text-[var(--game-amber)] text-xs opacity-0 transition-opacity group-hover:opacity-100">
 							Engine support pending
 						</span>
 					</button>

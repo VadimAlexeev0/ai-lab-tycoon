@@ -32,17 +32,17 @@ export default function TeamPanel({
 		<section aria-labelledby="teams-panel-heading" className="space-y-4">
 			<div className="flex flex-wrap items-end justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Staffing / projects
 					</p>
 					<h2
 						id="teams-panel-heading"
-						className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]"
+						className="mt-1 font-semibold text-foreground text-sm"
 					>
 						Assign the lab's next move
 					</h2>
 				</div>
-				<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+				<span className="text-muted-foreground text-xs">
 					{availableProjects.length} ready action
 					{availableProjects.length === 1 ? "" : "s"}
 				</span>
@@ -56,15 +56,10 @@ export default function TeamPanel({
 							)
 						: undefined;
 					return (
-						<article
-							className="border border-border bg-background/35 p-3"
-							key={team.id}
-						>
+						<article className="surface-card p-3" key={team.id}>
 							<div className="flex items-start justify-between gap-3">
 								<div className="min-w-0">
-									<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
-										{team.id}
-									</p>
+									<p className="text-muted-foreground text-xs">{team.id}</p>
 									<h3 className="mt-1 truncate font-medium text-foreground text-sm">
 										{team.name}
 									</h3>
@@ -103,14 +98,14 @@ export default function TeamPanel({
 							className="size-3.5 text-[var(--game-positive)]"
 							aria-hidden="true"
 						/>
-						<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+						<h3 className="font-semibold text-muted-foreground text-xs">
 							Completed / report acknowledgment
 						</h3>
 					</div>
 					<div className="mt-2 flex flex-wrap gap-2">
 						{completedProjects.map((project) => (
 							<span
-								className="border border-[var(--game-positive)]/30 bg-[var(--game-positive)]/5 px-2 py-1 font-mono text-foreground text-xs"
+								className="border border-[var(--game-positive)]/30 bg-[var(--game-positive)]/5 px-2 py-1 text-foreground text-xs"
 								key={project.id}
 							>
 								{project.id} · {projectLabel(project.kind)}
@@ -147,9 +142,7 @@ function ActiveProject({
 		<div className="mt-3 space-y-3 border-border/70 border-t pt-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.14em]">
-						Active project
-					</p>
+					<p className="font-semibold text-primary text-xs">Active project</p>
 					<p className="mt-1 font-medium text-foreground text-sm">
 						{projectLabel(project.kind)}
 					</p>
@@ -181,7 +174,7 @@ function ActiveProject({
 					style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
 				/>
 			</div>
-			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+			<p className="text-muted-foreground text-xs">
 				{project.progress} / {project.duration} weeks · {project.id}
 			</p>
 		</div>
@@ -190,7 +183,7 @@ function ActiveProject({
 
 function StatusLabel({ status }: { status: "idle" | "working" }) {
 	return (
-		<span className="inline-flex items-center gap-1.5 border border-border/70 px-2 py-1 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.12em]">
+		<span className="inline-flex items-center gap-1.5 border border-border/70 px-2 py-1 font-semibold text-foreground text-xs">
 			{status === "idle" ? (
 				<CircleDashed
 					className="size-3 text-muted-foreground"

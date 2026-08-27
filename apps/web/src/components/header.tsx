@@ -10,20 +10,20 @@ export default function Header() {
 					aria-label="AI Startup Lab Tycoon home"
 					className="group flex min-h-11 min-w-0 items-center gap-3"
 				>
-					<span className="flex size-7 shrink-0 items-center justify-center border border-primary/50 bg-primary/10 font-bold font-mono text-[10px] text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+					<span className="flex size-7 shrink-0 items-center justify-center border border-primary/50 bg-primary/10 font-bold text-[10px] text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
 						AI
 					</span>
 					<span className="min-w-0">
-						<span className="block truncate font-mono font-semibold text-foreground text-xs uppercase tracking-[0.16em]">
+						<span className="block truncate font-semibold text-foreground text-xs">
 							AI Startup Lab
 						</span>
-						<span className="hidden font-mono text-muted-foreground text-xs uppercase tracking-[0.2em] sm:block">
+						<span className="hidden text-muted-foreground text-xs sm:block">
 							Tycoon / operations console
 						</span>
 					</span>
 				</RouterLink>
 
-				<div className="flex shrink-0 items-center gap-2 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em] sm:gap-3">
+				<div className="flex shrink-0 items-center gap-2 font-semibold text-muted-foreground text-xs sm:gap-3">
 					<span className="hidden items-center gap-1.5 sm:flex">
 						<Activity
 							className="size-3 text-[var(--game-positive)]"

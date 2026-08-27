@@ -41,7 +41,7 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Run result"
-				className="relative isolate overflow-hidden border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
+				className="surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 			>
 				<ResultArtBackdrop src="/art-v2/amber-fracture.png" />
 				<div className="relative z-10 flex items-start gap-2">
@@ -57,10 +57,10 @@ export default function RunResult({
 						aria-hidden="true"
 					/>
 					<div>
-						<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">
+						<p className="font-semibold text-[var(--game-negative)] text-xs">
 							Sandbox ended
 						</p>
-						<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+						<h3 className="mt-1 font-semibold text-foreground text-sm">
 							{objective.reason === "cash_depleted"
 								? "Cash depleted"
 								: "Trust collapsed"}
@@ -71,19 +71,19 @@ export default function RunResult({
 					</div>
 				</div>
 				<div className="relative z-10 mt-3 border-border/70 border-t pt-3">
-					<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
+					<p className="font-semibold text-muted-foreground text-xs">
 						Top contributing facts
 					</p>
 					<ol className="mt-2 space-y-2">
 						{terminal.contributors.map((contributor, index) => (
 							<li
-								className="flex items-start justify-between gap-3 border border-border/70 bg-background/35 px-2.5 py-2"
+								className="surface-card flex items-start justify-between gap-3 px-2.5 py-2"
 								key={`${contributor.kind}-${contributor.week}-${index}`}
 							>
 								<span className="min-w-0 break-words text-foreground text-xs">
 									{index + 1}. {factLabel(contributor.kind)}
 								</span>
-								<span className="shrink-0 font-mono text-muted-foreground text-xs uppercase">
+								<span className="shrink-0 text-muted-foreground text-xs">
 									Impact {contributor.impact} · W{contributor.week}
 								</span>
 							</li>
@@ -109,7 +109,7 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Frontier milestone"
-				className="relative isolate overflow-hidden border border-primary/50 bg-primary/10 p-3"
+				className="surface-card bg-primary/10 p-3 ring-1 ring-primary/50"
 			>
 				<ResultArtBackdrop src="/art-v2/fog-monolith-alt.png" />
 				<div className="relative z-10 flex items-start gap-2">
@@ -118,10 +118,10 @@ export default function RunResult({
 						aria-hidden="true"
 					/>
 					<div>
-						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.14em]">
+						<p className="font-semibold text-primary text-xs">
 							Frontier milestone
 						</p>
-						<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+						<h3 className="mt-1 font-semibold text-foreground text-sm">
 							First multimodal launch
 						</h3>
 						<p className="mt-1 text-muted-foreground text-xs leading-5">

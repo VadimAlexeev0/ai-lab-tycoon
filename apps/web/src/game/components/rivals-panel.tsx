@@ -53,10 +53,10 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 		<section aria-label="Rivals" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+					<p className="font-semibold text-primary text-xs">
 						Rivals / public clocks
 					</p>
-					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					<h3 className="mt-1 font-semibold text-foreground text-sm">
 						Watch the market move
 					</h3>
 				</div>
@@ -77,7 +77,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 						const doctrine = rivalDoctrineForId(rival.id);
 						return (
 							<li
-								className="border border-border/70 bg-background/35 p-2.5"
+								className="surface-card bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs"
 								key={rival.id}
 							>
 								<div className="flex items-center justify-between gap-3">
@@ -93,7 +93,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 											<p className="truncate font-medium text-foreground text-xs">
 												{rival.name}
 											</p>
-											<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+											<p className="mt-1 text-muted-foreground text-xs">
 												{rival.focus} focus
 											</p>
 										</div>
@@ -107,7 +107,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 								<div className="mt-2 space-y-1">
 									<span
 										className={cn(
-											"inline-flex items-center gap-1.5 border px-1.5 py-1 font-mono text-xs uppercase tracking-[0.08em]",
+											"inline-flex items-center gap-1.5 border px-1.5 py-1 text-xs",
 											doctrine.id === "capability"
 												? "border-primary/35 bg-primary/5 text-primary"
 												: "border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 text-[var(--game-amber)]",
@@ -121,7 +121,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 										{doctrine.note}
 									</p>
 								</div>
-								<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+								<p className="mt-2 text-muted-foreground text-xs">
 									Public progress only · {rival.id}
 								</p>
 							</li>
@@ -129,12 +129,12 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 					})}
 				</ul>
 			) : (
-				<p className="border border-border/70 bg-background/35 px-3 py-3 text-muted-foreground text-xs">
+				<p className="surface-card bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs">
 					No public rival clocks are active.
 				</p>
 			)}
 
-			<div className="flex items-center gap-2 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+			<div className="flex items-center gap-2 border-border/70 border-t pt-2 text-muted-foreground text-xs">
 				<Gauge
 					className="size-3.5 text-[var(--game-amber)]"
 					aria-hidden="true"
@@ -197,7 +197,7 @@ function RivalGauge({
 					strokeWidth="4"
 				/>
 			</svg>
-			<span className="absolute inset-0 flex items-center justify-center font-mono font-semibold text-foreground text-xs">
+			<span className="absolute inset-0 flex items-center justify-center font-semibold text-foreground text-xs">
 				{boundedProgress}%
 			</span>
 		</div>

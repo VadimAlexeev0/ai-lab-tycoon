@@ -7,7 +7,7 @@ export default function Loader() {
 				className="size-5 animate-spin text-primary"
 				aria-hidden="true"
 			/>
-			<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.18em]">
+			<span className="text-[10px] text-muted-foreground">
 				Loading operations console
 			</span>
 		</div>

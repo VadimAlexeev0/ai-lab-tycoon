@@ -176,12 +176,12 @@ export default function LabNotebook({
 		<section aria-labelledby="lab-notebook-heading" className="space-y-5">
 			<header className="flex flex-col gap-3 border-border/70 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
 				<div className="max-w-3xl">
-					<div className="flex items-center gap-2 font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.18em]">
+					<div className="flex items-center gap-2 font-semibold text-[var(--game-amber)] text-xs">
 						<BookOpen className="size-4" aria-hidden="true" />
 						<span>Field notes / discovery register</span>
 					</div>
 					<h2
-						className="mt-1 font-mono font-semibold text-2xl text-foreground uppercase tracking-tight sm:text-3xl"
+						className="mt-1 font-display font-semibold text-3xl text-foreground sm:text-4xl"
 						id="lab-notebook-heading"
 					>
 						Lab notebook
@@ -192,7 +192,7 @@ export default function LabNotebook({
 						their first occurrence.
 					</p>
 				</div>
-				<div className="shrink-0 border border-[var(--game-amber)]/45 bg-[var(--game-amber)]/8 px-3 py-2 font-mono text-xs uppercase tracking-[0.12em]">
+				<div className="surface-card bg-[var(--game-amber)]/8 px-3 py-2 text-xs ring-1 ring-[var(--game-amber)]/45">
 					<p className="text-[var(--game-amber)]">Notebook progress</p>
 					<p className="mt-1 font-semibold text-foreground">
 						{discoveredCount}/{NOTEBOOK_TILE_COUNT} discovered
@@ -201,7 +201,7 @@ export default function LabNotebook({
 			</header>
 
 			{forceShowAll ? (
-				<p className="border border-[var(--game-amber)]/35 border-dashed bg-[var(--game-amber)]/5 px-3 py-2 text-[var(--game-amber)] text-xs leading-5">
+				<p className="surface-card bg-[var(--game-amber)]/5 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/35">
 					Debug preview: all cabinets are visible, but the progress counter
 					still counts only facts present in the report history.
 				</p>
@@ -236,27 +236,27 @@ function NotebookTileCard({
 		return (
 			<article
 				aria-label={`${tile.label}${previewOnly ? " preview" : " discovered"}`}
-				className="relative flex min-h-44 flex-col overflow-hidden border border-[var(--game-amber)]/45 bg-[var(--game-amber)]/8 p-3 shadow-[2px_3px_0_rgba(245,176,76,0.1)]"
+				className="surface-card relative flex min-h-44 flex-col overflow-hidden bg-[var(--game-amber)]/8 p-3 shadow-[2px_3px_0_rgba(245,176,76,0.1)] ring-1 ring-[var(--game-amber)]/45"
 				data-discovered={tile.discovered}
 			>
 				<div className="flex items-start justify-between gap-2">
-					<span className="font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em]">
+					<span className="text-[var(--game-amber)] text-xs">
 						{tile.kind === "era" ? "Era leaf" : "First entry"}
 					</span>
 					{previewOnly ? (
-						<span className="border border-[var(--game-amber)]/45 px-1.5 py-0.5 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.08em]">
+						<span className="border border-[var(--game-amber)]/45 px-1.5 py-0.5 text-[var(--game-amber)] text-xs">
 							Preview
 						</span>
 					) : null}
 				</div>
-				<h3 className="mt-3 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.08em]">
+				<h3 className="mt-3 font-semibold text-foreground text-xs">
 					{tile.label}
 				</h3>
-				<p className="mt-3 flex-1 font-serif text-sm italic leading-6 opacity-90">
+				<p className="mt-3 flex-1 text-sm italic leading-6 opacity-90">
 					{tile.annotation ??
 						"Preview slot · the engine has not recorded this event yet."}
 				</p>
-				<p className="mt-3 border-[var(--game-amber)]/25 border-t pt-2 font-mono text-xs uppercase tracking-[0.08em] opacity-65">
+				<p className="mt-3 border-[var(--game-amber)]/25 border-t pt-2 text-xs opacity-65">
 					{tile.discovered
 						? `Recorded week ${tile.week}`
 						: "No engine event recorded"}
@@ -268,7 +268,7 @@ function NotebookTileCard({
 	return (
 		<article
 			aria-label={`${tile.label} undiscovered`}
-			className="relative flex min-h-44 flex-col items-center justify-center overflow-hidden border border-[var(--game-cyan)]/25 bg-[var(--game-cyan)]/5 p-3 text-center grayscale"
+			className="surface-card relative flex min-h-44 flex-col items-center justify-center overflow-hidden bg-[var(--game-cyan)]/5 p-3 text-center ring-1 ring-[var(--game-cyan)]/25 grayscale"
 			data-discovered="false"
 		>
 			<img
@@ -281,10 +281,10 @@ function NotebookTileCard({
 				className="relative size-4 text-[var(--game-cyan)]"
 				aria-hidden="true"
 			/>
-			<span className="relative mt-2 font-mono text-3xl text-[var(--game-cyan)] opacity-70">
+			<span className="relative mt-2 text-3xl text-[var(--game-cyan)] opacity-70">
 				?
 			</span>
-			<h3 className="relative mt-2 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.08em]">
+			<h3 className="relative mt-2 font-semibold text-foreground text-xs">
 				{tile.label}
 			</h3>
 			<p className="relative mt-2 text-muted-foreground text-xs leading-5">

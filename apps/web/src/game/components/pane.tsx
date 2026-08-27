@@ -86,18 +86,18 @@ export default function Pane({
 				aria-describedby={description ? "pane-description" : undefined}
 				aria-labelledby="pane-title"
 				aria-modal="true"
-				className="max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto border border-border bg-card p-4 shadow-2xl outline-none sm:p-5"
+				className="surface-card max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto p-4 shadow-2xl outline-none sm:p-5"
 				role="dialog"
 				tabIndex={-1}
 			>
 				<div className="flex items-start justify-between gap-4 border-border/70 border-b pb-3">
 					<div className="min-w-0">
-						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
+						<p className="font-semibold text-primary text-xs">
 							{blocking ? "Required action" : "Decision detail"}
 						</p>
 						<h2
 							id="pane-title"
-							className="mt-1 font-mono font-semibold text-base text-foreground uppercase tracking-[0.08em]"
+							className="mt-1 font-semibold text-base text-foreground"
 						>
 							{title}
 						</h2>
@@ -111,7 +111,7 @@ export default function Pane({
 						) : null}
 					</div>
 					{blocking ? (
-						<span className="shrink-0 border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-2 py-1 font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.1em]">
+						<span className="shrink-0 border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-2 py-1 text-[var(--game-amber)] text-xs">
 							Cannot dismiss
 						</span>
 					) : (
