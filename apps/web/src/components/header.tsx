@@ -1,10 +1,11 @@
+import { ThemeSwitcher } from "@ai-lab-tycoon/ui/components/theme-switcher";
 import { Link as RouterLink } from "@tanstack/react-router";
 import { Activity } from "lucide-react";
 
-export default function Header() {
+export default function Header({ minimal = false }: { minimal?: boolean }) {
 	return (
 		<header className="site-header border-border/80 border-b bg-card/80 backdrop-blur-sm">
-			<div className="mx-auto flex min-h-12 w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+			<div className="mx-auto flex min-h-12 w-full max-w-[1600px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-1.5 sm:px-6 lg:px-8">
 				<RouterLink
 					to="/"
 					aria-label="AI Startup Lab Tycoon home"
@@ -23,18 +24,24 @@ export default function Header() {
 					</span>
 				</RouterLink>
 
-				<div className="flex shrink-0 items-center gap-2 font-semibold text-muted-foreground text-xs sm:gap-3">
-					<span className="hidden items-center gap-1.5 sm:flex">
-						<Activity
-							className="size-3 text-[var(--game-positive)]"
-							aria-hidden="true"
-						/>
-						Live systems
-					</span>
-					<span className="border border-border px-2 py-1 text-primary">
-						V1.0
-					</span>
-				</div>
+				{minimal ? (
+					<div className="max-w-full overflow-x-auto">
+						<ThemeSwitcher />
+					</div>
+				) : (
+					<div className="flex shrink-0 items-center gap-2 font-semibold text-muted-foreground text-xs sm:gap-3">
+						<span className="hidden items-center gap-1.5 sm:flex">
+							<Activity
+								className="size-3 text-[var(--game-positive)]"
+								aria-hidden="true"
+							/>
+							Live systems
+						</span>
+						<span className="border border-border px-2 py-1 text-primary">
+							V1.0
+						</span>
+					</div>
+				)}
 			</div>
 		</header>
 	);

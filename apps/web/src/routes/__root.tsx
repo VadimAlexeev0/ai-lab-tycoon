@@ -13,6 +13,7 @@ import {
 	HeadContent,
 	Outlet,
 	Scripts,
+	useLocation,
 } from "@tanstack/react-router";
 
 import type { orpc } from "@/utils/orpc";
@@ -56,6 +57,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 });
 
 function RootDocument() {
+	const location = useLocation();
+	const isLanding = location.pathname === "/";
+
 	return (
 		<html
 			lang="en"
@@ -79,12 +83,14 @@ function RootDocument() {
 					</a>
 					<div className="grid h-svh grid-rows-[auto_1fr]">
 						<div className="relative">
-							<Header />
-							<div className="pointer-events-none absolute inset-x-0 top-full z-20 flex justify-end px-4 pt-2 sm:px-6 lg:px-8">
-								<div className="pointer-events-auto">
-									<ThemeSwitcher />
+							<Header minimal={isLanding} />
+							{isLanding ? null : (
+								<div className="pointer-events-none absolute inset-x-0 top-full z-20 flex justify-end px-4 pt-2 sm:px-6 lg:px-8">
+									<div className="pointer-events-auto">
+										<ThemeSwitcher />
+									</div>
 								</div>
-							</div>
+							)}
 						</div>
 						<Outlet />
 					</div>
