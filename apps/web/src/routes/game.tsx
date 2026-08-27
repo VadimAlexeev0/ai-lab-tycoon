@@ -24,6 +24,7 @@ import {
 	BriefcaseBusiness,
 	ChartNoAxesCombined,
 	FlaskConical,
+	GitBranch,
 	House,
 	Loader2,
 	Newspaper,
@@ -53,6 +54,7 @@ export type GameSearch = {
 	quarterly?: "1";
 	pulse?: "1";
 	chronicle?: "1";
+	lineage?: "1";
 };
 
 export const Route = createFileRoute("/game")({
@@ -289,6 +291,18 @@ function GameLayout() {
 						}),
 					});
 				}}
+				onForceLineage={() => {
+					void navigate({
+						to: "/game/lineage",
+						search: (current) => ({
+							...current,
+							chronicle: undefined,
+							lineage: "1",
+							quarterly: undefined,
+							pulse: undefined,
+						}),
+					});
+				}}
 				onForceQuarterlyReview={() => {
 					void navigate({
 						to: "/game/quarterly",
@@ -513,6 +527,12 @@ const ARCHIVE_DESTINATIONS = [
 		label: "Company Chronicle",
 		shortLabel: "Chronicle",
 		icon: BookOpen,
+	},
+	{
+		to: "/game/lineage",
+		label: "Model Lineage",
+		shortLabel: "Lineage",
+		icon: GitBranch,
 	},
 ] as const;
 
