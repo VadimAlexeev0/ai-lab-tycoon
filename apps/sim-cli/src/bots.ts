@@ -258,7 +258,11 @@ function chooseModelDesign(
 		const alreadyDesigned = state.models.items.some(
 			(model) => model.family === candidate && model.status !== "shelved",
 		);
-		return node?.status === "completed" && !alreadyDesigned;
+		return (
+			candidate === state.meta.era &&
+			node?.status === "completed" &&
+			!alreadyDesigned
+		);
 	});
 	if (family === undefined) return undefined;
 
