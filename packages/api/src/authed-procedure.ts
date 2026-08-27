@@ -1,3 +1,5 @@
+import { ORPCError } from "@orpc/server";
+
 import { o } from "./index";
 
 /**
@@ -8,7 +10,7 @@ import { o } from "./index";
 export const authedProcedure = o.use(async ({ context, next }) => {
 	const user = context.user;
 	if (user === undefined || user === null) {
-		throw new Error("Unauthorized");
+		throw new ORPCError("UNAUTHORIZED");
 	}
 	return next({ context: { ...context, user } });
 });

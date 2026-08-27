@@ -6,6 +6,7 @@ import {
 	type Run,
 	runs,
 } from "@ai-lab-tycoon/db";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { authedProcedure } from "../authed-procedure";
@@ -24,6 +25,9 @@ const activeRunInput = z.object({
  * Authenticated game-save procedures. Every handler keys data by
  * session.user.id — a client-supplied owner id is never accepted. The
  * anonymous Better Auth plugin guarantees a stable userId per browser.
+ *
+ * Failures surface as real oRPC errors so clients can branch on
+ * `error.code`: UNAUTHORIZED (401) and CONFLICT (409) here.
  */
 export const gameSaveRouter = {
 	/** Load the current user's active run, or null when none exists. */
@@ -33,7 +37,7 @@ export const gameSaveRouter = {
 			const db = context.db as AppDatabase;
 			const userId = context.user?.id;
 			if (userId === undefined) {
-				throw new Error("Unauthorized");
+				throw new ORPCError("UNAUTHORIZED");
 			}
 			const rows = await db
 				.select()
@@ -46,7 +50,8 @@ export const gameSaveRouter = {
 	/**
 	 * Insert-or-update the current user's single active run. Enforces one
 	 * run per user via the unique index on runs.userId and optimistic
-	 * concurrency: a stale write (mismatched revision) returns a conflict.
+	 * concurrency: a stale write (mismatched revision) raises CONFLICT and
+	 * never overwrites a newer save.
 	 */
 	upsertActiveRun: authedProcedure
 		.input(activeRunInput)
@@ -54,7 +59,7 @@ export const gameSaveRouter = {
 			const db = context.db as AppDatabase;
 			const userId = context.user?.id;
 			if (userId === undefined) {
-				throw new Error("Unauthorized");
+				throw new ORPCError("UNAUTHORIZED");
 			}
 			const now = new Date();
 			const existing = await db
@@ -80,7 +85,9 @@ export const gameSaveRouter = {
 				const result = await db.insert(runs).values(inserted).returning();
 				const created = result[0];
 				if (created === undefined) {
-					throw new Error("Failed to create run");
+					throw new ORPCError("INTERNAL_SERVER_ERROR", {
+						message: "Failed to create run",
+					});
 				}
 				return created;
 			}
@@ -89,9 +96,10 @@ export const gameSaveRouter = {
 			// read; otherwise a newer save exists and we must not overwrite it.
 			const expectedRevision = input.revision ?? 0;
 			if (row.revision !== expectedRevision) {
-				const conflict = new Error("Save conflict: state changed elsewhere");
-				(conflict as { code?: number }).code = 409;
-				throw conflict;
+				throw new ORPCError("CONFLICT", {
+					message: "Save conflict: this run was saved elsewhere more recently.",
+					data: { storedRevision: row.revision },
+				});
 			}
 
 			const updated = await db
@@ -109,7 +117,9 @@ export const gameSaveRouter = {
 				.returning();
 			const updatedRow = updated[0];
 			if (updatedRow === undefined) {
-				throw new Error("Failed to update run");
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to update run",
+				});
 			}
 			return updatedRow;
 		}),
@@ -121,7 +131,7 @@ export const gameSaveRouter = {
 			const db = context.db as AppDatabase;
 			const userId = context.user?.id;
 			if (userId === undefined) {
-				throw new Error("Unauthorized");
+				throw new ORPCError("UNAUTHORIZED");
 			}
 			const result = await db
 				.delete(runs)

@@ -120,6 +120,54 @@ export async function persistActiveRun(
 	revision?: number,
 ): Promise<ActiveRunRecord> {
 	const input = toUpsertActiveRunInput(state, revision);
-	const run = await client.gameSave.upsertActiveRun(input);
-	return run as unknown as ActiveRunRecord;
+	try {
+		const run = await client.gameSave.upsertActiveRun(input);
+		return run as unknown as ActiveRunRecord;
+	} catch (cause: unknown) {
+		// Optimistic-concurrency loss: another tab saved this run first. Fetch
+		// the stored winner so the UI can adopt it instead of losing the
+		// session to a generic failure.
+		if (!isORPCConflict(cause)) throw cause;
+		const stored = await client.gameSave.getActiveRun();
+		throw new SaveConflictError(
+			stored === null ? null : (normalizeStoredRun(stored) as ActiveRunRecord),
+		);
+	}
 }
+
+/** True when the failure is the save API's optimistic-concurrency 409. */
+function isORPCConflict(cause: unknown): boolean {
+	return (
+		typeof cause === "object" &&
+		cause !== null &&
+		(cause as { code?: unknown }).code === "CONFLICT"
+	);
+}
+
+/**
+ * Raised when a save lost an optimistic-concurrency race. `storedRun` is the
+ * winning record fetched from the server (or null when it vanished); callers
+ * should offer to reload it rather than keep local state.
+ */
+export class SaveConflictError extends Error {
+	readonly storedRun: ActiveRunRecord | null;
+
+	constructor(storedRun: ActiveRunRecord | null) {
+		super(
+			"This run was saved in another tab more recently. Reload the saved version to continue.",
+		);
+		this.name = "SaveConflictError";
+		this.storedRun = storedRun;
+	}
+}
+
+type UnknownRecord = Record<string, unknown>;
+
+function normalizeStoredRun(value: unknown): UnknownRecord {
+	return typeof value === "object" && value !== null
+		? (value as UnknownRecord)
+		: {};
+}
+
+/* Fetched on conflict; still passes through the same shape-guarded loader
+   used by Resume, via the route's normalizeActiveRun. */

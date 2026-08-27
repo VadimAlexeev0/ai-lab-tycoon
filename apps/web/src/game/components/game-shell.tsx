@@ -40,7 +40,11 @@ import ResearchPanel from "@/game/components/research-panel";
 import RivalsPanel from "@/game/components/rivals-panel";
 import RunResult from "@/game/components/run-result";
 import TeamPanel from "@/game/components/team-panel";
-import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
+import {
+	type ActiveRunRecord,
+	persistActiveRun,
+	SaveConflictError,
+} from "@/utils/orpc";
 
 export type SessionStatus = "loading" | "ready" | "error";
 
@@ -146,6 +150,11 @@ export default function GameShell({
 	const [activePanel, setActivePanel] = useState<DashboardPanel>("overview");
 	const [actionBusy, setActionBusy] = useState(false);
 	const [actionError, setActionError] = useState<string | null>(null);
+	// Set when a save lost an optimistic-concurrency race; offers adoption of
+	// the stored winner instead of silently dropping the session.
+	const [conflictRecord, setConflictRecord] = useState<ActiveRunRecord | null>(
+		null,
+	);
 	const [liveAnnouncement, setLiveAnnouncement] = useState("");
 	const isReady = sessionStatus === "ready";
 	const liveWeek = gameState?.meta.week;
@@ -182,11 +191,16 @@ export default function GameShell({
 			const record = await persistActiveRun(result.state, revision);
 			await onRunUpdated?.({ state: result.state, record });
 		} catch (cause: unknown) {
-			setActionError(
-				cause instanceof Error && cause.message.length > 0
-					? cause.message
-					: "The command could not be completed.",
-			);
+			if (cause instanceof SaveConflictError) {
+				setConflictRecord(cause.storedRun);
+				setActionError(cause.message);
+			} else {
+				setActionError(
+					cause instanceof Error && cause.message.length > 0
+						? cause.message
+						: "The command could not be completed.",
+				);
+			}
 		} finally {
 			setActionBusy(false);
 		}
@@ -292,6 +306,15 @@ export default function GameShell({
 								actionBusy={actionBusy}
 								actionError={actionError}
 								activePanel={activePanel}
+								conflictRecord={conflictRecord}
+								onAdoptConflictRecord={(stored) => {
+									setConflictRecord(null);
+									setActionError(null);
+									void onRunUpdated?.({
+										state: stored.state,
+										record: stored,
+									});
+								}}
 								onAssignProject={(teamId, projectId) => {
 									void executeEngineCommand((state) =>
 										assignProject(state, teamId, projectId),
@@ -402,6 +425,8 @@ function DashboardPanels({
 	actionBusy,
 	actionError,
 	activePanel,
+	conflictRecord,
+	onAdoptConflictRecord,
 	onAssignProject,
 	onCancelProject,
 	onDesignModel,
@@ -414,6 +439,8 @@ function DashboardPanels({
 	actionBusy: boolean;
 	actionError: string | null;
 	activePanel: DashboardPanel;
+	conflictRecord: ActiveRunRecord | null;
+	onAdoptConflictRecord: (record: ActiveRunRecord) => void;
 	onAssignProject: (teamId: string, projectId: string) => void;
 	onCancelProject: (teamId: string, projectId: string) => void;
 	onDesignModel: (spec: ModelDesignSpec) => void;
@@ -560,6 +587,17 @@ function DashboardPanels({
 						aria-hidden="true"
 					/>
 					<span>{actionError}</span>
+					{conflictRecord !== null ? (
+						<button
+							type="button"
+							className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
+							onClick={() => {
+								onAdoptConflictRecord(conflictRecord);
+							}}
+						>
+							Reload saved version
+						</button>
+					) : null}
 				</div>
 			) : null}
 
