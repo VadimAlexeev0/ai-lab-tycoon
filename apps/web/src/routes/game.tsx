@@ -39,6 +39,10 @@ import AdvanceWeekButton from "@/game/components/advance-week-button";
 import DebugDrawer from "@/game/components/debug-drawer";
 import EraBadge from "@/game/components/era-badge";
 import IncidentCard from "@/game/components/incident-card";
+import {
+	countDiscoveredNotebookTiles,
+	NOTEBOOK_TILE_COUNT,
+} from "@/game/components/lab-notebook";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
@@ -55,6 +59,7 @@ export type GameSearch = {
 	pulse?: "1";
 	chronicle?: "1";
 	lineage?: "1";
+	notebook?: "1";
 };
 
 export const Route = createFileRoute("/game")({
@@ -303,6 +308,19 @@ function GameLayout() {
 						}),
 					});
 				}}
+				onForceNotebook={() => {
+					void navigate({
+						to: "/game/notebook",
+						search: (current) => ({
+							...current,
+							chronicle: undefined,
+							lineage: undefined,
+							notebook: "1",
+							quarterly: undefined,
+							pulse: undefined,
+						}),
+					});
+				}}
 				onForceQuarterlyReview={() => {
 					void navigate({
 						to: "/game/quarterly",
@@ -338,6 +356,9 @@ function GameLayout() {
 
 function Navigation() {
 	const location = useLocation();
+	const game = useGameState();
+	const notebookCount =
+		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
 	return (
 		<div className="hidden min-w-0 lg:block">
 			<nav
@@ -389,7 +410,9 @@ function Navigation() {
 							to={destination.to}
 						>
 							<Icon className="size-3.5" aria-hidden="true" />
-							{destination.label}
+							{destination.to === "/game/notebook"
+								? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
+								: destination.label}
 							<span className="border border-[var(--game-amber)]/50 px-1 py-0.5 font-mono text-[10px] text-[var(--game-amber)] leading-none">
 								Preview
 							</span>
@@ -403,6 +426,9 @@ function Navigation() {
 
 function MobileNavigation() {
 	const location = useLocation();
+	const game = useGameState();
+	const notebookCount =
+		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
 	return (
 		<nav
 			aria-label="Game destinations"
@@ -457,7 +483,9 @@ function MobileNavigation() {
 						>
 							<Icon className="size-4" aria-hidden="true" />
 							<span className="max-w-full truncate">
-								{destination.shortLabel}
+								{destination.to === "/game/notebook"
+									? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
+									: destination.shortLabel}
 							</span>
 							<span className="font-mono text-[10px] leading-none">
 								Preview
@@ -533,6 +561,12 @@ const ARCHIVE_DESTINATIONS = [
 		label: "Model Lineage",
 		shortLabel: "Lineage",
 		icon: GitBranch,
+	},
+	{
+		to: "/game/notebook",
+		label: "Lab Notebook",
+		shortLabel: "Notebook",
+		icon: BookOpen,
 	},
 ] as const;
 
@@ -951,6 +985,8 @@ function validateGameSearch(search: Record<string, unknown>): GameSearch {
 		quarterly: search.quarterly === "1" ? "1" : undefined,
 		pulse: search.pulse === "1" ? "1" : undefined,
 		chronicle: search.chronicle === "1" ? "1" : undefined,
+		lineage: search.lineage === "1" ? "1" : undefined,
+		notebook: search.notebook === "1" ? "1" : undefined,
 	};
 }
 

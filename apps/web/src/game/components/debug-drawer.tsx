@@ -10,6 +10,7 @@ export type DebugDrawerProps = {
 	onForceIndustryPulse: () => void;
 	onForceChronicle: () => void;
 	onForceLineage: () => void;
+	onForceNotebook: () => void;
 	onQuarterChange: (quarter: number) => void;
 	onRivalProgressChange: (progress: number) => void;
 };
@@ -23,6 +24,7 @@ export default function DebugDrawer({
 	onForceIndustryPulse,
 	onForceChronicle,
 	onForceLineage,
+	onForceNotebook,
 	onQuarterChange,
 	onRivalProgressChange,
 }: DebugDrawerProps) {
@@ -112,6 +114,15 @@ export default function DebugDrawer({
 								variant="outline"
 							>
 								Force Model Lineage Gallery
+							</Button>
+							<Button
+								className="h-auto min-h-11 whitespace-normal text-left"
+								onClick={onForceNotebook}
+								size="sm"
+								type="button"
+								variant="outline"
+							>
+								Force Notebook / show all
 							</Button>
 						</div>
 
