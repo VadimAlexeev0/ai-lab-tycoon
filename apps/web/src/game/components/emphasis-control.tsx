@@ -33,7 +33,7 @@ export default function EmphasisControl({
 
 	return (
 		<fieldset className="space-y-3" disabled={disabled}>
-			<legend className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+			<legend className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 				Model emphasis
 			</legend>
 			<div className="space-y-3">
@@ -97,8 +97,8 @@ export default function EmphasisControl({
 			<p
 				className={
 					total === totalPoints
-						? "font-mono text-[10px] text-[var(--game-positive)] uppercase tracking-[0.12em]"
-						: "font-mono text-[10px] text-[var(--game-amber)] uppercase tracking-[0.12em]"
+						? "font-mono text-[var(--game-positive)] text-xs uppercase tracking-[0.12em]"
+						: "font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]"
 				}
 			>
 				Points: {total} / {totalPoints}{" "}

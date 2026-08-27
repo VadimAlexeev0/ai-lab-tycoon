@@ -36,7 +36,7 @@ export default function ModelCard({
 			<section className="border border-border/70 bg-background/35 px-3 py-4">
 				<div className="flex items-center gap-2">
 					<FlaskConical className="size-4 text-primary" aria-hidden="true" />
-					<h3 className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+					<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 						No model designs yet
 					</h3>
 				</div>
@@ -51,10 +51,10 @@ export default function ModelCard({
 	return (
 		<section aria-label="Model cards" className="space-y-3">
 			<div className="flex items-center justify-between gap-2">
-				<h3 className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+				<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 					Public model register
 				</h3>
-				<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+				<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 					Estimates only
 				</span>
 			</div>
@@ -119,7 +119,7 @@ function ModelRegisterCard({
 							{visible.name}
 						</h4>
 					</div>
-					<p className="mt-1 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 						{model.id} · {model.family ?? "unclassified"} ·{" "}
 						{model.tier ?? "n/a"}
 					</p>
@@ -128,7 +128,7 @@ function ModelRegisterCard({
 			</div>
 
 			{project ? (
-				<p className="mt-3 border border-primary/25 bg-primary/5 px-2 py-1.5 font-mono text-[10px] text-primary uppercase tracking-[0.1em]">
+				<p className="mt-3 border border-primary/25 bg-primary/5 px-2 py-1.5 font-mono text-primary text-xs uppercase tracking-[0.1em]">
 					Project active · {project}
 				</p>
 			) : null}
@@ -143,7 +143,7 @@ function ModelRegisterCard({
 								className="border border-border/70 px-2 py-1.5"
 								key={dimension}
 							>
-								<p className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+								<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 									{dimension}
 								</p>
 								<p className="mt-1 font-mono font-semibold text-foreground text-xs">
@@ -162,7 +162,7 @@ function ModelRegisterCard({
 
 			{model.status === "ready" || model.status === "launched" ? (
 				<div className="mt-3 space-y-2 border-border/70 border-t pt-3">
-					<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						Narrow the uncertainty band
 					</p>
 					<div className="flex flex-wrap gap-2">
@@ -182,7 +182,7 @@ function ModelRegisterCard({
 						))}
 					</div>
 					{activeEvaluation ? (
-						<p className="text-[10px] text-[var(--game-amber)] leading-4">
+						<p className="text-[var(--game-amber)] text-xs leading-4">
 							An evaluation project is using the team's slot. Its completion
 							will narrow the displayed bands.
 						</p>
@@ -207,7 +207,7 @@ function StatusLabel({ status }: { status: Model["status"] }) {
 			? "Designing"
 			: status[0]?.toUpperCase() + status.slice(1);
 	return (
-		<span className="shrink-0 border border-border/70 px-2 py-1 font-mono font-semibold text-[10px] text-foreground uppercase tracking-[0.1em]">
+		<span className="shrink-0 border border-border/70 px-2 py-1 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]">
 			{label}
 		</span>
 	);

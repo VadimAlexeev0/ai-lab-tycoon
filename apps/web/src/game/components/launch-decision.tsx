@@ -39,7 +39,7 @@ export default function LaunchDecision({
 					aria-hidden="true"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-[var(--game-amber)] uppercase tracking-[0.14em]">
+					<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.14em]">
 						Launch decision required
 					</p>
 					<h4 className="mt-1 font-medium text-foreground text-sm">
@@ -71,7 +71,7 @@ export default function LaunchDecision({
 					</Button>
 				))}
 			</div>
-			<p className="mt-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+			<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				Queue reference: {decision.id}
 			</p>
 		</article>

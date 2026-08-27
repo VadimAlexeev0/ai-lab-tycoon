@@ -30,7 +30,7 @@ export default function DataMixControl({
 
 	return (
 		<fieldset className="space-y-3" disabled={disabled}>
-			<legend className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+			<legend className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 				Training data mix
 			</legend>
 			<div className="space-y-3">
@@ -65,7 +65,7 @@ export default function DataMixControl({
 									type="number"
 									value={value[dimension]}
 								/>
-								<span className="font-mono text-[10px] text-muted-foreground">
+								<span className="font-mono text-muted-foreground text-xs">
 									%
 								</span>
 								<Button
@@ -97,8 +97,8 @@ export default function DataMixControl({
 			<p
 				className={
 					total === 100
-						? "font-mono text-[10px] text-[var(--game-positive)] uppercase tracking-[0.12em]"
-						: "font-mono text-[10px] text-[var(--game-amber)] uppercase tracking-[0.12em]"
+						? "font-mono text-[var(--game-positive)] text-xs uppercase tracking-[0.12em]"
+						: "font-mono text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]"
 				}
 			>
 				Total: {total}% {total === 100 ? "· valid" : "· must equal 100%"}

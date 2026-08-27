@@ -43,7 +43,7 @@ export default function ProjectPicker({
 		<div className="flex flex-col gap-2 border-border/70 border-t pt-3 sm:flex-row sm:items-end">
 			<div className="min-w-0 flex-1 space-y-1.5">
 				<label
-					className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]"
+					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
 					htmlFor={selectId}
 				>
 					Assign a project
@@ -64,7 +64,7 @@ export default function ProjectPicker({
 					))}
 				</select>
 				{selectedProject ? (
-					<p className="text-[10px] text-muted-foreground leading-4">
+					<p className="text-muted-foreground text-xs leading-4">
 						{projectDescription(selectedProject)}
 					</p>
 				) : null}

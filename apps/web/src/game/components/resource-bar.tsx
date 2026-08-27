@@ -84,7 +84,7 @@ export default function ResourceBar({ state }: ResourceBarProps) {
 						<Gauge className="size-4" aria-hidden="true" />
 					</div>
 					<div>
-						<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+						<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 							Time
 						</p>
 						<p className="mt-1 font-mono font-semibold text-foreground text-lg leading-none">
@@ -110,7 +110,7 @@ function ResourceCell({ item }: { item: ResourceItem }) {
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+					<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 						{item.label}
 					</p>
 					<p
@@ -122,7 +122,7 @@ function ResourceCell({ item }: { item: ResourceItem }) {
 				<Icon className={`size-4 ${item.accent}`} aria-hidden="true" />
 			</div>
 			{item.detail ? (
-				<p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground leading-4">
+				<p className="mt-1 line-clamp-2 text-muted-foreground text-xs leading-4">
 					{item.detail}
 				</p>
 			) : null}

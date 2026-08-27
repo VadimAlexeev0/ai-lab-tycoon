@@ -18,17 +18,15 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const ERA_ORDER = ["text", "assistant", "multimodal"] as const;
+import EraBadge, { ERA_ORDER } from "@/game/components/era-badge";
+
 const BRANCH_ORDER = ["models", "infrastructure", "products_safety"] as const;
-const ERA_LABELS: Record<(typeof ERA_ORDER)[number], string> = {
-	text: "Text era",
-	assistant: "Assistant era",
-	multimodal: "Multimodal era",
-};
 const CARD_WIDTH = 300;
-const CARD_HEIGHT = 104;
+const CARD_HEIGHT = 148;
 const ERA_WIDTH = 360;
 const CANVAS_PADDING = 28;
+const CANVAS_TOP = 52;
+const ROW_HEIGHT = 164;
 
 type ResearchNodeState = "locked" | "available" | "in-progress" | "completed";
 type ResearchProject = Extract<
@@ -114,7 +112,7 @@ export default function ResearchTree({
 			<style>{RESEARCH_TREE_STYLES}</style>
 			<div className="flex flex-wrap items-end justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Research / frontier map
 					</p>
 					<h2
@@ -124,9 +122,7 @@ export default function ResearchTree({
 						Trace the research DAG
 					</h2>
 				</div>
-				<span className="border border-primary/30 bg-primary/5 px-2 py-1 font-mono text-[10px] text-primary uppercase tracking-[0.12em]">
-					Current era: {state.research.currentEra}
-				</span>
+				<EraBadge era={state.research.currentEra} size="compact" />
 			</div>
 			<p className="max-w-3xl text-muted-foreground text-xs leading-5">
 				Each card is an engine research node. Read left-to-right by era, then
@@ -134,7 +130,7 @@ export default function ResearchTree({
 				screens.
 			</p>
 
-			<div
+			<section
 				aria-labelledby="research-tree-heading"
 				className={cn(
 					"select-none overflow-x-auto overscroll-x-contain border border-border bg-background/35",
@@ -151,26 +147,34 @@ export default function ResearchTree({
 					className="relative"
 					style={{ height: layout.height, width: layout.width }}
 				>
-					{ERA_ORDER.map((era, index) => (
-						<div
-							aria-hidden="true"
-							className="pointer-events-none absolute top-0 border-border/70 border-r px-1 py-3"
-							key={era}
-							style={{
-								height: layout.height,
-								left: index * ERA_WIDTH,
-								width: ERA_WIDTH,
-							}}
-						>
-							<div className="flex items-center gap-2 font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.16em]">
-								<span className="text-muted-foreground">0{index + 1}</span>
-								{ERA_LABELS[era]}
+					{ERA_ORDER.map((era, index) => {
+						const eraCompleted =
+							ERA_ORDER.indexOf(state.research.currentEra) > index;
+						return (
+							<div
+								aria-hidden="true"
+								className="pointer-events-none absolute top-0 border-border/70 border-r px-1 py-3"
+								key={era}
+								style={{
+									height: layout.height,
+									left: index * ERA_WIDTH,
+									width: ERA_WIDTH,
+								}}
+							>
+								<div className="relative inline-flex">
+									<EraBadge era={era} size="compact" />
+									{eraCompleted ? (
+										<span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full border border-[var(--game-positive)]/70 bg-background text-[var(--game-positive)]">
+											<Check className="size-3" aria-hidden="true" />
+										</span>
+									) : null}
+								</div>
+								<div className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+									Era column / tier depth
+								</div>
 							</div>
-							<div className="mt-1 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.1em]">
-								Era column / tier depth
-							</div>
-						</div>
-					))}
+						);
+					})}
 
 					<svg
 						aria-hidden="true"
@@ -213,9 +217,9 @@ export default function ResearchTree({
 						/>
 					))}
 				</div>
-			</div>
+			</section>
 
-			<div className="flex flex-wrap gap-x-4 gap-y-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+			<div className="flex flex-wrap gap-x-4 gap-y-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				<LegendIcon icon={<LockKeyhole className="size-3" />} label="Locked" />
 				<LegendIcon
 					icon={<CircleDashed className="size-3" />}
@@ -257,9 +261,10 @@ function ResearchNodeCard({
 				: node.state === "available"
 					? CircleDashed
 					: LockKeyhole;
+	const prerequisiteLabel = node.source.prerequisites.map(humanize).join(", ");
 	return (
 		<button
-			aria-label={`${humanize(node.node.id)} research node, ${node.state}`}
+			aria-label={`${humanize(node.node.id)} research node, ${node.state}${node.state === "locked" && prerequisiteLabel.length > 0 ? `, requires ${prerequisiteLabel}` : ""}`}
 			aria-pressed={selected}
 			className={cn(
 				"absolute flex flex-col gap-2 border bg-card p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
@@ -284,7 +289,7 @@ function ResearchNodeCard({
 		>
 			<div className="flex min-w-0 items-start justify-between gap-2">
 				<div className="min-w-0">
-					<p className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.1em]">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						{humanize(node.source.branch)}
 					</p>
 					<h3 className="mt-1 truncate font-medium text-foreground text-xs">
@@ -303,7 +308,12 @@ function ResearchNodeCard({
 					aria-hidden="true"
 				/>
 			</div>
-			<div className="mt-auto flex items-center justify-between gap-2 border-border/70 border-t pt-2 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+			{node.state === "locked" ? (
+				<p className="line-clamp-2 text-muted-foreground text-xs leading-4">
+					Requires: {prerequisiteLabel || "an earlier research node"}
+				</p>
+			) : null}
+			<div className="mt-auto flex items-center justify-between gap-2 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 				<span>Tier {node.tier}</span>
 				<span className="text-[var(--game-amber)]">
 					{node.node.insightCost} Insight
@@ -388,7 +398,7 @@ function ResearchDetailPane({
 		>
 			<div className="flex items-start justify-between gap-3 border-border/70 border-b pb-3">
 				<div className="min-w-0">
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Research node detail
 					</p>
 					<h2
@@ -408,7 +418,7 @@ function ResearchDetailPane({
 				</button>
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-b pb-3 font-mono text-[10px] uppercase tracking-[0.1em]">
+			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-b pb-3 font-mono text-xs uppercase tracking-[0.1em]">
 				<DetailValue label="Status" value={node.state} />
 				<DetailValue label="Tier" value={`${node.tier}`} />
 				<DetailValue label="Cost" value={`${node.node.insightCost} Insight`} />
@@ -421,7 +431,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-effects-heading"
-					className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]"
+					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
 				>
 					Effects
 				</h3>
@@ -440,7 +450,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-prereqs-heading"
-					className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]"
+					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
 				>
 					Prerequisites
 				</h3>
@@ -462,7 +472,7 @@ function ResearchDetailPane({
 									</span>
 									<span
 										className={cn(
-											"shrink-0 font-mono text-[9px] uppercase tracking-[0.08em]",
+											"shrink-0 font-mono text-xs uppercase tracking-[0.08em]",
 											completed
 												? "text-[var(--game-positive)]"
 												: "text-[var(--game-amber)]",
@@ -487,7 +497,7 @@ function ResearchDetailPane({
 			>
 				<h3
 					id="research-assign-heading"
-					className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]"
+					className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]"
 				>
 					Assign team
 				</h3>
@@ -520,7 +530,7 @@ function ResearchDetailPane({
 							Assign research team
 							<ChevronRight data-icon="inline-end" aria-hidden="true" />
 						</Button>
-						<p className="text-[10px] text-muted-foreground leading-4">
+						<p className="text-muted-foreground text-xs leading-4">
 							This spends {node.node.insightCost} Insight through the existing
 							assign-project command.
 						</p>
@@ -622,13 +632,13 @@ function createResearchLayout(state: GameState): {
 				state: activeProject === undefined ? node.status : "in-progress",
 				tier: depthFor(node.id, sourceById, depthMemo) + 1,
 				x: ERA_ORDER.indexOf(era) * ERA_WIDTH + CANVAS_PADDING,
-				y: 42 + row * 118,
+				y: CANVAS_TOP + row * ROW_HEIGHT,
 			});
 		}
 	}
 
 	return {
-		height: Math.max(310, 42 + (maxRow + 1) * 118 + 28),
+		height: Math.max(360, CANVAS_TOP + (maxRow + 1) * ROW_HEIGHT + 28),
 		nodes: positioned,
 		width: ERA_ORDER.length * ERA_WIDTH,
 	};

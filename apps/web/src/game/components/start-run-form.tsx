@@ -103,7 +103,7 @@ export default function StartRunForm({
 		>
 			<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Run initialization
 					</p>
 					<h2
@@ -161,7 +161,7 @@ export default function StartRunForm({
 				</div>
 
 				<fieldset className="space-y-2">
-					<legend className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+					<legend className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
 						Founder archetype{" "}
 						<span className="font-normal text-primary/80">(cosmetic)</span>
 					</legend>
@@ -191,7 +191,7 @@ export default function StartRunForm({
 							</button>
 						))}
 					</div>
-					<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						Flavor only · does not affect the simulation.
 					</p>
 				</fieldset>

@@ -79,7 +79,7 @@ export default function AdvanceWeekButton({
 				Time controls
 			</h2>
 			<div className="min-w-0">
-				<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+				<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 					Time control
 				</p>
 				<p

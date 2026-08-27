@@ -163,7 +163,7 @@ export default function IncidentCard({
 						className="size-3.5 text-[var(--game-positive)]"
 						aria-hidden="true"
 					/>
-					<h3 className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+					<h3 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
 						No incident response required
 					</h3>
 				</div>
@@ -228,8 +228,18 @@ function IncidentDecision({
 					className="mt-0.5 size-4 shrink-0 text-[var(--game-negative)]"
 					aria-hidden="true"
 				/>
+				<img
+					alt=""
+					aria-hidden="true"
+					className="size-9 shrink-0 object-contain mix-blend-screen"
+					decoding="async"
+					height={36}
+					loading="lazy"
+					src="/art/icon-incident.png"
+					width={36}
+				/>
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-[var(--game-negative)] uppercase tracking-[0.14em]">
+					<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">
 						Blocking incident
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">
@@ -238,7 +248,7 @@ function IncidentDecision({
 				</div>
 			</div>
 
-			<dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-border/70 border-y py-2 text-[10px]">
+			<dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-border/70 border-y py-2 text-xs">
 				<Fact label="Cause" value={info.condition} />
 				<Fact label="Affected" value={info.affectedEntity} />
 				<Fact label="Metric" value={info.metric} />
@@ -252,13 +262,13 @@ function IncidentDecision({
 				/>
 			</dl>
 			{evidence?.fact.kind === "incident_occurred" ? (
-				<p className="mt-2 text-[10px] text-muted-foreground leading-4">
+				<p className="mt-2 text-muted-foreground text-xs leading-4">
 					Immediate severity: {evidence.fact.severity} total resource units.
 				</p>
 			) : null}
 
 			<div className="mt-3 space-y-2">
-				<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+				<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
 					Choose a mechanical response
 				</p>
 				<div className="grid gap-2 md:grid-cols-3">
@@ -273,7 +283,7 @@ function IncidentDecision({
 									<p className="font-medium text-foreground text-xs">
 										{effect.label}
 									</p>
-									<p className="mt-1 text-[10px] text-muted-foreground">
+									<p className="mt-1 text-muted-foreground text-xs">
 										Cash -${effect.cash} · Trust {signed(effect.trust)} · Hype{" "}
 										{signed(effect.hype)}
 									</p>
@@ -300,7 +310,7 @@ function IncidentDecision({
 					)}
 				</div>
 			</div>
-			<p className="mt-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+			<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				Queue reference: {decision.id}
 			</p>
 		</article>

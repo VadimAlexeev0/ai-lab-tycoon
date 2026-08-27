@@ -73,7 +73,7 @@ export default function FundingPanel({
 		<section aria-label="Funding" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Capital / eligibility
 					</p>
 					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
@@ -142,7 +142,7 @@ function RoundCard({
 			<div className="flex items-start justify-between gap-2">
 				<div>
 					<p className="font-medium text-foreground text-sm">{info.label}</p>
-					<p className="mt-1 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+					<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						Grant ${info.grant} · {status}
 					</p>
 				</div>
@@ -162,11 +162,11 @@ function RoundCard({
 					/>
 				)}
 			</div>
-			<p className="mt-3 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+			<p className="mt-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				Eligibility odds: {metCount} / {entries.length} factors met
 			</p>
 			<ul
-				className="mt-2 space-y-1 text-[10px] text-muted-foreground"
+				className="mt-2 space-y-1 text-muted-foreground text-xs"
 				aria-label={`${info.label} eligibility factors`}
 			>
 				{entries.map(([factor, threshold]) => {

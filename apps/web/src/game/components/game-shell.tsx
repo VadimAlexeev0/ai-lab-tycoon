@@ -29,6 +29,7 @@ import {
 	useState,
 } from "react";
 import ComputePanel from "@/game/components/compute-panel";
+import EraBadge from "@/game/components/era-badge";
 import FundingPanel from "@/game/components/funding-panel";
 import IncidentCard from "@/game/components/incident-card";
 import ModelCard from "@/game/components/model-card";
@@ -229,14 +230,14 @@ export default function GameShell({
 			<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-5 px-4 py-5 sm:px-6 lg:gap-6 lg:px-8 lg:py-7">
 				<header className="flex flex-col gap-5 border-border/70 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
 					<div className="space-y-2">
-						<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.28em]">
+						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.28em]">
 							Operations / command console
 						</p>
 						<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 							<h1 className="font-mono font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
 								AI Startup Lab Tycoon
 							</h1>
-							<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+							<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.2em]">
 								V1 / deterministic sandbox
 							</span>
 						</div>
@@ -247,8 +248,8 @@ export default function GameShell({
 						</p>
 					</div>
 
-					<div className="flex max-w-full flex-wrap items-center gap-3 self-start lg:self-end">
-						<div className="flex min-w-0 max-w-full items-center gap-2 rounded-none border border-border bg-card px-3 py-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+					<div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 self-start lg:self-end">
+						<div className="flex min-w-0 max-w-full items-center gap-2 rounded-none border border-border bg-card px-3 py-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.16em]">
 							<span
 								className={cn(
 									"size-2 rounded-full",
@@ -262,8 +263,11 @@ export default function GameShell({
 							/>
 							<span className="min-w-0 break-words">{sessionLabel}</span>
 						</div>
+						{hasActiveRun && gameState ? (
+							<EraBadge era={gameState.research.currentEra} size="compact" />
+						) : null}
 						{hasActiveRun && week !== undefined ? (
-							<div className="border border-primary/35 bg-primary/10 px-3 py-2 font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.16em]">
+							<div className="border border-primary/35 bg-primary/10 px-3 py-2 font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
 								Week {week}
 							</div>
 						) : null}
@@ -271,7 +275,7 @@ export default function GameShell({
 				</header>
 
 				{hasActiveRun && companyName ? (
-					<div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border border-border/70 bg-card/60 px-3 py-2.5 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+					<div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border border-border/70 bg-card/60 px-3 py-2.5 font-mono text-muted-foreground text-xs uppercase tracking-[0.14em]">
 						<span className="min-w-0 break-words">
 							Company <strong className="text-foreground">{companyName}</strong>
 						</span>
@@ -295,14 +299,14 @@ export default function GameShell({
 								aria-label="Required decision"
 								className="flex scroll-mt-6 flex-col gap-2 border border-[var(--game-amber)]/60 bg-[var(--game-amber)]/10 px-4 py-3 outline-none focus-visible:ring-1 focus-visible:ring-[var(--game-amber)]"
 							>
-								<div className="flex items-center gap-2 font-mono font-semibold text-[10px] text-[var(--game-amber)] uppercase tracking-[0.2em]">
+								<div className="flex items-center gap-2 font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.2em]">
 									<Radio className="size-3.5" aria-hidden="true" />
 									<h2>Decision required</h2>
 								</div>
 								<p className="font-medium text-foreground text-sm">
 									Resolve the highlighted decision before advancing the week.
 								</p>
-								<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+								<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 									Queue reference: {blockingDecisionId}
 								</p>
 							</section>
@@ -598,7 +602,7 @@ function DashboardPanels({
 					{conflictRecord !== null ? (
 						<button
 							type="button"
-							className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
+							className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-xs uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
 							onClick={() => {
 								onAdoptConflictRecord(conflictRecord);
 							}}
@@ -630,13 +634,13 @@ function DashboardPanels({
 							panelTabRefs.current[panel.id] = element;
 						}}
 						className={cn(
-							"flex min-h-9 shrink-0 items-center gap-2 px-2.5 font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.12em]",
+							"flex min-h-9 shrink-0 items-center gap-2 px-2.5 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]",
 							activePanel === panel.id
 								? "bg-primary text-primary-foreground"
 								: "hover:bg-muted hover:text-foreground",
 						)}
 					>
-						<span className="text-[9px] opacity-70">{panel.index}</span>
+						<span className="text-xs opacity-70">{panel.index}</span>
 						{panel.id === "overview" ? "Overview" : panel.label}
 					</button>
 				))}
@@ -707,7 +711,7 @@ function PanelCard({
 			/>
 			<div className="relative z-10 flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						{panel.status}
 					</p>
 					<h2
@@ -761,7 +765,7 @@ function OverviewPanel({ state }: { state: GameState }) {
 				<Metric label="Trust" value={`${visible.resourceBar.trust}`} />
 				<Metric label="Hype" value={`${visible.resourceBar.hype}`} />
 			</div>
-			<div className="flex flex-wrap gap-x-4 gap-y-1 border-border/70 border-t pt-3 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+			<div className="flex flex-wrap gap-x-4 gap-y-1 border-border/70 border-t pt-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 				<span>Era {state.meta.era}</span>
 				<span>Teams {visible.teams.length}</span>
 				<span>Models {visible.models.length}</span>
@@ -774,7 +778,7 @@ function OverviewPanel({ state }: { state: GameState }) {
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="border border-border/70 bg-background/35 px-2.5 py-2">
-			<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 				{label}
 			</p>
 			<p className="mt-1 font-mono font-semibold text-foreground text-sm">

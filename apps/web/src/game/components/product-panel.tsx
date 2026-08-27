@@ -88,14 +88,14 @@ export default function ProductPanel({
 		<section aria-label="Products and launch decisions" className="space-y-5">
 			<div className="flex flex-wrap items-end justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Products / market
 					</p>
 					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
 						Launch and watch demand
 					</h3>
 				</div>
-				<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+				<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 					{products.length} active record{products.length === 1 ? "" : "s"}
 				</span>
 			</div>
@@ -135,7 +135,7 @@ export default function ProductPanel({
 							className="size-4 text-muted-foreground"
 							aria-hidden="true"
 						/>
-						<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+						<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
 							No products launched
 						</p>
 					</div>
@@ -149,7 +149,7 @@ export default function ProductPanel({
 			<div className="space-y-2 border-border/70 border-t pt-3">
 				<div className="flex items-center gap-2">
 					<Rocket className="size-3.5 text-primary" aria-hidden="true" />
-					<h4 className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
+					<h4 className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.14em]">
 						Channel forecasts and requirements
 					</h4>
 				</div>
@@ -164,11 +164,11 @@ export default function ProductPanel({
 								<p className="font-medium text-foreground text-xs">
 									{forecast.label}
 								</p>
-								<p className="mt-1 text-[10px] text-muted-foreground">
+								<p className="mt-1 text-muted-foreground text-xs">
 									{forecast.era} era · Trust {forecast.trust} · Hype{" "}
 									{forecast.hype}
 								</p>
-								<p className="mt-1 font-mono text-[10px] text-muted-foreground">
+								<p className="mt-1 font-mono text-muted-foreground text-xs">
 									${forecast.cost} launch · {forecast.users} starting users ·{" "}
 									{forecast.compute} compute/user · ${forecast.revenue}/wk base
 								</p>
@@ -192,14 +192,14 @@ function ProductRecord({
 		<article className="border border-border bg-background/35 p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 						{product.id}
 					</p>
 					<h4 className="mt-1 font-medium text-foreground text-sm">
 						{channelLabel(product.channel)} · {modelName}
 					</h4>
 				</div>
-				<span className="inline-flex items-center gap-1 border border-border/70 px-2 py-1 font-mono text-[10px] text-foreground uppercase tracking-[0.1em]">
+				<span className="inline-flex items-center gap-1 border border-border/70 px-2 py-1 font-mono text-foreground text-xs uppercase tracking-[0.1em]">
 					<BadgeCheck
 						className="size-3 text-[var(--game-positive)]"
 						aria-hidden="true"
@@ -229,7 +229,7 @@ function ProductRecord({
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
 		<div className="border border-border/70 px-2 py-1.5">
-			<p className="font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 				{label}
 			</p>
 			<p className="mt-1 font-mono font-semibold text-foreground text-xs">

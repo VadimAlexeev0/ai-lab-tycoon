@@ -33,7 +33,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 		<section aria-label="Rivals" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Rivals / public clocks
 					</p>
 					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
@@ -71,7 +71,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 										<p className="truncate font-medium text-foreground text-xs">
 											{rival.name}
 										</p>
-										<p className="mt-1 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+										<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 											{rival.focus} focus
 										</p>
 									</div>
@@ -93,7 +93,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 									style={{ width: `${Math.min(100, rival.progress)}%` }}
 								/>
 							</div>
-							<p className="mt-2 font-mono text-[9px] text-muted-foreground uppercase tracking-[0.08em]">
+							<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 								Public progress only · {rival.id}
 							</p>
 						</li>
@@ -105,7 +105,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 				</p>
 			)}
 
-			<div className="flex items-center gap-2 border-border/70 border-t pt-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+			<div className="flex items-center gap-2 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				<Gauge
 					className="size-3.5 text-[var(--game-amber)]"
 					aria-hidden="true"

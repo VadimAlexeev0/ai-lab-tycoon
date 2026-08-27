@@ -32,6 +32,7 @@ import {
 import { useEffect } from "react";
 
 import AdvanceWeekButton from "@/game/components/advance-week-button";
+import EraBadge from "@/game/components/era-badge";
 import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
 import Pane from "@/game/components/pane";
@@ -152,14 +153,14 @@ function GameLayout() {
 				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-4 px-4 py-4 pb-24 sm:gap-5 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
 					<header className="flex flex-col gap-3 border-border/70 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="min-w-0 space-y-1.5">
-							<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.28em]">
+							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.28em]">
 								Operations / command console
 							</p>
 							<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 								<h1 className="font-mono font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
 									AI Startup Lab Tycoon
 								</h1>
-								<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+								<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.2em]">
 									V1 / deterministic sandbox
 								</span>
 							</div>
@@ -180,6 +181,9 @@ function GameLayout() {
 								label={game.sessionLabel}
 								status={game.session.status}
 							/>
+							{isActive && state !== null ? (
+								<EraBadge era={state.research.currentEra} size="compact" />
+							) : null}
 							{isActive ? (
 								<>
 									<Button
@@ -212,14 +216,14 @@ function GameLayout() {
 								<ResourceBar state={state} />
 								<div className="flex min-w-0 items-center justify-between gap-3 border border-primary/35 bg-primary/10 px-3 py-2">
 									<div className="min-w-0">
-										<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.18em]">
+										<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.18em]">
 											Current week
 										</p>
 										<p className="mt-1 font-mono font-semibold text-foreground text-lg leading-none">
 											Week {state.meta.week}
 										</p>
 									</div>
-									<span className="hidden font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em] sm:block">
+									<span className="hidden font-mono text-muted-foreground text-xs uppercase tracking-[0.12em] sm:block">
 										Era {state.meta.era}
 									</span>
 								</div>
@@ -270,7 +274,7 @@ function Navigation() {
 					<Link
 						aria-current={active ? "page" : undefined}
 						className={cn(
-							"flex min-h-9 shrink-0 items-center gap-2 px-3 font-mono font-semibold text-[10px] uppercase tracking-[0.12em]",
+							"flex min-h-9 shrink-0 items-center gap-2 px-3 font-mono font-semibold text-xs uppercase tracking-[0.12em]",
 							active
 								? "bg-primary text-primary-foreground"
 								: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -302,7 +306,7 @@ function MobileNavigation() {
 					<Link
 						aria-current={active ? "page" : undefined}
 						className={cn(
-							"flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 px-1 font-mono text-[9px] uppercase tracking-[0.04em]",
+							"flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
 							active
 								? "bg-primary text-primary-foreground"
 								: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -374,7 +378,7 @@ function SessionBadge({
 	status: "loading" | "ready" | "error";
 }) {
 	return (
-		<div className="flex min-w-0 max-w-full items-center gap-2 border border-border bg-card px-3 py-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.16em]">
+		<div className="flex min-w-0 max-w-full items-center gap-2 border border-border bg-card px-3 py-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.16em]">
 			<span
 				aria-hidden="true"
 				className={cn(
@@ -414,7 +418,7 @@ function ActionFeedback({
 			<span className="min-w-0 flex-1">{actionError}</span>
 			{conflictRecord !== null ? (
 				<button
-					className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
+					className="shrink-0 border border-[var(--game-negative)] px-2 py-1 font-mono text-xs uppercase tracking-wider hover:bg-[var(--game-negative)]/20"
 					onClick={() => onAdopt(conflictRecord)}
 					type="button"
 				>
@@ -629,7 +633,7 @@ function EvaluationDecision({
 					aria-hidden="true"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-[var(--game-amber)] uppercase tracking-[0.14em]">
+					<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.14em]">
 						Evaluation decision required
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">
@@ -687,7 +691,7 @@ function FundingDecision({
 					aria-hidden="true"
 				/>
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.14em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.14em]">
 						Funding offer
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm">{label}</h3>

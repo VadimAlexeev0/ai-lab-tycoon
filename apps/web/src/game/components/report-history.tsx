@@ -51,7 +51,7 @@ export default function ReportHistory({
 		<section aria-label="Report history" className="space-y-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Reports / history
 					</p>
 					<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
@@ -66,8 +66,8 @@ export default function ReportHistory({
 						aria-pressed={filter === candidate}
 						className={
 							filter === candidate
-								? "border border-primary bg-primary/10 px-2 py-1 font-mono text-[10px] text-primary uppercase tracking-[0.1em]"
-								: "border border-border/70 px-2 py-1 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em] hover:border-primary/50 hover:text-foreground"
+								? "border border-primary bg-primary/10 px-2 py-1 font-mono text-primary text-xs uppercase tracking-[0.1em]"
+								: "border border-border/70 px-2 py-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em] hover:border-primary/50 hover:text-foreground"
 						}
 						key={candidate}
 						onClick={() => setFilter(candidate)}
@@ -86,10 +86,10 @@ export default function ReportHistory({
 							key={report.id}
 						>
 							<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-								<span className="font-mono font-semibold text-[10px] text-foreground uppercase tracking-[0.1em]">
+								<span className="font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]">
 									{report.priority} · {report.id}
 								</span>
-								<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+								<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 									Week {report.fact.week}
 								</span>
 							</div>
@@ -97,7 +97,7 @@ export default function ReportHistory({
 								{factSummary(report.fact)}
 							</p>
 							{report.acknowledged || acknowledgedIds.has(report.id) ? (
-								<p className="mt-1 font-mono text-[10px] text-[var(--game-positive)] uppercase tracking-[0.1em]">
+								<p className="mt-1 font-mono text-[var(--game-positive)] text-xs uppercase tracking-[0.1em]">
 									Acknowledged in this console
 								</p>
 							) : null}

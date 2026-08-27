@@ -36,6 +36,7 @@ function ResearchRoute() {
 			eyebrow="Module 02 / frontier map"
 			title="Research"
 			description="Follow the engine's layered research DAG from foundational work to the multimodal frontier. Select any node to inspect its economics and assign a team."
+			eraState={game.state}
 		>
 			<ResearchTree
 				disabled={game.actionBusy}

@@ -17,13 +17,13 @@ export default function Header() {
 						<span className="block truncate font-mono font-semibold text-foreground text-xs uppercase tracking-[0.16em]">
 							AI Startup Lab
 						</span>
-						<span className="hidden font-mono text-[9px] text-muted-foreground uppercase tracking-[0.2em] sm:block">
+						<span className="hidden font-mono text-muted-foreground text-xs uppercase tracking-[0.2em] sm:block">
 							Tycoon / operations console
 						</span>
 					</span>
 				</RouterLink>
 
-				<div className="flex shrink-0 items-center gap-2 font-mono font-semibold text-[9px] text-muted-foreground uppercase tracking-[0.16em] sm:gap-3">
+				<div className="flex shrink-0 items-center gap-2 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em] sm:gap-3">
 					<span className="hidden items-center gap-1.5 sm:flex">
 						<Activity
 							className="size-3 text-[var(--game-positive)]"

@@ -55,7 +55,7 @@ export default function RunResult({
 						aria-hidden="true"
 					/>
 					<div>
-						<p className="font-mono font-semibold text-[10px] text-[var(--game-negative)] uppercase tracking-[0.14em]">
+						<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">
 							Sandbox ended
 						</p>
 						<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
@@ -69,7 +69,7 @@ export default function RunResult({
 					</div>
 				</div>
 				<div className="relative z-10 mt-3 border-border/70 border-t pt-3">
-					<p className="font-mono font-semibold text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+					<p className="font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.12em]">
 						Top contributing facts
 					</p>
 					<ol className="mt-2 space-y-2">
@@ -81,7 +81,7 @@ export default function RunResult({
 								<span className="min-w-0 break-words text-foreground text-xs">
 									{index + 1}. {factLabel(contributor.kind)}
 								</span>
-								<span className="shrink-0 font-mono text-[10px] text-muted-foreground uppercase">
+								<span className="shrink-0 font-mono text-muted-foreground text-xs uppercase">
 									Impact {contributor.impact} · W{contributor.week}
 								</span>
 							</li>
@@ -116,7 +116,7 @@ export default function RunResult({
 						aria-hidden="true"
 					/>
 					<div>
-						<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.14em]">
+						<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.14em]">
 							Frontier milestone
 						</p>
 						<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">

@@ -1,8 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { advanceWeek } from "@ai-lab-tycoon/engine";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 import GamePage from "@/game/components/game-page";
 import LabCore from "@/game/components/lab-core";
 import OverviewPanel from "@/game/components/overview-panel";
+import PriorityStrip from "@/game/components/priority-strip";
 import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/")({
@@ -13,7 +15,9 @@ export const Route = createFileRoute("/game/")({
 });
 
 function DashboardRoute() {
-	const { state } = useGameState();
+	const game = useGameState();
+	const { state } = game;
+	const navigate = useNavigate();
 	if (state === null) return null;
 
 	return (
@@ -34,7 +38,7 @@ function DashboardRoute() {
 					/>
 					<div className="relative z-10 flex items-start justify-between gap-3">
 						<div>
-							<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 								Live system / telemetry
 							</p>
 							<h2
@@ -44,12 +48,25 @@ function DashboardRoute() {
 								Your Lab
 							</h2>
 						</div>
-						<span className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+						<span className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 							Core 01
 						</span>
 					</div>
 					<LabCore className="relative z-10" state={state} />
-					<p className="relative z-10 border-border/70 border-t pt-2 font-mono text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+					<PriorityStrip
+						disabled={game.actionBusy}
+						onAdvance={() => {
+							void game.executeEngineCommand((current) => advanceWeek(current));
+						}}
+						onResolveDecision={(decisionId) => {
+							void navigate({
+								to: "/game",
+								search: { decision: decisionId },
+							});
+						}}
+						state={state}
+					/>
+					<p className="relative z-10 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						Drag to rotate · telemetry is live
 					</p>
 				</aside>

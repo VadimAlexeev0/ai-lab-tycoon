@@ -25,7 +25,7 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 		<section aria-labelledby="research-panel-heading" className="space-y-4">
 			<div className="flex flex-wrap items-end justify-between gap-2">
 				<div>
-					<p className="font-mono font-semibold text-[10px] text-primary uppercase tracking-[0.2em]">
+					<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.2em]">
 						Research / frontier
 					</p>
 					<h2
@@ -35,7 +35,7 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 						Choose the next unlock
 					</h2>
 				</div>
-				<span className="border border-primary/30 bg-primary/5 px-2 py-1 font-mono text-[10px] text-primary uppercase tracking-[0.12em]">
+				<span className="border border-primary/30 bg-primary/5 px-2 py-1 font-mono text-primary text-xs uppercase tracking-[0.12em]">
 					Era: {state.research.currentEra}
 				</span>
 			</div>
@@ -59,7 +59,7 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 					);
 				})}
 			</ul>
-			<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+			<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 				Select a research project from an idle team to spend Insight and advance
 				this catalogue.
 			</p>
@@ -107,7 +107,7 @@ function ResearchCard({
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0">
-					<p className="font-mono text-[10px] text-muted-foreground uppercase tracking-[0.12em]">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
 						{humanize(source.branch)}
 					</p>
 					<h3 className="mt-1 font-medium text-foreground text-sm leading-5">
@@ -117,7 +117,7 @@ function ResearchCard({
 				<StatusBadge status={status} />
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-y py-2 font-mono text-[10px] uppercase tracking-[0.1em]">
+			<div className="mt-4 grid grid-cols-2 gap-2 border-border/70 border-y py-2 font-mono text-xs uppercase tracking-[0.1em]">
 				<span className="text-muted-foreground">
 					Era <strong className="ml-1 text-foreground">{source.era}</strong>
 				</span>
@@ -133,14 +133,14 @@ function ResearchCard({
 				{detail}
 			</p>
 			{source.prerequisites.length > 0 ? (
-				<p className="mt-2 flex items-start gap-1.5 text-[10px] text-muted-foreground leading-4">
+				<p className="mt-2 flex items-start gap-1.5 text-muted-foreground text-xs leading-4">
 					<Lightbulb className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
 					<span>
 						Prerequisite: {source.prerequisites.map(humanize).join(", ")}
 					</span>
 				</p>
 			) : (
-				<p className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+				<p className="mt-2 flex items-center gap-1.5 text-muted-foreground text-xs">
 					<Play className="size-3" aria-hidden="true" />
 					No prerequisite
 				</p>
@@ -167,7 +167,7 @@ function StatusBadge({ status }: { status: VisibleResearchNode["status"] }) {
 	const Icon = content.icon;
 	return (
 		<span
-			className={`inline-flex shrink-0 items-center gap-1 border border-border/70 px-2 py-1 font-mono font-semibold text-[10px] uppercase tracking-[0.1em] ${content.className}`}
+			className={`inline-flex shrink-0 items-center gap-1 border border-border/70 px-2 py-1 font-mono font-semibold text-xs uppercase tracking-[0.1em] ${content.className}`}
 		>
 			<Icon className="size-3" aria-hidden="true" />
 			{content.label}
