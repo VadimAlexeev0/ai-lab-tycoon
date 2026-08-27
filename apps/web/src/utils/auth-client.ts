@@ -15,6 +15,15 @@ export const authClient = createAuthClient({
 	plugins: [anonymousClient()],
 });
 
+/** Better Auth error body for "already an anonymous user" (per plugin docs). */
+type AuthFailure = {
+	error?: {
+		status?: number;
+		statusText?: string;
+		message?: string;
+	};
+};
+
 let sessionBootstrap: Promise<AnonymousSession> | null = null;
 
 /** Ensure one anonymous session exists before any save request is made. */
@@ -36,15 +45,47 @@ async function bootstrapAnonymousSession(): Promise<AnonymousSession> {
 
 	// The module-level promise makes React StrictMode and route remounts share
 	// this call, so signIn.anonymous runs at most once per bootstrap attempt.
+	//
+	// Per the plugin docs: calling signIn.anonymous() while ALREADY holding an
+	// anonymous session is an error (it refuses to mint a second anonymous
+	// user). That happens when getSession() and the cookie disagree — e.g. an
+	// expired-but-present session cookie. Recover by clearing the stale
+	// session and retrying once instead of surfacing an error to the player.
 	const created = await authClient.signIn.anonymous();
 	const createdUserId = findUserId(created.data);
 	if (createdUserId !== null) return { userId: createdUserId };
+
+	if (isAnonymousReSignError(created.error)) {
+		await authClient.signOut();
+		const retry = await authClient.signIn.anonymous();
+		const retryUserId = findUserId(retry.data);
+		if (retryUserId !== null) return { userId: retryUserId };
+	}
 
 	const confirmed = await authClient.getSession();
 	const confirmedUserId = findUserId(confirmed.data);
 	if (confirmedUserId !== null) return { userId: confirmedUserId };
 
 	throw new Error("The anonymous session response did not include a user.");
+}
+
+/**
+ * Matches the plugin's "already anonymous" rejection so a stale anonymous
+ * cookie can be cleared and a fresh session minted.
+ */
+function isAnonymousReSignError(error: unknown): boolean {
+	const failure = error as AuthFailure | null | undefined;
+	if (typeof failure !== "object" || failure === null) return false;
+	const detail = failure.error;
+	if (typeof detail !== "object" || detail === null) return false;
+	if (detail.status !== 400 && detail.statusText !== "BAD_REQUEST") {
+		return false;
+	}
+	const message = detail.message ?? "";
+	return (
+		message.toLowerCase().includes("anonymous") ||
+		message.toLowerCase().includes("already")
+	);
 }
 
 function findUserId(value: unknown): string | null {
