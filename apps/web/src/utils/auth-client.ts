@@ -1,6 +1,8 @@
 import { createAuthClient } from "better-auth/client";
 import { anonymousClient } from "better-auth/client/plugins";
 
+import { env } from "@ai-lab-tycoon/env/web";
+
 export type AnonymousSession = {
 	userId: string;
 };
@@ -10,8 +12,13 @@ export type AnonymousSession = {
  * client plugin mint a stable userId on first sign-in, and the session cookie
  * travels on every credentialed request. The same client serves both the game
  * save and the auth bootstrap.
+ *
+ * The auth handler lives on the API server (port 3000 locally), NOT the web
+ * origin — without baseURL the client would hit the web server's own
+ * /api/auth/* and 404.
  */
 export const authClient = createAuthClient({
+	baseURL: env.VITE_SERVER_URL,
 	plugins: [anonymousClient()],
 });
 
