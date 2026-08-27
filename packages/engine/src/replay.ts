@@ -12,6 +12,7 @@ import {
 	assertArray,
 	assertExactObject,
 	assertIdentifier,
+	assertNonNegativeInteger,
 	assertObject,
 	assertSafeInteger,
 } from "./validation.js";
@@ -36,6 +37,8 @@ export type ReplayCommandLogInput =
 
 export type ReplayCommandLogOptions = Readonly<{
 	expectedState?: GameState;
+	/** Optional deterministic fixture override for a seeded replay. */
+	initialCash?: number;
 }>;
 
 /**
@@ -54,6 +57,13 @@ export function replayCommandLog(
 	}
 
 	let state = startRun(first.setup, first.seed);
+	if (options.initialCash !== undefined) {
+		assertNonNegativeInteger(options.initialCash, "Replay initial cash");
+		state = {
+			...state,
+			company: { ...state.company, cash: options.initialCash },
+		};
+	}
 	assertReplayedCommand(state.commandLog[0], first);
 
 	for (const command of entries.slice(1)) {

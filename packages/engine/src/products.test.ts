@@ -44,10 +44,8 @@ function readyState(): GameState {
 function assistantEra(state: GameState): GameState {
 	state.meta.era = "assistant";
 	state.research.currentEra = "assistant";
-	for (const nodeId of ["text_models_principles", "text_models_keystone"]) {
-		const node = state.research.nodes.find((item) => item.id === nodeId);
-		if (node === undefined) throw new Error(`Expected ${nodeId}`);
-		node.status = "completed";
+	for (const node of state.research.nodes) {
+		if (node.era === "text") node.status = "completed";
 	}
 	return state;
 }

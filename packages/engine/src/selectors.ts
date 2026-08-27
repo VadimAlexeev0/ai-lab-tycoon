@@ -14,6 +14,10 @@ import type {
 	TerminalReason,
 	TerminalStatus,
 } from "./components/terminal.js";
+import {
+	getResearchDefinition,
+	type ResearchCategory,
+} from "./data/research.js";
 import type { GameState } from "./state.js";
 import { fundingFactors } from "./systems/funding.js";
 import type { DeepReadonly } from "./systems/types.js";
@@ -100,10 +104,15 @@ export type VisibleRival = {
 
 export type VisibleResearchNode = {
 	id: string;
+	label: string;
+	era: GameState["research"]["currentEra"];
+	eraLabel: string;
+	category: ResearchCategory;
 	branch: ResearchBranch;
 	status: ResearchNodeStatus;
 	prereqs: string[];
 	insightCost: number;
+	description: string;
 };
 
 export type VisibleProductSummary = {
@@ -236,13 +245,24 @@ export function selectVisibleModels(
 export function selectResearchNodes(
 	state: DeepReadonly<GameState>,
 ): VisibleResearchNode[] {
-	return state.research.nodes.map((node) => ({
-		id: node.id,
-		branch: node.branch,
-		status: node.status,
-		prereqs: [...node.prerequisites],
-		insightCost: node.insightCost,
-	}));
+	return state.research.nodes.map((node) => {
+		const definition = getResearchDefinition(node.id);
+		if (definition === undefined) {
+			throw new Error(`Cannot project unknown research node: ${node.id}`);
+		}
+		return {
+			id: node.id,
+			label: definition.label,
+			era: node.era,
+			eraLabel: definition.eraLabel,
+			category: definition.category,
+			branch: node.branch,
+			status: node.status,
+			prereqs: [...node.prerequisites],
+			insightCost: node.insightCost,
+			description: definition.description,
+		};
+	});
 }
 
 export function selectProducts(

@@ -8,7 +8,14 @@ import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 
-const EXPECTED_OPENING_NODES = RESEARCH_NODES;
+const EXPECTED_OPENING_NODES = RESEARCH_NODES.map((node) => ({
+	id: node.id,
+	era: node.era,
+	branch: node.branch,
+	status: node.status,
+	insightCost: node.insightCost,
+	prerequisites: [...node.prerequisites],
+}));
 const EXPECTED_OPENING_PROJECTS = RESEARCH_NODES.filter(
 	(node) => node.era === TEXT_ERA && node.status === "available",
 ).map((node, index) => ({

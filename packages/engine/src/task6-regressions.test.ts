@@ -41,13 +41,7 @@ function multimodalDesignableState(seed = 42): GameState {
 	state.meta.era = "multimodal";
 	state.research.currentEra = "multimodal";
 	for (const node of state.research.nodes) {
-		if (
-			node.era === "text" ||
-			node.era === "assistant" ||
-			node.id === "multimodal_models_fusion"
-		) {
-			node.status = "completed";
-		}
+		node.status = "completed";
 	}
 	return state;
 }
@@ -279,8 +273,9 @@ describe("Task 6 review regressions", () => {
 		if (textKeystone === undefined || principles === undefined) {
 			throw new Error("Expected Text keystone and principles");
 		}
-		textKeystone.status = "completed";
-		principles.status = "completed";
+		for (const node of state.research.nodes) {
+			if (node.era === "text") node.status = "completed";
+		}
 
 		const assistantEra = researchSystem(state, {
 			phase: "research",
@@ -306,6 +301,11 @@ describe("Task 6 review regressions", () => {
 		}
 		reasoning.status = "completed";
 		toolUse.status = "completed";
+		for (const node of assistantEra.research.nodes) {
+			if (node.era === "assistant" && node.id !== assistantKeystone.id) {
+				node.status = "completed";
+			}
+		}
 
 		const assistantReady = researchSystem(assistantEra, {
 			phase: "research",
@@ -318,10 +318,26 @@ describe("Task 6 review regressions", () => {
 			throw new Error("Expected Assistant keystone state");
 		}
 		readyKeystone.status = "completed";
-
-		const multimodal = researchSystem(assistantReady, {
+		const multimodalEra = researchSystem(assistantReady, {
 			phase: "research",
 			week: 4,
+		}).state;
+		for (const nodeId of [
+			"vision_encoders",
+			"tool_calling",
+			"computer_use",
+			"inference_price_war",
+		]) {
+			const node = multimodalEra.research.nodes.find(
+				(item) => item.id === nodeId,
+			);
+			if (node === undefined) throw new Error(`Expected ${nodeId}`);
+			node.status = "completed";
+		}
+
+		const multimodal = researchSystem(multimodalEra, {
+			phase: "research",
+			week: 5,
 		}).state;
 		expect(multimodal.meta.era).toBe("multimodal");
 		expect(

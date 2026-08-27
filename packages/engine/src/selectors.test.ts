@@ -223,13 +223,23 @@ describe("visible selectors", () => {
 
 		expect(visible.models).toEqual([]);
 		expect(visible.research).toEqual(
-			state.research.nodes.map((node) => ({
-				id: node.id,
-				branch: node.branch,
-				status: node.status,
-				prereqs: [...node.prerequisites],
-				insightCost: node.insightCost,
-			})),
+			state.research.nodes.map((node) => {
+				const definition = RESEARCH_NODES.find((item) => item.id === node.id);
+				if (definition === undefined)
+					throw new Error("Expected research definition");
+				return {
+					id: node.id,
+					label: definition.label,
+					era: node.era,
+					eraLabel: definition.eraLabel,
+					category: definition.category,
+					branch: node.branch,
+					status: node.status,
+					prereqs: [...node.prerequisites],
+					insightCost: node.insightCost,
+					description: definition.description,
+				};
+			}),
 		);
 		expect(visible.products).toEqual([]);
 		expect(visible.funding).toMatchObject({

@@ -7,7 +7,7 @@ import {
 	assertResearchDefinitions,
 	MODELS_BRANCH,
 	MULTIMODAL_MODELS_FUSION_ID,
-	RESEARCH_BRANCHES,
+	RESEARCH_CATEGORIES,
 	RESEARCH_NODES,
 	TEXT_ERA,
 	TEXT_MODELS_KEYSTONE_ID,
@@ -34,53 +34,93 @@ function getInsightCost(node: unknown): number {
 	return node.insightCost;
 }
 
-describe("V1 research data", () => {
-	it("contains typed Text, Assistant, and Multimodal research gates", () => {
-		expect(RESEARCH_NODES).toHaveLength(14);
+function completeTextTier(state: ReturnType<typeof startRun>): void {
+	for (const node of state.research.nodes) {
+		if (node.era === TEXT_ERA) node.status = "completed";
+	}
+}
+
+function completePrerequisites(
+	state: ReturnType<typeof startRun>,
+	nodeId: string,
+	visiting = new Set<string>(),
+): void {
+	if (visiting.has(nodeId))
+		throw new Error(`Cycle in test fixture at ${nodeId}`);
+	const definition = RESEARCH_NODES.find((node) => node.id === nodeId);
+	const stateNode = state.research.nodes.find((node) => node.id === nodeId);
+	if (definition === undefined || stateNode === undefined) {
+		throw new Error(`Expected research fixture node ${nodeId}`);
+	}
+	visiting.add(nodeId);
+	for (const prerequisite of definition.prerequisites) {
+		completePrerequisites(state, prerequisite, visiting);
+	}
+	visiting.delete(nodeId);
+	stateNode.status = "completed";
+}
+
+describe("LLM-history research data", () => {
+	it("contains the ten content groups folded into three engine eras", () => {
+		expect(RESEARCH_NODES).toHaveLength(48);
 		expect(new Set(RESEARCH_NODES.map((node) => node.era))).toEqual(
 			new Set([TEXT_ERA, ASSISTANT_ERA, "multimodal"]),
 		);
-		expect(new Set(RESEARCH_NODES.map((node) => node.branch)).size).toBe(3);
-		for (const branch of RESEARCH_BRANCHES) {
-			expect(
-				RESEARCH_NODES.filter(
-					(node) => node.era === TEXT_ERA && node.branch === branch,
-				),
-			).toHaveLength(2);
-			expect(
-				RESEARCH_NODES.filter(
-					(node) => node.era === ASSISTANT_ERA && node.branch === branch,
-				),
-			).toHaveLength(branch === MODELS_BRANCH ? 3 : 2);
-		}
+		expect(new Set(RESEARCH_NODES.map((node) => node.category))).toEqual(
+			new Set(RESEARCH_CATEGORIES),
+		);
+		expect(RESEARCH_NODES.filter((node) => node.era === TEXT_ERA)).toHaveLength(
+			9,
+		);
+		expect(
+			RESEARCH_NODES.filter((node) => node.era === ASSISTANT_ERA),
+		).toHaveLength(25);
 		expect(
 			RESEARCH_NODES.filter((node) => node.era === "multimodal"),
-		).toHaveLength(1);
+		).toHaveLength(14);
 		expect(
-			RESEARCH_NODES.every((node) => !node.id.startsWith("node_text_")),
+			RESEARCH_NODES.every(
+				(node) => node.description.length > 0 && node.description.length < 160,
+			),
 		).toBe(true);
+		expect(
+			RESEARCH_NODES.every((node) => Number.isInteger(node.insightCost)),
+		).toBe(true);
+		expect(
+			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
+		).toBeLessThanOrEqual(50);
 
 		const keystone = RESEARCH_NODES.find(
 			(node) => node.id === TEXT_MODELS_KEYSTONE_ID,
 		);
 		expect(keystone).toMatchObject({
 			id: TEXT_MODELS_KEYSTONE_ID,
+			label: "Transformer architecture",
 			era: TEXT_ERA,
 			branch: MODELS_BRANCH,
 		});
-		expect(keystone?.prerequisites.length).toBeGreaterThan(0);
+		expect(keystone?.prerequisites).toEqual(
+			expect.arrayContaining([
+				"self_attention",
+				"multi_head_attention",
+				"positional_encoding",
+				"text_infrastructure_scaling",
+			]),
+		);
 		expect(
 			RESEARCH_NODES.find((node) => node.id === ASSISTANT_MODELS_KEYSTONE_ID),
-		).toMatchObject({ era: ASSISTANT_ERA, branch: MODELS_BRANCH });
+		).toMatchObject({
+			label: "Proprietary frontier",
+			era: ASSISTANT_ERA,
+			branch: MODELS_BRANCH,
+		});
 		expect(
 			RESEARCH_NODES.find((node) => node.id === MULTIMODAL_MODELS_FUSION_ID),
-		).toMatchObject({ era: "multimodal", branch: MODELS_BRANCH });
-		expect(
-			RESEARCH_NODES.every((node) => {
-				const cost = getInsightCost(node);
-				return Number.isInteger(cost) && cost > 0;
-			}),
-		).toBe(true);
+		).toMatchObject({
+			label: "Agentic frontier",
+			era: "multimodal",
+			branch: MODELS_BRANCH,
+		});
 	});
 
 	it("deducts the data-defined Insight cost when assigning research", () => {
@@ -249,13 +289,21 @@ describe("V1 research data", () => {
 	it("completes a research node and makes its dependent project available", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		const team = state.teams.items[0];
-		const openingProject = state.projects.items[0];
+		const openingProject = state.projects.items.find(
+			(project) =>
+				project.kind === "research" &&
+				RESEARCH_NODES.some((node) =>
+					node.prerequisites.some(
+						(prerequisite) => prerequisite === project.nodeId,
+					),
+				),
+		);
 		if (
 			team === undefined ||
 			openingProject === undefined ||
 			openingProject.kind !== "research"
 		) {
-			throw new Error("Expected the opening team and research project");
+			throw new Error("Expected an opening research project with a dependent");
 		}
 		const completedDefinition = RESEARCH_NODES.find(
 			(node) => node.id === openingProject.nodeId,
@@ -284,12 +332,20 @@ describe("V1 research data", () => {
 		});
 
 		expect(result.state.research.nodes).toContainEqual({
-			...completedDefinition,
+			id: completedDefinition.id,
+			era: completedDefinition.era,
+			branch: completedDefinition.branch,
 			status: "completed",
+			insightCost: completedDefinition.insightCost,
+			prerequisites: [...completedDefinition.prerequisites],
 		});
 		expect(result.state.research.nodes).toContainEqual({
-			...dependentDefinition,
+			id: dependentDefinition.id,
+			era: dependentDefinition.era,
+			branch: dependentDefinition.branch,
 			status: "available",
+			insightCost: dependentDefinition.insightCost,
+			prerequisites: [...dependentDefinition.prerequisites],
 		});
 		expect(result.state.projects.items).toContainEqual(
 			expect.objectContaining({
@@ -508,15 +564,17 @@ describe("V1 research data", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		state.meta.era = ASSISTANT_ERA;
 		state.research.currentEra = ASSISTANT_ERA;
-		for (const node of state.research.nodes) {
-			if (
-				node.id === TEXT_MODELS_KEYSTONE_ID ||
-				node.id === "text_models_principles"
-			) {
-				node.status = "completed";
-			}
-		}
+		completeTextTier(state);
 		assertGameState(state);
+		const assistantDefinition = RESEARCH_NODES.find(
+			(node) => node.id === "assistant_models_reasoning",
+		);
+		if (assistantDefinition === undefined) {
+			throw new Error("Expected Assistant reasoning definition");
+		}
+		for (const prerequisite of assistantDefinition.prerequisites) {
+			completePrerequisites(state, prerequisite);
+		}
 		const assistantProject = {
 			kind: "research" as const,
 			id: "project_assistant",
@@ -546,19 +604,7 @@ describe("V1 research data", () => {
 
 	it("enters the Assistant era from the node gate without a shipped model", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
-		for (const node of state.research.nodes) {
-			if (
-				node.id === TEXT_MODELS_KEYSTONE_ID ||
-				node.id === "text_models_principles" ||
-				node.prerequisites.includes(TEXT_MODELS_KEYSTONE_ID)
-			) {
-				node.status =
-					node.id === "text_models_principles" ||
-					node.id === TEXT_MODELS_KEYSTONE_ID
-						? "completed"
-						: node.status;
-			}
-		}
+		completeTextTier(state);
 		const result = researchSystem(state, {
 			phase: "research",
 			week: 2,

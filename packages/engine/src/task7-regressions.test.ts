@@ -3,6 +3,7 @@ import type { AdvanceWeekOptions } from "./advance-week.js";
 import { WEEKLY_SYSTEMS } from "./advance-week.js";
 import type { PendingDecision } from "./components/decisions.js";
 import type { Fact } from "./components/reports.js";
+import { RESEARCH_NODES } from "./data/research.js";
 import {
 	advanceWeek,
 	applyDecision,
@@ -36,16 +37,9 @@ function lifecycleState(status: "ready" | "launched" = "ready"): GameState {
 	const state = startRun({ companyName: "Lifecycle Labs" }, 42);
 	state.meta.era = "assistant";
 	state.research.currentEra = "assistant";
-	const textPrinciples = state.research.nodes.find(
-		(node) => node.id === "text_models_principles",
-	);
-	if (textPrinciples === undefined) throw new Error("Expected text principles");
-	textPrinciples.status = "completed";
-	const textKeystone = state.research.nodes.find(
-		(node) => node.id === "text_models_keystone",
-	);
-	if (textKeystone === undefined) throw new Error("Expected text keystone");
-	textKeystone.status = "completed";
+	for (const node of state.research.nodes) {
+		if (node.era === "text") node.status = "completed";
+	}
 	state.company.cash = 1_000;
 	state.company.hype = 100;
 	state.company.trust = 100;
@@ -183,6 +177,17 @@ function completeResearch(
 	events: GoldenEvent[],
 ): GameState {
 	let state = input;
+	const definition = RESEARCH_NODES.find((node) => node.id === nodeId);
+	if (definition === undefined)
+		throw new Error(`Unknown research node ${nodeId}`);
+	for (const prerequisite of definition.prerequisites) {
+		if (
+			state.research.nodes.find((node) => node.id === prerequisite)?.status !==
+			"completed"
+		) {
+			state = completeResearch(state, prerequisite, events);
+		}
+	}
 	for (let guard = 0; guard < 100; guard += 1) {
 		const node = state.research.nodes.find((item) => item.id === nodeId);
 		if (node?.status === "completed") return state;
@@ -219,6 +224,10 @@ function completeResearch(
 function runGolden(seed: number): GoldenRun {
 	const events: GoldenEvent[] = [];
 	let state = startRun({ companyName: "Acme Labs" }, seed);
+	// The expanded historical path has more research projects than the V1
+	// fixture; give this command-path regression a long enough runway to reach
+	// its multimodal assertion without changing live balance constants.
+	state.company.cash = 50_000;
 
 	state = completeResearch(state, "text_models_principles", events);
 	state = designModel(state, TEXT_SPEC).state;
@@ -234,7 +243,6 @@ function runGolden(seed: number): GoldenRun {
 	if (!state.products.items.some((product) => product.status === "operating")) {
 		throw new Error("The text model did not reach a live product");
 	}
-
 	for (const nodeId of [
 		"text_models_keystone",
 		"assistant_models_reasoning",
@@ -528,7 +536,9 @@ describe("Task 7 integration and replay regressions", () => {
 		timeout: 300_000,
 	}, () => {
 		const original = runGolden(42);
-		const replayed = replayCommandLog(original.state.commandLog);
+		const replayed = replayCommandLog(original.state.commandLog, {
+			initialCash: 50_000,
+		});
 		expect(JSON.stringify(replayed)).toBe(JSON.stringify(original.state));
 		expect(replayed.commandLog).toEqual(original.state.commandLog);
 	});
