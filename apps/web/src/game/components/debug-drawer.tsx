@@ -1,4 +1,13 @@
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@ai-lab-tycoon/ui/components/dialog";
+import { Separator } from "@ai-lab-tycoon/ui/components/separator";
 import { Settings2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -54,34 +63,47 @@ export default function DebugDrawer({
 
 	return (
 		<div className="fixed bottom-3 left-3 z-[70] flex max-w-[calc(100vw-1.5rem)] flex-col items-start gap-2">
-			{open ? (
-				<section
-					aria-labelledby="debug-drawer-heading"
-					className="surface-card w-[min(22rem,calc(100vw-1.5rem))] bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-[var(--game-amber)]/60 backdrop-blur-sm"
-					id="debug-drawer"
-					role="dialog"
+			<Dialog onOpenChange={setOpen} open={open}>
+				<DialogTrigger
+					aria-controls="debug-drawer"
+					aria-expanded={open}
+					aria-label={open ? "Close debug controls" : "Open debug controls"}
+					render={
+						<Button
+							className="surface-card bg-amber/10 px-3 py-2 text-amber shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-amber/60 hover:bg-amber/10"
+							size="icon"
+							title="Open debug controls"
+							variant="outline"
+						/>
+					}
 				>
-					<div className="flex items-start justify-between gap-3 border-[var(--game-amber)]/30 border-b pb-2">
-						<div>
-							<p className="font-semibold text-[var(--game-amber)] text-xs">
-								Preview controls
-							</p>
-							<h2
-								className="mt-1 font-semibold text-foreground text-sm"
-								id="debug-drawer-heading"
+					<Settings2 className="size-4" aria-hidden="true" />
+				</DialogTrigger>
+				<DialogContent
+					className="!top-auto !right-auto !bottom-3 !left-3 !translate-x-0 !translate-y-0 z-[70] w-[min(22rem,calc(100vw-1.5rem))] max-w-none bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-amber/60 backdrop-blur-sm sm:max-w-none"
+					id="debug-drawer"
+					showCloseButton={false}
+				>
+					<DialogHeader className="gap-0">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="font-semibold text-amber text-xs">
+									Preview controls
+								</p>
+								<DialogTitle className="mt-1 font-semibold text-foreground text-sm">
+									Debug drawer
+								</DialogTitle>
+							</div>
+							<DialogClose
+								aria-label="Close debug drawer"
+								className="flex min-h-8 min-w-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+								type="button"
 							>
-								Debug drawer
-							</h2>
+								<X className="size-3.5" aria-hidden="true" />
+							</DialogClose>
 						</div>
-						<button
-							aria-label="Close debug drawer"
-							className="flex min-h-8 min-w-8 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
-							onClick={() => setOpen(false)}
-							type="button"
-						>
-							<X className="size-3.5" aria-hidden="true" />
-						</button>
-					</div>
+					</DialogHeader>
+					<Separator className="mt-2 bg-amber/30" />
 
 					<div className="mt-3 space-y-3">
 						<div className="grid gap-2 sm:grid-cols-2">
@@ -150,7 +172,7 @@ export default function DebugDrawer({
 								aria-valuemax={6}
 								aria-valuemin={1}
 								aria-valuenow={quarter}
-								className="w-full accent-[var(--game-amber)]"
+								className="w-full accent-amber"
 								id="debug-quarter"
 								max={6}
 								min={1}
@@ -171,7 +193,7 @@ export default function DebugDrawer({
 								aria-valuemax={100}
 								aria-valuemin={0}
 								aria-valuenow={rivalProgress}
-								className="w-full accent-[var(--game-amber)]"
+								className="w-full accent-amber"
 								id="debug-rival-progress"
 								max={100}
 								min={0}
@@ -192,7 +214,7 @@ export default function DebugDrawer({
 								aria-valuemax={6}
 								aria-valuemin={0}
 								aria-valuenow={agiOverride}
-								className="w-full accent-[var(--game-amber)]"
+								className="w-full accent-amber"
 								id="debug-agi-override"
 								max={6}
 								min={0}
@@ -204,26 +226,14 @@ export default function DebugDrawer({
 							/>
 						</label>
 
-						<p className="border-[var(--game-amber)]/30 border-t pt-2 text-muted-foreground text-xs leading-5">
+						<Separator className="bg-amber/30" />
+						<p className="pt-2 text-muted-foreground text-xs leading-5">
 							Preview values stay outside the engine save. Use the URL controls
 							to make a review or news batch reproducible.
 						</p>
 					</div>
-				</section>
-			) : null}
-			<Button
-				aria-controls="debug-drawer"
-				aria-expanded={open}
-				aria-label={open ? "Close debug controls" : "Open debug controls"}
-				className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-[var(--game-amber)]/60 hover:bg-[var(--game-amber)]/10"
-				onClick={() => setOpen((current) => !current)}
-				size="icon"
-				title="Open debug controls"
-				type="button"
-				variant="outline"
-			>
-				<Settings2 className="size-4" aria-hidden="true" />
-			</Button>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

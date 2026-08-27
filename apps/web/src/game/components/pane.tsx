@@ -1,9 +1,18 @@
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@ai-lab-tycoon/ui/components/dialog";
+import { Separator } from "@ai-lab-tycoon/ui/components/separator";
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-const FOCUSABLE_SELECTOR =
-	'a[href], area[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+type DialogChangeEventDetails = Parameters<
+	NonNullable<ComponentProps<typeof Dialog>["onOpenChange"]>
+>[1];
 
 export default function Pane({
 	blocking,
@@ -18,115 +27,63 @@ export default function Pane({
 	onClose: () => void;
 	title: string;
 }) {
-	const dialogRef = useRef<HTMLDivElement>(null);
-	const closeRef = useRef(onClose);
-	closeRef.current = onClose;
-
-	useEffect(() => {
-		const previousFocus =
-			document.activeElement instanceof HTMLElement
-				? document.activeElement
-				: null;
-		const dialog = dialogRef.current;
-		if (dialog === null) return;
-		const dialogElement: HTMLDivElement = dialog;
-
-		const focusFirstControl = () => {
-			const first =
-				dialogElement.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-			(first ?? dialogElement).focus({ preventScroll: true });
-		};
-		focusFirstControl();
-
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === "Escape") {
-				if (!blocking) {
-					event.preventDefault();
-					closeRef.current();
-				}
-				return;
-			}
-			if (event.key !== "Tab") return;
-
-			const controls = Array.from(
-				dialogElement.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-			);
-			if (controls.length === 0) {
-				event.preventDefault();
-				dialogElement.focus();
-				return;
-			}
-			const first = controls[0];
-			const last = controls[controls.length - 1];
-			if (event.shiftKey && document.activeElement === first) {
-				event.preventDefault();
-				last?.focus();
-			} else if (!event.shiftKey && document.activeElement === last) {
-				event.preventDefault();
-				first?.focus();
-			}
+	function handleOpenChange(
+		open: boolean,
+		eventDetails: DialogChangeEventDetails,
+	) {
+		if (open) return;
+		if (blocking) {
+			// Base UI exposes the same cancellation point as the Radix
+			// onEscapeKeyDown/onInteractOutside handlers.
+			eventDetails.cancel();
+			return;
 		}
-
-		document.addEventListener("keydown", handleKeyDown);
-		return () => {
-			document.removeEventListener("keydown", handleKeyDown);
-			if (previousFocus?.isConnected)
-				previousFocus.focus({ preventScroll: true });
-		};
-	}, [blocking]);
+		onClose();
+	}
 
 	return (
-		<div
-			aria-hidden="false"
-			className="fixed inset-0 z-50 flex items-end justify-center bg-background/80 p-2 backdrop-blur-sm sm:items-center sm:p-6"
-			data-pane-blocking={blocking ? "true" : "false"}
+		<Dialog
+			disablePointerDismissal={blocking}
+			onOpenChange={handleOpenChange}
+			open
 		>
-			<div
-				ref={dialogRef}
-				aria-describedby={description ? "pane-description" : undefined}
-				aria-labelledby="pane-title"
-				aria-modal="true"
-				className="surface-card max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto p-4 shadow-2xl outline-none sm:p-5"
-				role="dialog"
-				tabIndex={-1}
+			<DialogContent
+				className="surface-card max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto bg-background/95 p-4 shadow-2xl sm:max-w-2xl sm:p-5"
+				showCloseButton={false}
 			>
-				<div className="flex items-start justify-between gap-4 border-border/70 border-b pb-3">
-					<div className="min-w-0">
-						<p className="font-semibold text-primary text-xs">
-							{blocking ? "Required action" : "Decision detail"}
-						</p>
-						<h2
-							id="pane-title"
-							className="mt-1 font-semibold text-base text-foreground"
-						>
-							{title}
-						</h2>
-						{description ? (
-							<p
-								id="pane-description"
-								className="mt-1 text-muted-foreground text-xs leading-5"
-							>
-								{description}
+				<DialogHeader>
+					<div className="flex items-start justify-between gap-4">
+						<div className="min-w-0">
+							<p className="font-semibold text-primary text-xs">
+								{blocking ? "Required action" : "Decision detail"}
 							</p>
-						) : null}
+							<DialogTitle className="mt-1 font-semibold text-base text-foreground">
+								{title}
+							</DialogTitle>
+							{description ? (
+								<DialogDescription className="mt-1 text-muted-foreground text-xs leading-5">
+									{description}
+								</DialogDescription>
+							) : null}
+						</div>
+						{blocking ? (
+							<span className="shrink-0 border border-amber/50 bg-amber/10 px-2 py-1 text-amber text-xs">
+								Cannot dismiss
+							</span>
+						) : (
+							<DialogClose
+								aria-label="Close pane"
+								className="flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+								type="button"
+							>
+								<X className="size-4" aria-hidden="true" />
+							</DialogClose>
+						)}
 					</div>
-					{blocking ? (
-						<span className="shrink-0 border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-2 py-1 text-[var(--game-amber)] text-xs">
-							Cannot dismiss
-						</span>
-					) : (
-						<button
-							aria-label="Close pane"
-							className="flex min-h-11 min-w-11 shrink-0 items-center justify-center border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-							onClick={onClose}
-							type="button"
-						>
-							<X className="size-4" aria-hidden="true" />
-						</button>
-					)}
-				</div>
-				<div className="pt-4">{children}</div>
-			</div>
-		</div>
+				</DialogHeader>
+				<Separator className="mt-3" />
+				<div className="pt-1">{children}</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

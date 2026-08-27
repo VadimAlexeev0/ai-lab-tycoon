@@ -6,7 +6,18 @@ import {
 	selectPendingDecisions,
 	selectVisibleModels,
 } from "@ai-lab-tycoon/engine";
+import { Avatar, AvatarFallback } from "@ai-lab-tycoon/ui/components/avatar";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuShortcut,
+	DropdownMenuTrigger,
+} from "@ai-lab-tycoon/ui/components/dropdown-menu";
+import { Separator } from "@ai-lab-tycoon/ui/components/separator";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import {
 	createFileRoute,
@@ -26,7 +37,9 @@ import {
 	FlaskConical,
 	GitBranch,
 	House,
+	Keyboard,
 	Loader2,
+	MoreHorizontal,
 	Newspaper,
 	PanelTop,
 	RotateCcw,
@@ -178,7 +191,7 @@ function GameLayout() {
 					{isActive ? liveAnnouncement : ""}
 				</div>
 				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
-					<header className="flex flex-col gap-3 border-border/70 border-b pb-4 lg:flex-row lg:items-end lg:justify-between">
+					<header className="flex flex-col gap-3 pb-4 lg:flex-row lg:items-end lg:justify-between">
 						<div className="min-w-0 space-y-1.5">
 							<p className="meta-label text-primary">
 								Operations / command console
@@ -212,30 +225,50 @@ function GameLayout() {
 								<EraBadge era={state.research.currentEra} size="compact" />
 							) : null}
 							{isActive ? (
-								<>
-									<Button
-										onClick={startNewRun}
-										size="sm"
-										type="button"
-										variant="outline"
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										aria-label="Open run actions"
+										render={
+											<Button
+												aria-label="Open run actions"
+												size="icon"
+												type="button"
+												variant="outline"
+											/>
+										}
 									>
-										<ArrowRight data-icon="inline-start" aria-hidden="true" />
-										New run
-									</Button>
-									<Button
-										disabled={game.saveState.status === "deleting"}
-										onClick={() => void game.deleteRun()}
-										size="sm"
-										type="button"
-										variant="destructive"
-									>
-										<X data-icon="inline-start" aria-hidden="true" />
-										Delete
-									</Button>
-								</>
+										<Avatar aria-hidden="true" size="sm">
+											<AvatarFallback>
+												<MoreHorizontal className="size-4" />
+											</AvatarFallback>
+										</Avatar>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuLabel>Run actions</DropdownMenuLabel>
+										<DropdownMenuItem onClick={startNewRun}>
+											<ArrowRight data-icon="inline-start" aria-hidden="true" />
+											New run
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											disabled={game.saveState.status === "deleting"}
+											onClick={() => void game.deleteRun()}
+											variant="destructive"
+										>
+											<X data-icon="inline-start" aria-hidden="true" />
+											Delete run
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem disabled>
+											<Keyboard data-icon="inline-start" aria-hidden="true" />
+											Keyboard shortcuts
+											<DropdownMenuShortcut>Wave 2</DropdownMenuShortcut>
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							) : null}
 						</div>
 					</header>
+					<Separator />
 
 					{isActive && state !== null ? (
 						<>
