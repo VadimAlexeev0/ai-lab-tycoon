@@ -12,6 +12,17 @@ export type ProductStatus = "planned" | "operating" | "paused";
 
 const PRODUCT_CHANNELS = ["chat", "developer_api", "enterprise"] as const;
 const PRODUCT_STATUSES = ["planned", "operating", "paused"] as const;
+const PRODUCT_KEYS = new Set([
+	"id",
+	"channel",
+	"modelId",
+	"status",
+	"users",
+	"lastRevenue",
+	"cumulativeRevenue",
+	"servingDemand",
+	"effectiveQuality",
+]);
 
 export type Product = {
 	id: string;
@@ -45,7 +56,7 @@ export function assertProductsState(
 	assertExactObject(value, ["items"], "products");
 	assertArray(value.items, "Products items");
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertObject(item, "product");
 		const product = item as unknown as Product;
@@ -55,28 +66,15 @@ export function assertProductsState(
 			}
 		}
 		for (const key of Reflect.ownKeys(item)) {
-			if (
-				typeof key !== "string" ||
-				![
-					"id",
-					"channel",
-					"modelId",
-					"status",
-					"users",
-					"lastRevenue",
-					"cumulativeRevenue",
-					"servingDemand",
-					"effectiveQuality",
-				].includes(key)
-			) {
+			if (typeof key !== "string" || !PRODUCT_KEYS.has(key)) {
 				throw new Error(`product contains an unexpected field: ${String(key)}`);
 			}
 		}
 		assertIdentifier(product.id, "Product id");
-		if (ids.includes(product.id)) {
+		if (ids.has(product.id)) {
 			throw new Error(`Duplicate product id: ${product.id}`);
 		}
-		ids.push(product.id);
+		ids.add(product.id);
 		assertEnum(product.channel, PRODUCT_CHANNELS, "Product channel");
 		assertIdentifier(product.modelId, "Product model id");
 		assertEnum(product.status, PRODUCT_STATUSES, "Product status");

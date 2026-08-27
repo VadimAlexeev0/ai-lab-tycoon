@@ -31,14 +31,14 @@ export function assertTeamsState(value: unknown): asserts value is TeamsState {
 		throw new Error("Teams must contain at most three teams");
 	}
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertExactObject(item, ["id", "name", "activeProjectId"], "team");
 		assertIdentifier(item.id, "Team id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate team id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 
 		assertString(item.name, `Team ${item.id} name`);
 		if (item.name.trim().length === 0) {

@@ -48,6 +48,7 @@ function addReport(state: GameState, acknowledged: boolean): void {
 			},
 		},
 	];
+	state.reports.totalCount = 1;
 	state.queue.reportIds = acknowledged ? [] : ["report_001"];
 }
 
@@ -328,6 +329,7 @@ describe("hardened component contract", () => {
 							},
 						},
 					];
+					state.reports.totalCount = 1;
 				},
 				message: /priority/i,
 			},
@@ -347,6 +349,7 @@ describe("hardened component contract", () => {
 							},
 						},
 					];
+					state.reports.totalCount = 1;
 				},
 				message: /boolean|acknowledged/i,
 			},
@@ -366,6 +369,7 @@ describe("hardened component contract", () => {
 							},
 						},
 					];
+					state.reports.totalCount = 1;
 				},
 				message: /resource/i,
 			},
@@ -385,6 +389,7 @@ describe("hardened component contract", () => {
 							},
 						},
 					];
+					state.reports.totalCount = 1;
 				},
 				message: /outcome/i,
 			},

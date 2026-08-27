@@ -42,7 +42,7 @@ export function assertRivalsState(
 		throw new Error("Rivals must contain at most three rivals");
 	}
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertExactObject(
 			item,
@@ -50,10 +50,10 @@ export function assertRivalsState(
 			"rival",
 		);
 		assertIdentifier(item.id, "Rival id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate rival id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 
 		assertString(item.name, `Rival ${item.id} name`);
 		if (item.name.trim().length === 0) {

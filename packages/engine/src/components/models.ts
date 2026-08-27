@@ -87,16 +87,16 @@ export function assertModelsState(
 	assertArray(value.items, "Models items");
 	assertNullableString(value.activeModelId, "Active model id");
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertObject(item, "model");
 		assertAllowedModelKeys(item);
 		assertRequiredModelFields(item);
 		assertIdentifier(item.id, "Model id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate model id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 
 		assertString(item.name, `Model ${item.id} name`);
 		if (item.name.trim().length === 0) {
@@ -142,7 +142,7 @@ export function assertModelsState(
 
 	if (value.activeModelId !== null) {
 		assertIdentifier(value.activeModelId, "Active model id");
-		if (!ids.includes(value.activeModelId)) {
+		if (!ids.has(value.activeModelId)) {
 			throw new Error("Active model must belong to the models component");
 		}
 	}

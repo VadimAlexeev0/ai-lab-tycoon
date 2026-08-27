@@ -92,7 +92,7 @@ export function assertProjectsState(
 	assertExactObject(value, ["items"], "projects");
 	assertArray(value.items, "Projects items");
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertObject(item, "project");
 		assertEnum(item.kind, PROJECT_KINDS, "Project kind");
@@ -181,13 +181,13 @@ export function assertProjectsState(
 
 function assertProjectBase(
 	value: Record<string, unknown>,
-	ids: string[],
+	ids: Set<string>,
 ): void {
 	assertIdentifier(value.id, "Project id");
-	if (ids.includes(value.id)) {
+	if (ids.has(value.id)) {
 		throw new Error(`Duplicate project id: ${value.id}`);
 	}
-	ids.push(value.id);
+	ids.add(value.id);
 
 	assertNullableString(value.teamId, "Project team id");
 	if (value.teamId !== null) {

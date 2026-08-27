@@ -1,4 +1,8 @@
-import type { Fact, ReportPriority } from "../components/reports.js";
+import {
+	type Fact,
+	REPORT_RETENTION_LIMIT,
+	type ReportPriority,
+} from "../components/reports.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import type { GameState } from "../state.js";
@@ -12,30 +16,42 @@ export function appendFactsAsReports(
 	let nextState = state;
 	for (const fact of facts) {
 		const allocation = allocateId(nextState, "report");
+		const items = [
+			...allocation.state.reports.items,
+			{
+				id: allocation.id,
+				priority: priorityForFact(fact),
+				fact: { ...fact },
+				acknowledged: false,
+			},
+		].slice(-REPORT_RETENTION_LIMIT);
+		const retainedIds = new Set(items.map((report) => report.id));
 		nextState = {
 			...allocation.state,
 			reports: {
-				items: [
-					...allocation.state.reports.items,
-					{
-						id: allocation.id,
-						priority: priorityForFact(fact),
-						fact: { ...fact },
-						acknowledged: false,
-					},
-				],
+				...allocation.state.reports,
+				items,
+				totalCount: allocation.state.reports.totalCount + 1,
 			},
 			queue: {
 				...allocation.state.queue,
-				reportIds: [...allocation.state.queue.reportIds, allocation.id],
+				reportIds: [...allocation.state.queue.reportIds, allocation.id].filter(
+					(id) => retainedIds.has(id),
+				),
 			},
 		};
 	}
+
+	const retainedIds = new Set(
+		nextState.reports.items.map((report) => report.id),
+	);
 	const reportById = new Map(
 		nextState.reports.items.map((report) => [report.id, report]),
 	);
 	const order = { blocking: 0, important: 1, informational: 2 } as const;
-	const reportIds = [...nextState.queue.reportIds];
+	const reportIds = nextState.queue.reportIds.filter((id) =>
+		retainedIds.has(id),
+	);
 	const originalIndex = new Map(reportIds.map((id, index) => [id, index]));
 	reportIds.sort((left, right) => {
 		const leftReport = reportById.get(left);

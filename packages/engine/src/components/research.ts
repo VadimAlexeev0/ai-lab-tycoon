@@ -52,7 +52,7 @@ export function assertResearchState(
 	assertEnum(value.currentEra, RESEARCH_ERAS, "Research current era");
 	assertArray(value.nodes, "Research nodes");
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.nodes) {
 		assertExactObject(
 			item,
@@ -60,10 +60,10 @@ export function assertResearchState(
 			"research node",
 		);
 		assertIdentifier(item.id, "Research node id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate research node id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 		assertEnum(item.era, RESEARCH_ERAS, "Research node era");
 		assertEnum(item.branch, RESEARCH_BRANCHES, "Research node branch");
 		assertEnum(item.status, RESEARCH_NODE_STATUSES, "Research node status");
@@ -96,7 +96,7 @@ export function assertResearchState(
 		assertArray(item.prerequisites, "Research node prerequisites");
 		for (const prerequisite of item.prerequisites) {
 			assertIdentifier(prerequisite, "Research prerequisite id");
-			if (!ids.includes(prerequisite)) {
+			if (!ids.has(prerequisite)) {
 				throw new Error(
 					`Research node ${item.id} references an unknown prerequisite`,
 				);

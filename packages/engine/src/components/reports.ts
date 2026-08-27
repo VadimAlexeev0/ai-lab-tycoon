@@ -165,24 +165,43 @@ export type Report = {
 
 export type ReportsState = {
 	items: Report[];
+	/** Number of reports generated over the lifetime of the run. */
+	totalCount: number;
 };
 
-export function createReportsState(items: Report[] = []): ReportsState {
+// ponytail: The 200-report ceiling is temporary; upgrade to paged report
+// archives when the UI needs complete history without inflating saved state.
+export const REPORT_RETENTION_LIMIT = 200;
+
+export function createReportsState(
+	items: Report[] = [],
+	totalCount = items.length,
+): ReportsState {
 	return {
-		items: items.map((report) => ({
+		items: items.slice(-REPORT_RETENTION_LIMIT).map((report) => ({
 			...report,
 			fact: { ...report.fact },
 		})),
+		totalCount: Math.max(totalCount, items.length),
 	};
 }
 
 export function assertReportsState(
 	value: unknown,
 ): asserts value is ReportsState {
-	assertExactObject(value, ["items"], "reports");
+	assertExactObject(value, ["items", "totalCount"], "reports");
 	assertArray(value.items, "Reports items");
+	assertNonNegativeInteger(value.totalCount, "Reports total count");
+	if (value.items.length > REPORT_RETENTION_LIMIT) {
+		throw new Error(
+			`Reports items must contain at most ${REPORT_RETENTION_LIMIT} reports`,
+		);
+	}
+	if (value.totalCount < value.items.length) {
+		throw new Error("Reports total count cannot be less than retained reports");
+	}
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.items) {
 		assertExactObject(
 			item,
@@ -190,10 +209,10 @@ export function assertReportsState(
 			"report",
 		);
 		assertIdentifier(item.id, "Report id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate report id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 		assertEnum(item.priority, REPORT_PRIORITIES, "Report priority");
 		assertBoolean(item.acknowledged, "Report acknowledged");
 		assertFact(item.fact);

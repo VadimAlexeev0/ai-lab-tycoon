@@ -115,15 +115,15 @@ export function assertDecisionsState(
 	assertExactObject(value, ["pending"], "decisions");
 	assertArray(value.pending, "Pending decisions");
 
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const item of value.pending) {
 		assertObject(item, "pending decision");
 		assertEnum(item.kind, DECISION_KINDS, "Pending decision kind");
 		assertIdentifier(item.id, "Decision id");
-		if (ids.includes(item.id)) {
+		if (ids.has(item.id)) {
 			throw new Error(`Duplicate decision id: ${item.id}`);
 		}
-		ids.push(item.id);
+		ids.add(item.id);
 		assertPendingDecision(item);
 	}
 }

@@ -90,7 +90,7 @@ describe("startRun", () => {
 				seriesA: { round: "series_a", status: "locked" },
 			},
 			decisions: { pending: [] },
-			reports: { items: [] },
+			reports: { items: [], totalCount: 0 },
 			queue: { decisionIds: [], reportIds: [] },
 			commandLog: [
 				{
