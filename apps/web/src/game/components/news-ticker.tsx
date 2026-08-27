@@ -315,6 +315,27 @@ export function HeadlineCard({
 					</div>
 				</div>
 			) : null}
+			{headline.relatedNodeIds.length > 0 ? (
+				<div className="mt-4 border-border/60 border-t pt-3">
+					<p className="font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+						Related research
+					</p>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{headline.relatedNodeIds.map((nodeId) => (
+							<Link
+								aria-label={`Open research node ${humanizeResearchNode(nodeId)}`}
+								className="inline-flex max-w-full items-center border border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 px-1.5 py-1 font-mono text-foreground text-xs hover:border-[var(--game-amber)]/70"
+								data-research-node-id={nodeId}
+								key={nodeId}
+								search={{ node: nodeId }}
+								to="/game/research"
+							>
+								{humanizeResearchNode(nodeId)}
+							</Link>
+						))}
+					</div>
+				</div>
+			) : null}
 			<div className="mt-4 flex items-center justify-between gap-2 border-border/60 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
 				<time>{relativeTimestamp(timestampWeek, currentWeek)}</time>
 				<span>Dispatch {String(index + 1).padStart(2, "0")}</span>
@@ -400,4 +421,10 @@ function initials(name: string): string {
 		.slice(0, 2)
 		.map((part) => part[0]?.toUpperCase() ?? "?")
 		.join("");
+}
+
+function humanizeResearchNode(nodeId: string): string {
+	return nodeId
+		.replaceAll("_", " ")
+		.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }

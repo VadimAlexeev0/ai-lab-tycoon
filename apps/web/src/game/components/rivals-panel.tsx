@@ -2,6 +2,8 @@ import { type GameState, selectRivals } from "@ai-lab-tycoon/engine";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Eye, Gauge } from "lucide-react";
 
+import { rivalDoctrineForId } from "@/game/rival-doctrine";
+
 export type RivalsPanelProps = {
 	state: GameState;
 };
@@ -71,40 +73,60 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 					className="grid gap-2 md:grid-cols-3"
 					aria-label="Public rival progress"
 				>
-					{rivals.map((rival) => (
-						<li
-							className="border border-border/70 bg-background/35 p-2.5"
-							key={rival.id}
-						>
-							<div className="flex items-center justify-between gap-3">
-								<div className="flex min-w-0 items-start gap-2">
-									<img
-										alt={RIVAL_ART[rival.archetype].alt}
-										className="size-10 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_14px_rgba(34,211,238,0.2)] ring-1 ring-cyan-300/35"
-										decoding="async"
-										loading="lazy"
-										src={RIVAL_ART[rival.archetype].src}
-									/>
-									<div className="min-w-0">
-										<p className="truncate font-medium text-foreground text-xs">
-											{rival.name}
-										</p>
-										<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
-											{rival.focus} focus
-										</p>
+					{rivals.map((rival) => {
+						const doctrine = rivalDoctrineForId(rival.id);
+						return (
+							<li
+								className="border border-border/70 bg-background/35 p-2.5"
+								key={rival.id}
+							>
+								<div className="flex items-center justify-between gap-3">
+									<div className="flex min-w-0 items-start gap-2">
+										<img
+											alt={RIVAL_ART[rival.archetype].alt}
+											className="size-10 shrink-0 rounded-full border border-cyan-300/60 object-cover shadow-[0_0_14px_rgba(34,211,238,0.2)] ring-1 ring-cyan-300/35"
+											decoding="async"
+											loading="lazy"
+											src={RIVAL_ART[rival.archetype].src}
+										/>
+										<div className="min-w-0">
+											<p className="truncate font-medium text-foreground text-xs">
+												{rival.name}
+											</p>
+											<p className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+												{rival.focus} focus
+											</p>
+										</div>
 									</div>
+									<RivalGauge
+										leader={rival.id === leaderId}
+										name={rival.name}
+										progress={rival.progress}
+									/>
 								</div>
-								<RivalGauge
-									leader={rival.id === leaderId}
-									name={rival.name}
-									progress={rival.progress}
-								/>
-							</div>
-							<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
-								Public progress only · {rival.id}
-							</p>
-						</li>
-					))}
+								<div className="mt-2 space-y-1">
+									<span
+										className={cn(
+											"inline-flex items-center gap-1.5 border px-1.5 py-1 font-mono text-xs uppercase tracking-[0.08em]",
+											doctrine.id === "capability"
+												? "border-primary/35 bg-primary/5 text-primary"
+												: "border-[var(--game-amber)]/35 bg-[var(--game-amber)]/5 text-[var(--game-amber)]",
+										)}
+										data-doctrine-id={doctrine.id}
+										title={doctrine.note}
+									>
+										Doctrine · {doctrine.label}
+									</span>
+									<p className="text-muted-foreground text-xs leading-4">
+										{doctrine.note}
+									</p>
+								</div>
+								<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
+									Public progress only · {rival.id}
+								</p>
+							</li>
+						);
+					})}
 				</ul>
 			) : (
 				<p className="border border-border/70 bg-background/35 px-3 py-3 text-muted-foreground text-xs">
