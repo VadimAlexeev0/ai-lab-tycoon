@@ -6,6 +6,8 @@ import {
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { AlertOctagon, ShieldAlert } from "lucide-react";
 
+import ArtFrame from "@/game/components/art-frame";
+
 type IncidentType =
 	| "outage"
 	| "latency_degradation"
@@ -228,15 +230,11 @@ function IncidentDecision({
 					className="mt-0.5 size-4 shrink-0 text-[var(--game-negative)]"
 					aria-hidden="true"
 				/>
-				<img
+				<ArtFrame
 					alt=""
-					aria-hidden="true"
-					className="size-9 shrink-0 object-contain mix-blend-screen"
-					decoding="async"
-					height={36}
-					loading="lazy"
-					src="/art/icon-incident.png"
-					width={36}
+					className="size-9 shrink-0 rounded-md ring-[var(--game-negative)]/50"
+					src="/art-v2/cracked-pane-oxblood.png"
+					tint="bg-[var(--game-negative)]/10"
 				/>
 				<div>
 					<p className="font-mono font-semibold text-[var(--game-negative)] text-xs uppercase tracking-[0.14em]">

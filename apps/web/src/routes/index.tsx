@@ -2,6 +2,7 @@ import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Play, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import ArtFrame from "@/game/components/art-frame";
 import StartRunForm from "@/game/components/start-run-form";
 import {
 	type ActiveRunSnapshot,
@@ -88,16 +89,31 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 	return (
 		<section
 			aria-labelledby="run-selection-heading"
-			className="relative isolate overflow-hidden border border-border/70 bg-background p-4 sm:p-5"
+			className="relative isolate overflow-hidden rounded-xl border border-border/70 bg-background p-4 sm:p-5"
 		>
-			<img
-				alt=""
+			<div
 				aria-hidden="true"
-				className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.4]"
-				decoding="async"
-				loading="eager"
-				src="/art/key-art-command-center.png"
-			/>
+				className="pointer-events-none absolute inset-2 z-0 hidden sm:inset-3 dark:block"
+			>
+				<ArtFrame
+					alt=""
+					className="h-full w-full rounded-xl ring-white/10"
+					loading="eager"
+					src="/art-v2/hero-single-monolith.png"
+					tint="bg-background/20"
+				/>
+			</div>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-2 z-0 sm:inset-3 dark:hidden"
+			>
+				<ArtFrame
+					alt=""
+					className="h-full w-full rounded-xl ring-white/10"
+					src="/art-v2/fog-monolith-alt.png"
+					tint="bg-background/10"
+				/>
+			</div>
 			<div
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/65 to-transparent"

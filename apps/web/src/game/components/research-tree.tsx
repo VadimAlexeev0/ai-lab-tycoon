@@ -18,6 +18,7 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import ArtFrame from "@/game/components/art-frame";
 import EraBadge, { ERA_ORDER } from "@/game/components/era-badge";
 
 const BRANCH_ORDER = ["models", "infrastructure", "products_safety"] as const;
@@ -130,94 +131,98 @@ export default function ResearchTree({
 				screens.
 			</p>
 
-			<section
-				aria-labelledby="research-tree-heading"
-				className={cn(
-					"select-none overflow-x-auto overscroll-x-contain border border-border bg-background/35",
-					isPanning ? "cursor-grabbing" : "cursor-grab",
-				)}
-				onPointerCancel={handlePointerEnd}
-				onPointerDown={handlePointerDown}
-				onPointerMove={handlePointerMove}
-				onPointerUp={handlePointerEnd}
-				ref={viewportRef}
-				style={{ touchAction: "pan-y" }}
-			>
-				<div
-					className="relative"
-					style={{ height: layout.height, width: layout.width }}
+			{layout.nodes.length === 0 ? (
+				<ResearchDiscoveryState />
+			) : (
+				<section
+					aria-labelledby="research-tree-heading"
+					className={cn(
+						"select-none overflow-x-auto overscroll-x-contain border border-border bg-background/35",
+						isPanning ? "cursor-grabbing" : "cursor-grab",
+					)}
+					onPointerCancel={handlePointerEnd}
+					onPointerDown={handlePointerDown}
+					onPointerMove={handlePointerMove}
+					onPointerUp={handlePointerEnd}
+					ref={viewportRef}
+					style={{ touchAction: "pan-y" }}
 				>
-					{ERA_ORDER.map((era, index) => {
-						const eraCompleted =
-							ERA_ORDER.indexOf(state.research.currentEra) > index;
-						return (
-							<div
-								aria-hidden="true"
-								className="pointer-events-none absolute top-0 border-border/70 border-r px-1 py-3"
-								key={era}
-								style={{
-									height: layout.height,
-									left: index * ERA_WIDTH,
-									width: ERA_WIDTH,
-								}}
-							>
-								<div className="relative inline-flex">
-									<EraBadge era={era} size="compact" />
-									{eraCompleted ? (
-										<span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full border border-[var(--game-positive)]/70 bg-background text-[var(--game-positive)]">
-											<Check className="size-3" aria-hidden="true" />
-										</span>
-									) : null}
-								</div>
-								<div className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
-									Era column / tier depth
-								</div>
-							</div>
-						);
-					})}
-
-					<svg
-						aria-hidden="true"
-						className="pointer-events-none absolute inset-0 overflow-visible text-primary/50"
-						viewBox={`0 0 ${layout.width} ${layout.height}`}
+					<div
+						className="relative"
+						style={{ height: layout.height, width: layout.width }}
 					>
-						{layout.nodes.flatMap((target) =>
-							target.source.prerequisites.flatMap((prerequisiteId) => {
-								const source = layout.nodes.find(
-									(candidate) => candidate.node.id === prerequisiteId,
-								);
-								if (source === undefined) return [];
-								return [
-									<path
-										className={cn(
-											"research-connector",
-											target.state === "available" ||
-												target.state === "in-progress"
-												? "research-connector-available"
-												: undefined,
-										)}
-										d={connectorPath(source, target)}
-										fill="none"
-										key={`${prerequisiteId}-${target.node.id}`}
-										stroke="currentColor"
-										strokeLinecap="round"
-										strokeWidth="1.5"
-									/>,
-								];
-							}),
-						)}
-					</svg>
+						{ERA_ORDER.map((era, index) => {
+							const eraCompleted =
+								ERA_ORDER.indexOf(state.research.currentEra) > index;
+							return (
+								<div
+									aria-hidden="true"
+									className="pointer-events-none absolute top-0 border-border/70 border-r px-1 py-3"
+									key={era}
+									style={{
+										height: layout.height,
+										left: index * ERA_WIDTH,
+										width: ERA_WIDTH,
+									}}
+								>
+									<div className="relative inline-flex">
+										<EraBadge era={era} size="compact" />
+										{eraCompleted ? (
+											<span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full border border-[var(--game-positive)]/70 bg-background text-[var(--game-positive)]">
+												<Check className="size-3" aria-hidden="true" />
+											</span>
+										) : null}
+									</div>
+									<div className="mt-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
+										Era column / tier depth
+									</div>
+								</div>
+							);
+						})}
 
-					{layout.nodes.map((positioned) => (
-						<ResearchNodeCard
-							key={positioned.node.id}
-							node={positioned}
-							onSelect={onSelectNode}
-							selected={positioned.node.id === selectedNodeId}
-						/>
-					))}
-				</div>
-			</section>
+						<svg
+							aria-hidden="true"
+							className="pointer-events-none absolute inset-0 overflow-visible text-primary/50"
+							viewBox={`0 0 ${layout.width} ${layout.height}`}
+						>
+							{layout.nodes.flatMap((target) =>
+								target.source.prerequisites.flatMap((prerequisiteId) => {
+									const source = layout.nodes.find(
+										(candidate) => candidate.node.id === prerequisiteId,
+									);
+									if (source === undefined) return [];
+									return [
+										<path
+											className={cn(
+												"research-connector",
+												target.state === "available" ||
+													target.state === "in-progress"
+													? "research-connector-available"
+													: undefined,
+											)}
+											d={connectorPath(source, target)}
+											fill="none"
+											key={`${prerequisiteId}-${target.node.id}`}
+											stroke="currentColor"
+											strokeLinecap="round"
+											strokeWidth="1.5"
+										/>,
+									];
+								}),
+							)}
+						</svg>
+
+						{layout.nodes.map((positioned) => (
+							<ResearchNodeCard
+								key={positioned.node.id}
+								node={positioned}
+								onSelect={onSelectNode}
+								selected={positioned.node.id === selectedNodeId}
+							/>
+						))}
+					</div>
+				</section>
+			)}
 
 			<div className="flex flex-wrap gap-x-4 gap-y-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 				<LegendIcon icon={<LockKeyhole className="size-3" />} label="Locked" />
@@ -569,6 +574,34 @@ function LegendIcon({ icon, label }: { icon: ReactNode; label: string }) {
 			{icon}
 			{label}
 		</span>
+	);
+}
+
+function ResearchDiscoveryState() {
+	return (
+		<section
+			aria-label="Research discovery state"
+			className="flex min-h-64 flex-col items-center justify-center gap-4 border border-border bg-background/35 px-6 py-8 text-center sm:flex-row sm:text-left"
+		>
+			<ArtFrame
+				alt=""
+				className="size-36 shrink-0 rounded-xl"
+				src="/art-v2/nested-arcs.png"
+				tint="bg-primary/10"
+			/>
+			<div>
+				<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
+					Discovery state
+				</p>
+				<h3 className="mt-1 font-mono font-semibold text-foreground text-sm uppercase tracking-[0.1em]">
+					The frontier map is quiet
+				</h3>
+				<p className="mt-2 max-w-md text-muted-foreground text-xs leading-5">
+					New research nodes will appear here when the engine exposes the next
+					frontier.
+				</p>
+			</div>
+		</section>
 	);
 }
 

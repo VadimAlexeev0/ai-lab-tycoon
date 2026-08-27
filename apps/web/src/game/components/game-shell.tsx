@@ -28,6 +28,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import ArtFrame from "@/game/components/art-frame";
 import ComputePanel from "@/game/components/compute-panel";
 import EraBadge from "@/game/components/era-badge";
 import FundingPanel from "@/game/components/funding-panel";
@@ -690,18 +691,11 @@ function PanelCard({
 					className="pointer-events-none absolute inset-x-0 top-0 h-16 overflow-hidden"
 					aria-hidden="true"
 				>
-					<img
+					<ArtFrame
 						alt=""
-						className="h-full w-full object-cover opacity-[0.12]"
-						decoding="async"
-						loading="lazy"
-						src="/art/key-art-command-center.png"
-						style={{
-							maskImage:
-								"linear-gradient(to bottom, black 0%, transparent 100%)",
-							WebkitMaskImage:
-								"linear-gradient(to bottom, black 0%, transparent 100%)",
-						}}
+						className="h-full w-full rounded-none opacity-[0.12] ring-0"
+						src="/art-v2/glass-panel-banner.png"
+						tint="bg-background/10"
 					/>
 				</div>
 			) : null}

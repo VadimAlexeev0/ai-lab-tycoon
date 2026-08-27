@@ -1,6 +1,8 @@
 import type { GameState } from "@ai-lab-tycoon/engine";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 
+import ArtFrame from "@/game/components/art-frame";
+
 export const ERA_ORDER = ["text", "assistant", "multimodal"] as const;
 export type Era = (typeof ERA_ORDER)[number];
 
@@ -8,12 +10,6 @@ export const ERA_LABELS: Record<Era, string> = {
 	text: "Text era",
 	assistant: "Assistant era",
 	multimodal: "Multimodal era",
-};
-
-const ERA_ART: Record<Era, string> = {
-	text: "/art/era-text.png",
-	assistant: "/art/era-assistant.png",
-	multimodal: "/art/era-multimodal.png",
 };
 
 export type EraProgress = {
@@ -73,18 +69,11 @@ export default function EraBadge({
 			data-era-size={size}
 			role="status"
 		>
-			<img
+			<ArtFrame
 				alt=""
-				aria-hidden="true"
-				className={cn(
-					"shrink-0 object-contain mix-blend-screen",
-					isHeader ? "size-8" : "size-6",
-				)}
-				decoding="async"
-				height={isHeader ? 32 : 24}
-				loading="lazy"
-				src={ERA_ART[era]}
-				width={isHeader ? 32 : 24}
+				className={cn("shrink-0", isHeader ? "size-8" : "size-6")}
+				src="/art-v2/torus-ice.png"
+				tint="bg-primary/10"
 			/>
 			<span className="min-w-0">
 				<span className="block truncate font-semibold text-xs uppercase tracking-[0.1em]">

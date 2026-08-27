@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import ReportHistory from "@/game/components/report-history";
 import ReportQueue from "@/game/components/report-queue";
@@ -21,6 +22,14 @@ function ReportsRoute() {
 			eyebrow="Module 05 / evidence"
 			title="Reports"
 			description="Review blocking warnings and browse the immutable mechanical fact stream produced by the simulation."
+			headerVisual={
+				<ArtFrame
+					alt=""
+					className="size-14 shrink-0 rounded-md"
+					src="/art-v2/hovering-shards.png"
+					tint="bg-background/10"
+				/>
+			}
 		>
 			<div className="space-y-6">
 				<ReportQueue

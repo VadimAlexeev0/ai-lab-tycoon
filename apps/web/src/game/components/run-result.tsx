@@ -6,6 +6,8 @@ import {
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { Flag, RotateCcw, Trophy } from "lucide-react";
 
+import ArtFrame from "@/game/components/art-frame";
+
 export type RunResultProps = {
 	state: GameState;
 	disabled?: boolean;
@@ -41,7 +43,7 @@ export default function RunResult({
 				aria-label="Run result"
 				className="relative isolate overflow-hidden border border-[var(--game-negative)]/60 bg-[var(--game-negative)]/10 p-3"
 			>
-				<ResultArtBackdrop />
+				<ResultArtBackdrop src="/art-v2/amber-fracture.png" />
 				<div className="relative z-10 flex items-start gap-2">
 					<img
 						alt={OPS_ADVISOR.alt}
@@ -109,7 +111,7 @@ export default function RunResult({
 				aria-label="Frontier milestone"
 				className="relative isolate overflow-hidden border border-primary/50 bg-primary/10 p-3"
 			>
-				<ResultArtBackdrop />
+				<ResultArtBackdrop src="/art-v2/fog-monolith-alt.png" />
 				<div className="relative z-10 flex items-start gap-2">
 					<Trophy
 						className="mt-0.5 size-4 shrink-0 text-primary"
@@ -147,16 +149,14 @@ export default function RunResult({
 	return null;
 }
 
-function ResultArtBackdrop() {
+function ResultArtBackdrop({ src }: { src: string }) {
 	return (
 		<>
-			<img
+			<ArtFrame
 				alt=""
-				aria-hidden="true"
-				className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.15]"
-				decoding="async"
-				loading="lazy"
-				src="/art/key-art-command-center.png"
+				className="pointer-events-none absolute inset-0 h-full w-full rounded-none opacity-[0.15] ring-0"
+				src={src}
+				tint="bg-background/35"
 			/>
 			<div
 				className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background/90 via-background/75 to-background/55"

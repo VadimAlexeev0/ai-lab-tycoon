@@ -1,6 +1,7 @@
 import { advanceWeek } from "@ai-lab-tycoon/engine";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
+import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import LabCore from "@/game/components/lab-core";
 import OverviewPanel from "@/game/components/overview-panel";
@@ -52,6 +53,32 @@ function DashboardRoute() {
 							Core 01
 						</span>
 					</div>
+					<section
+						aria-labelledby="lab-identity-heading"
+						className="relative z-10 mt-3 overflow-hidden border border-border/70 bg-background/35"
+					>
+						<ArtFrame
+							alt=""
+							className="h-24 w-full rounded-none ring-0 sm:h-28"
+							src="/art-v2/four-monoliths.png"
+							tint="bg-background/10"
+						/>
+						<div className="relative mx-2.5 -mt-10 mb-2.5 border border-border/70 bg-background/80 p-2 backdrop-blur-sm">
+							<p className="font-mono font-semibold text-primary text-xs uppercase tracking-[0.16em]">
+								Lab identity
+							</p>
+							<h3
+								id="lab-identity-heading"
+								className="mt-1 font-mono font-semibold text-foreground text-xs uppercase tracking-[0.1em]"
+							>
+								Four signals / one lab
+							</h3>
+							<p className="mt-1 text-muted-foreground text-xs leading-4">
+								A compact read on the lab's foundational, market, frontier, and
+								safety posture.
+							</p>
+						</div>
+					</section>
 					<LabCore className="relative z-10" state={state} />
 					<PriorityStrip
 						disabled={game.actionBusy}
@@ -66,6 +93,25 @@ function DashboardRoute() {
 						}}
 						state={state}
 					/>
+					<section
+						aria-label="AGI program teaser"
+						className="relative z-10 mt-2 flex items-center gap-2 border border-[var(--game-amber)]/40 bg-[var(--game-amber)]/5 px-2 py-2"
+					>
+						<ArtFrame
+							alt=""
+							className="size-10 shrink-0 rounded-md ring-[var(--game-amber)]/40"
+							src="/art-v2/sphere-amber-seed.png"
+							tint="bg-[var(--game-amber)]/10"
+						/>
+						<div className="min-w-0">
+							<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.12em]">
+								AGI program / seed signal
+							</p>
+							<p className="mt-1 text-muted-foreground text-xs leading-4">
+								Keep the seed lit while the frontier compounds.
+							</p>
+						</div>
+					</section>
 					<p className="relative z-10 border-border/70 border-t pt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.1em]">
 						Drag to rotate · telemetry is live
 					</p>

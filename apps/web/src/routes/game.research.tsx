@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
+import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import ResearchTimeline from "@/game/components/research-timeline";
 import ResearchTree from "@/game/components/research-tree";
@@ -38,7 +39,17 @@ function ResearchRoute() {
 			title="Research"
 			description="Follow the engine's layered research DAG from foundational work to the multimodal frontier. Select any node to inspect its economics and assign a team."
 			eraState={game.state}
-			headerVisual={<ResearchTimeline state={game.state} />}
+			headerVisual={
+				<>
+					<ResearchTimeline state={game.state} />
+					<ArtFrame
+						alt=""
+						className="size-12 shrink-0 rounded-md"
+						src="/art-v2/light-prism.png"
+						tint="bg-primary/10"
+					/>
+				</>
+			}
 		>
 			<ResearchTree
 				disabled={game.actionBusy}

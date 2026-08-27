@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import TeamPanel from "@/game/components/team-panel";
 import { useGameState } from "@/game/game-state-context";
@@ -20,6 +21,14 @@ function TeamsRoute() {
 			eyebrow="Module 01 / staffing"
 			title="Teams and projects"
 			description="Keep every team productive: assign a legal project, monitor progress, or cancel an active commitment when the run needs to pivot."
+			headerVisual={
+				<ArtFrame
+					alt=""
+					className="size-14 shrink-0 rounded-md"
+					src="/art-v2/cubes-terracotta.png"
+					tint="bg-[var(--game-amber)]/10"
+				/>
+			}
 		>
 			<TeamPanel
 				disabled={game.actionBusy}
