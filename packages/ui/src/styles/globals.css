@@ -583,6 +583,26 @@
 	}
 }
 
+@keyframes ailt-news-marquee {
+	to {
+		transform: translateX(-50%);
+	}
+}
+
+.ailt-news-ticker-track {
+	transform: translateX(0);
+}
+
+.ailt-news-ticker-track[data-paused="true"] {
+	animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.ailt-news-ticker-track {
+		animation: ailt-news-marquee 36s linear infinite;
+	}
+}
+
 /* Frosted locked nodes keep the label readable while signalling unavailable work. */
 .frost-lock {
 	position: relative;

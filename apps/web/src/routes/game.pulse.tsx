@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import GamePage from "@/game/components/game-page";
+import { IndustryPulse } from "@/game/components/news-ticker";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
 import { useGameState } from "@/game/game-state-context";
+import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/pulse")({
 	head: () => ({
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/game/pulse")({
 
 function PulseRoute() {
 	const game = useGameState();
+	const search = GameRoute.useSearch();
 	if (game.state === null) return null;
 
 	return (
@@ -22,15 +25,10 @@ function PulseRoute() {
 			description="A deterministic press desk for the public clocks, market shifts, and rival signals around your lab."
 			headerVisual={<PlaceholderBadge />}
 		>
-			<section className="border border-[var(--game-amber)]/50 border-dashed bg-card/50 p-4">
-				<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.16em]">
-					News desk is warming up
-				</p>
-				<p className="mt-2 max-w-2xl text-muted-foreground text-sm leading-6">
-					Use the debug drawer to force a deterministic headline batch without
-					writing preview content into the active run.
-				</p>
-			</section>
+			<IndustryPulse
+				rivalProgressPct={search.rivalProgress}
+				state={game.state}
+			/>
 		</GamePage>
 	);
 }

@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import GamePage from "@/game/components/game-page";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
+import QuarterlyReview from "@/game/components/quarterly-review";
 import { useGameState } from "@/game/game-state-context";
+import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/quarterly")({
 	head: () => ({
@@ -13,6 +15,7 @@ export const Route = createFileRoute("/game/quarterly")({
 
 function QuarterlyRoute() {
 	const game = useGameState();
+	const search = GameRoute.useSearch();
 	if (game.state === null) return null;
 
 	return (
@@ -22,15 +25,7 @@ function QuarterlyRoute() {
 			description="A narrative checkpoint for the decisions, trade-offs, and expectations that shaped the last thirteen weeks."
 			headerVisual={<PlaceholderBadge />}
 		>
-			<section className="border border-[var(--game-amber)]/50 border-dashed bg-card/50 p-4">
-				<p className="font-mono font-semibold text-[var(--game-amber)] text-xs uppercase tracking-[0.16em]">
-					Review surface is warming up
-				</p>
-				<p className="mt-2 max-w-2xl text-muted-foreground text-sm leading-6">
-					Use the debug drawer to preview the quarterly report while the engine
-					contract is being assembled.
-				</p>
-			</section>
+			<QuarterlyReview quarter={search.quarter} state={game.state} />
 		</GamePage>
 	);
 }

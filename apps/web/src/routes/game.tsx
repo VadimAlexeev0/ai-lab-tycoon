@@ -38,6 +38,7 @@ import DebugDrawer from "@/game/components/debug-drawer";
 import EraBadge from "@/game/components/era-badge";
 import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
+import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
 import ResourceBar from "@/game/components/resource-bar";
 import { GameStateProvider, useGameState } from "@/game/game-state-context";
@@ -256,6 +257,11 @@ function GameLayout() {
 				</div>
 			</main>
 			<MobileNavigation />
+			<NewsTicker
+				forceVisible={search.debug === "1" || search.pulse === "1"}
+				rivalProgressPct={search.rivalProgress}
+				state={state}
+			/>
 			<DebugDrawer
 				debugForced={search.debug === "1"}
 				quarter={search.quarter ?? 1}
