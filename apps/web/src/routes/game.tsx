@@ -17,6 +17,7 @@ import {
 import {
 	Activity,
 	AlertCircle,
+	Archive,
 	ArrowRight,
 	BrainCircuit,
 	BriefcaseBusiness,
@@ -24,6 +25,7 @@ import {
 	FlaskConical,
 	House,
 	Loader2,
+	Newspaper,
 	PanelTop,
 	RotateCcw,
 	Settings2,
@@ -32,6 +34,7 @@ import {
 import { useEffect } from "react";
 
 import AdvanceWeekButton from "@/game/components/advance-week-button";
+import DebugDrawer from "@/game/components/debug-drawer";
 import EraBadge from "@/game/components/era-badge";
 import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
@@ -42,6 +45,11 @@ import { GameStateProvider, useGameState } from "@/game/game-state-context";
 export type GameSearch = {
 	decision?: string;
 	node?: string;
+	debug?: "1";
+	quarter?: number;
+	rivalProgress?: number;
+	quarterly?: "1";
+	pulse?: "1";
 };
 
 export const Route = createFileRoute("/game")({
@@ -248,6 +256,41 @@ function GameLayout() {
 				</div>
 			</main>
 			<MobileNavigation />
+			<DebugDrawer
+				debugForced={search.debug === "1"}
+				quarter={search.quarter ?? 1}
+				rivalProgress={search.rivalProgress ?? 0}
+				onForceIndustryPulse={() => {
+					void navigate({
+						to: "/game/pulse",
+						search: (current) => ({
+							...current,
+							pulse: "1",
+							quarterly: undefined,
+						}),
+					});
+				}}
+				onForceQuarterlyReview={() => {
+					void navigate({
+						to: "/game/quarterly",
+						search: (current) => ({
+							...current,
+							quarterly: "1",
+							pulse: undefined,
+						}),
+					});
+				}}
+				onQuarterChange={(quarter) => {
+					void navigate({
+						search: (current) => ({ ...current, quarter }),
+					});
+				}}
+				onRivalProgressChange={(rivalProgress) => {
+					void navigate({
+						search: (current) => ({ ...current, rivalProgress }),
+					});
+				}}
+			/>
 			{isActive && state !== null && selectedDecision !== undefined ? (
 				<DecisionOverlay
 					decision={selectedDecision}
@@ -263,31 +306,65 @@ function GameLayout() {
 function Navigation() {
 	const location = useLocation();
 	return (
-		<nav
-			aria-label="Desktop game destinations"
-			className="hidden min-w-0 items-center gap-1 overflow-x-auto border-border/70 border-y py-1 lg:flex"
-		>
-			{DESTINATIONS.map((destination) => {
-				const active = isDestinationActive(location.pathname, destination.to);
-				const Icon = destination.icon;
-				return (
-					<Link
-						aria-current={active ? "page" : undefined}
-						className={cn(
-							"flex min-h-9 shrink-0 items-center gap-2 px-3 font-mono font-semibold text-xs uppercase tracking-[0.12em]",
-							active
-								? "bg-primary text-primary-foreground"
-								: "text-muted-foreground hover:bg-muted hover:text-foreground",
-						)}
-						key={destination.to}
-						to={destination.to}
-					>
-						<Icon className="size-3.5" aria-hidden="true" />
-						{destination.label}
-					</Link>
-				);
-			})}
-		</nav>
+		<div className="hidden min-w-0 lg:block">
+			<nav
+				aria-label="Desktop game destinations"
+				className="flex min-w-0 items-center gap-1 overflow-x-auto border-border/70 border-y py-1"
+			>
+				{DESTINATIONS.map((destination) => {
+					const active = isDestinationActive(location.pathname, destination.to);
+					const Icon = destination.icon;
+					return (
+						<Link
+							aria-current={active ? "page" : undefined}
+							className={cn(
+								"flex min-h-9 shrink-0 items-center gap-2 px-3 font-mono font-semibold text-xs uppercase tracking-[0.12em]",
+								active
+									? "bg-primary text-primary-foreground"
+									: "text-muted-foreground hover:bg-muted hover:text-foreground",
+							)}
+							key={destination.to}
+							to={destination.to}
+						>
+							<Icon className="size-3.5" aria-hidden="true" />
+							{destination.label}
+						</Link>
+					);
+				})}
+			</nav>
+			<nav
+				aria-label="Archive destinations"
+				className="mt-2 flex min-w-0 items-center gap-1 overflow-x-auto border-border/50 border-b border-dashed pb-1"
+			>
+				<div className="flex shrink-0 items-center gap-1.5 px-2 font-mono font-semibold text-muted-foreground text-xs uppercase tracking-[0.16em]">
+					<Archive className="size-3.5" aria-hidden="true" />
+					<span>Archive</span>
+				</div>
+				{ARCHIVE_DESTINATIONS.map((destination) => {
+					const active = isDestinationActive(location.pathname, destination.to);
+					const Icon = destination.icon;
+					return (
+						<Link
+							aria-current={active ? "page" : undefined}
+							className={cn(
+								"flex min-h-8 shrink-0 items-center gap-1.5 px-2 font-mono text-xs uppercase tracking-[0.1em]",
+								active
+									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
+									: "text-muted-foreground/80 hover:bg-muted hover:text-foreground",
+							)}
+							key={destination.to}
+							to={destination.to}
+						>
+							<Icon className="size-3.5" aria-hidden="true" />
+							{destination.label}
+							<span className="border border-[var(--game-amber)]/50 px-1 py-0.5 font-mono text-[10px] text-[var(--game-amber)] leading-none">
+								Preview
+							</span>
+						</Link>
+					);
+				})}
+			</nav>
+		</div>
 	);
 }
 
@@ -296,31 +373,66 @@ function MobileNavigation() {
 	return (
 		<nav
 			aria-label="Game destinations"
-			className="fixed inset-x-0 bottom-0 z-40 flex border-border border-t bg-card/95 px-1 pt-1 backdrop-blur-sm lg:hidden"
+			className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-border border-t bg-card/95 pt-1 backdrop-blur-sm lg:hidden"
 			style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
 		>
-			{DESTINATIONS.map((destination) => {
-				const active = isDestinationActive(location.pathname, destination.to);
-				const Icon = destination.icon;
-				return (
-					<Link
-						aria-current={active ? "page" : undefined}
-						className={cn(
-							"flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
-							active
-								? "bg-primary text-primary-foreground"
-								: "text-muted-foreground hover:bg-muted hover:text-foreground",
-						)}
-						key={destination.to}
-						to={destination.to}
-					>
-						<Icon className="size-4" aria-hidden="true" />
-						<span className="max-w-full truncate">
-							{destination.shortLabel}
-						</span>
-					</Link>
-				);
-			})}
+			<div className="flex min-w-max items-stretch overflow-x-auto px-1">
+				{DESTINATIONS.map((destination) => {
+					const active = isDestinationActive(location.pathname, destination.to);
+					const Icon = destination.icon;
+					return (
+						<Link
+							aria-current={active ? "page" : undefined}
+							className={cn(
+								"flex min-h-11 min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
+								active
+									? "bg-primary text-primary-foreground"
+									: "text-muted-foreground hover:bg-muted hover:text-foreground",
+							)}
+							key={destination.to}
+							to={destination.to}
+						>
+							<Icon className="size-4" aria-hidden="true" />
+							<span className="max-w-full truncate">
+								{destination.shortLabel}
+							</span>
+						</Link>
+					);
+				})}
+				<div
+					aria-hidden="true"
+					className="mx-1 my-1 w-px shrink-0 bg-border/70"
+				/>
+				<div className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-muted-foreground text-xs uppercase tracking-[0.04em]">
+					<Archive className="size-4" aria-hidden="true" />
+					<span>Archive</span>
+				</div>
+				{ARCHIVE_DESTINATIONS.map((destination) => {
+					const active = isDestinationActive(location.pathname, destination.to);
+					const Icon = destination.icon;
+					return (
+						<Link
+							aria-current={active ? "page" : undefined}
+							className={cn(
+								"flex min-h-11 min-w-[5.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 font-mono text-xs uppercase tracking-[0.04em]",
+								active
+									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
+									: "text-muted-foreground hover:bg-muted hover:text-foreground",
+							)}
+							key={destination.to}
+							to={destination.to}
+						>
+							<Icon className="size-4" aria-hidden="true" />
+							<span className="max-w-full truncate">
+								{destination.shortLabel}
+							</span>
+							<span className="font-mono text-[10px] leading-none">
+								Preview
+							</span>
+						</Link>
+					);
+				})}
+			</div>
 		</nav>
 	);
 }
@@ -361,6 +473,21 @@ const DESTINATIONS = [
 		label: "Reports",
 		shortLabel: "Reports",
 		icon: PanelTop,
+	},
+] as const;
+
+const ARCHIVE_DESTINATIONS = [
+	{
+		to: "/game/quarterly",
+		label: "Quarterly Review",
+		shortLabel: "Quarterly",
+		icon: PanelTop,
+	},
+	{
+		to: "/game/pulse",
+		label: "Industry Pulse",
+		shortLabel: "Pulse",
+		icon: Newspaper,
 	},
 ] as const;
 
@@ -773,7 +900,27 @@ function validateGameSearch(search: Record<string, unknown>): GameSearch {
 	return {
 		decision: typeof search.decision === "string" ? search.decision : undefined,
 		node: typeof search.node === "string" ? search.node : undefined,
+		debug: search.debug === "1" ? "1" : undefined,
+		quarter: parseBoundedInteger(search.quarter, 1, 6),
+		rivalProgress: parseBoundedInteger(search.rivalProgress, 0, 100),
+		quarterly: search.quarterly === "1" ? "1" : undefined,
+		pulse: search.pulse === "1" ? "1" : undefined,
 	};
+}
+
+function parseBoundedInteger(
+	value: unknown,
+	minimum: number,
+	maximum: number,
+): number | undefined {
+	const parsed =
+		typeof value === "number"
+			? value
+			: typeof value === "string" && value.trim().length > 0
+				? Number(value)
+				: Number.NaN;
+	if (!Number.isInteger(parsed)) return undefined;
+	return Math.min(maximum, Math.max(minimum, parsed));
 }
 
 function humanize(value: string): string {
