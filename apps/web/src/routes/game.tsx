@@ -19,6 +19,7 @@ import {
 	AlertCircle,
 	Archive,
 	ArrowRight,
+	BookOpen,
 	BrainCircuit,
 	BriefcaseBusiness,
 	ChartNoAxesCombined,
@@ -51,6 +52,7 @@ export type GameSearch = {
 	rivalProgress?: number;
 	quarterly?: "1";
 	pulse?: "1";
+	chronicle?: "1";
 };
 
 export const Route = createFileRoute("/game")({
@@ -276,6 +278,17 @@ function GameLayout() {
 						}),
 					});
 				}}
+				onForceChronicle={() => {
+					void navigate({
+						to: "/game/chronicle",
+						search: (current) => ({
+							...current,
+							chronicle: "1",
+							quarterly: undefined,
+							pulse: undefined,
+						}),
+					});
+				}}
 				onForceQuarterlyReview={() => {
 					void navigate({
 						to: "/game/quarterly",
@@ -494,6 +507,12 @@ const ARCHIVE_DESTINATIONS = [
 		label: "Industry Pulse",
 		shortLabel: "Pulse",
 		icon: Newspaper,
+	},
+	{
+		to: "/game/chronicle",
+		label: "Company Chronicle",
+		shortLabel: "Chronicle",
+		icon: BookOpen,
 	},
 ] as const;
 
@@ -911,6 +930,7 @@ function validateGameSearch(search: Record<string, unknown>): GameSearch {
 		rivalProgress: parseBoundedInteger(search.rivalProgress, 0, 100),
 		quarterly: search.quarterly === "1" ? "1" : undefined,
 		pulse: search.pulse === "1" ? "1" : undefined,
+		chronicle: search.chronicle === "1" ? "1" : undefined,
 	};
 }
 
