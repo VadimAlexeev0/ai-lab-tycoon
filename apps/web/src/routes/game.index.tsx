@@ -1,16 +1,25 @@
 import { advanceWeek } from "@ai-lab-tycoon/engine";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
 import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
-import LabCore from "@/game/components/lab-core";
 import OverviewPanel from "@/game/components/overview-panel";
 import PriorityStrip from "@/game/components/priority-strip";
 import { useGameState } from "@/game/game-state-context";
 
+const LazyLabCore = lazy(() => import("@/game/components/lab-core"));
+
 export const Route = createFileRoute("/game/")({
 	head: () => ({
-		meta: [{ title: "Command overview · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Command overview · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Monitor your AI lab's live health, resources, and next objective in the deterministic operations console.",
+			},
+		],
 	}),
 	component: DashboardRoute,
 });
@@ -69,7 +78,13 @@ function DashboardRoute() {
 							</p>
 						</div>
 					</section>
-					<LabCore className="relative z-10" state={state} />
+					<Suspense
+						fallback={
+							<PanelLoadingState label="Loading lab core visualization…" />
+						}
+					>
+						<LazyLabCore className="relative z-10" state={state} />
+					</Suspense>
 					<PriorityStrip
 						disabled={game.actionBusy}
 						onAdvance={() => {
@@ -108,5 +123,17 @@ function DashboardRoute() {
 				</aside>
 			</div>
 		</GamePage>
+	);
+}
+
+function PanelLoadingState({ label }: { label: string }) {
+	return (
+		<div
+			aria-busy="true"
+			aria-live="polite"
+			className="relative z-10 flex min-h-40 items-center justify-center border border-border/70 bg-background/35 px-3 text-center text-muted-foreground text-xs sm:min-h-60"
+		>
+			{label}
+		</div>
 	);
 }

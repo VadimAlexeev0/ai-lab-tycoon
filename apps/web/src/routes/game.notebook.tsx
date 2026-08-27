@@ -8,7 +8,14 @@ import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/notebook")({
 	head: () => ({
-		meta: [{ title: "Lab Notebook · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Lab Notebook · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Collect the first-time discoveries that make this deterministic run legible, one mechanical event at a time.",
+			},
+		],
 	}),
 	component: NotebookRoute,
 });

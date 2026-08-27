@@ -1,15 +1,24 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
 import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import ResearchTimeline from "@/game/components/research-timeline";
-import ResearchTree from "@/game/components/research-tree";
 import { useGameState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
 
+const LazyResearchTree = lazy(() => import("@/game/components/research-tree"));
+
 export const Route = createFileRoute("/game/research")({
 	head: () => ({
-		meta: [{ title: "Research · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Research · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Follow the engine's research frontier from foundational work to the multimodal era, then assign the next project.",
+			},
+		],
 	}),
 	component: ResearchRoute,
 });
@@ -51,14 +60,30 @@ function ResearchRoute() {
 				</>
 			}
 		>
-			<ResearchTree
-				disabled={game.actionBusy}
-				onAssignProject={game.assignProject}
-				onCloseDetail={closeDetail}
-				onSelectNode={selectNode}
-				selectedNodeId={search.node}
-				state={game.state}
-			/>
+			<Suspense
+				fallback={<PanelLoadingState label="Loading research frontier map…" />}
+			>
+				<LazyResearchTree
+					disabled={game.actionBusy}
+					onAssignProject={game.assignProject}
+					onCloseDetail={closeDetail}
+					onSelectNode={selectNode}
+					selectedNodeId={search.node}
+					state={game.state}
+				/>
+			</Suspense>
 		</GamePage>
+	);
+}
+
+function PanelLoadingState({ label }: { label: string }) {
+	return (
+		<div
+			aria-busy="true"
+			aria-live="polite"
+			className="flex min-h-48 items-center justify-center border border-border/70 bg-background/35 px-3 text-center text-muted-foreground text-xs"
+		>
+			{label}
+		</div>
 	);
 }

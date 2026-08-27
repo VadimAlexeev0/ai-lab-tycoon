@@ -66,7 +66,14 @@ export type GameSearch = {
 
 export const Route = createFileRoute("/game")({
 	head: () => ({
-		meta: [{ title: "Operations · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Operations · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Manage a deterministic AI startup run, its resources, decisions, and route-by-route operations console.",
+			},
+		],
 	}),
 	validateSearch: validateGameSearch,
 	component: GameRoute,

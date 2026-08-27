@@ -7,7 +7,14 @@ import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/teams")({
 	head: () => ({
-		meta: [{ title: "Teams and projects · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Teams and projects · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Assign legal projects, monitor team progress, and cancel commitments when the run needs to pivot.",
+			},
+		],
 	}),
 	component: TeamsRoute,
 });

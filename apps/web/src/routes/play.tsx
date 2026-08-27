@@ -12,6 +12,16 @@ import {
 import type { ActiveRunRecord } from "@/utils/orpc";
 
 export const Route = createFileRoute("/play")({
+	head: () => ({
+		meta: [
+			{ title: "Play AI Startup Lab Tycoon · Start a run" },
+			{
+				name: "description",
+				content:
+					"Start a deterministic AI startup run or resume the anonymous autosave from the command floor.",
+			},
+		],
+	}),
 	component: HomeComponent,
 });
 

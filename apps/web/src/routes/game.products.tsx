@@ -11,7 +11,14 @@ import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/products")({
 	head: () => ({
-		meta: [{ title: "Products · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Products · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Turn model readiness into operating products, watch compute demand, and keep funding and rival pressure in view.",
+			},
+		],
 	}),
 	component: ProductsRoute,
 });

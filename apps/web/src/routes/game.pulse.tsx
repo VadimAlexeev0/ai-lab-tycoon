@@ -8,7 +8,14 @@ import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/pulse")({
 	head: () => ({
-		meta: [{ title: "Industry Pulse · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Industry Pulse · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Read a deterministic press desk of public clocks, market shifts, and rival signals around your lab.",
+			},
+		],
 	}),
 	component: PulseRoute,
 });

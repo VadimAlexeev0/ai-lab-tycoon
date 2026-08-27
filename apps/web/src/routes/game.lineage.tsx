@@ -7,7 +7,14 @@ import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/lineage")({
 	head: () => ({
-		meta: [{ title: "Model Lineage Gallery · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Model Lineage Gallery · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Trace the public family tree of this run's models, from fresh foundations through continued and distilled descendants.",
+			},
+		],
 	}),
 	component: LineageRoute,
 });

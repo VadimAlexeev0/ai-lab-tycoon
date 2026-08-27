@@ -10,5 +10,23 @@ export default defineConfig({
 	resolve: {
 		tsconfigPaths: true,
 	},
-	plugins: [tailwindcss(), tanstackStart(), viteReact()],
+	plugins: [
+		tailwindcss(),
+		tanstackStart({
+			prerender: {
+				enabled: true,
+				autoStaticPathsDiscovery: true,
+				crawlLinks: true,
+				failOnError: false,
+				retryCount: 2,
+				filter: ({ path }) => {
+					// `/play` is intentionally a public loading shell.
+					// Exclude `/game/**`: its useful content is session-bound through
+					// GameStateProvider, so crawled links must never become static pages.
+					return path === "/" || path === "/play";
+				},
+			},
+		}),
+		viteReact(),
+	],
 });

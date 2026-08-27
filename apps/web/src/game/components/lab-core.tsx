@@ -1,10 +1,37 @@
 import { type GameState, selectResourceBar } from "@ai-lab-tycoon/engine";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { type MutableRefObject, useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
+import type * as THREE from "three";
 
 const FLASH_DURATION_MS = 900;
 const MAX_DEVICE_PIXEL_RATIO = 1.5;
+type ThreeConstructor<Instance> = new (...args: unknown[]) => Instance;
+type ThreeModule = {
+	AdditiveBlending: number;
+	BufferAttribute: ThreeConstructor<THREE.BufferAttribute>;
+	BufferGeometry: ThreeConstructor<THREE.BufferGeometry>;
+	CanvasTexture: ThreeConstructor<THREE.CanvasTexture>;
+	Color: ThreeConstructor<THREE.Color>;
+	Group: ThreeConstructor<THREE.Group>;
+	IcosahedronGeometry: ThreeConstructor<THREE.IcosahedronGeometry>;
+	LineBasicMaterial: ThreeConstructor<THREE.LineBasicMaterial>;
+	LineLoop: ThreeConstructor<THREE.LineLoop>;
+	MathUtils: {
+		clamp(value: number, min: number, max: number): number;
+		randFloatSpread(range: number): number;
+	};
+	Mesh: ThreeConstructor<THREE.Mesh>;
+	MeshBasicMaterial: ThreeConstructor<THREE.MeshBasicMaterial>;
+	PerspectiveCamera: ThreeConstructor<THREE.PerspectiveCamera>;
+	Points: ThreeConstructor<THREE.Points>;
+	PointsMaterial: ThreeConstructor<THREE.PointsMaterial>;
+	Scene: ThreeConstructor<THREE.Scene>;
+	SphereGeometry: ThreeConstructor<THREE.SphereGeometry>;
+	Sprite: ThreeConstructor<THREE.Sprite>;
+	SpriteMaterial: ThreeConstructor<THREE.SpriteMaterial>;
+	Vector3: ThreeConstructor<THREE.Vector3>;
+	WebGLRenderer: ThreeConstructor<THREE.WebGLRenderer>;
+};
 
 export type LabCoreVisualState = {
 	computeShortage: boolean;
@@ -105,24 +132,45 @@ export default function LabCore({ className, state }: LabCoreProps) {
 		if (host === null || canvas === null) return;
 
 		let runtime: LabCoreRuntime | null = null;
-		try {
-			runtime = createLabCoreRuntime({
-				canvas,
-				flashUntilRef,
-				host,
-				reducedMotionRef,
-				visualRef,
-			});
-		} catch {
+		let disposed = false;
+		const markUnavailable = () => {
+			if (disposed) return;
 			canvas.setAttribute(
 				"aria-label",
 				"AI core visualization is unavailable in this browser",
 			);
-			return;
-		}
+		};
 
-		renderRef.current = runtime.render;
+		void Promise.all([
+			import("./lab-core-three"),
+			import("./lab-core-three-renderer"),
+		])
+			.then(([module, rendererModule]) => {
+				if (disposed) return;
+				const THREE = {
+					...module,
+					WebGLRenderer: rendererModule.WebGLRenderer,
+				} as unknown as ThreeModule;
+				try {
+					runtime = createLabCoreRuntime({
+						THREE,
+						canvas,
+						flashUntilRef,
+						host,
+						reducedMotionRef,
+						visualRef,
+					});
+				} catch {
+					markUnavailable();
+					return;
+				}
+
+				renderRef.current = runtime.render;
+			})
+			.catch(markUnavailable);
+
 		return () => {
+			disposed = true;
 			renderRef.current = null;
 			runtime?.dispose();
 		};
@@ -147,12 +195,14 @@ export default function LabCore({ className, state }: LabCoreProps) {
 }
 
 function createLabCoreRuntime({
+	THREE,
 	canvas,
 	flashUntilRef,
 	host,
 	reducedMotionRef,
 	visualRef,
 }: {
+	THREE: ThreeModule;
 	canvas: HTMLCanvasElement;
 	flashUntilRef: MutableRefObject<number>;
 	host: HTMLDivElement;
@@ -194,7 +244,7 @@ function createLabCoreRuntime({
 	const core = new THREE.Mesh(coreGeometry, coreMaterial);
 	root.add(core);
 
-	const glowTexture = createGlowTexture();
+	const glowTexture = createGlowTexture(THREE);
 	const glowMaterial = new THREE.SpriteMaterial({
 		blending: THREE.AdditiveBlending,
 		depthWrite: false,
@@ -205,7 +255,7 @@ function createLabCoreRuntime({
 	glow.scale.setScalar(2.2);
 	root.add(glow);
 
-	const ringGeometry = createParticleRingGeometry();
+	const ringGeometry = createParticleRingGeometry(THREE);
 	const ringMaterial = new THREE.PointsMaterial({
 		blending: THREE.AdditiveBlending,
 		depthWrite: false,
@@ -217,7 +267,7 @@ function createLabCoreRuntime({
 	ringParticles.rotation.x = 0.32;
 	root.add(ringParticles);
 
-	const ringLineGeometry = createRingLineGeometry();
+	const ringLineGeometry = createRingLineGeometry(THREE);
 	const ringLineMaterial = new THREE.LineBasicMaterial({
 		blending: THREE.AdditiveBlending,
 		depthWrite: false,
@@ -234,7 +284,7 @@ function createLabCoreRuntime({
 		velocityX: 0,
 		velocityY: 0,
 	};
-	let theme = readTheme();
+	let theme = readTheme(THREE);
 	let visible = document.visibilityState === "visible";
 	let intersecting = true;
 	let reducedMotion = window.matchMedia(
@@ -470,7 +520,7 @@ function createLabCoreRuntime({
 	canvas.addEventListener("pointercancel", onPointerUp);
 	document.addEventListener("visibilitychange", onVisibilityChange);
 	const themeObserver = new MutationObserver(() => {
-		theme = readTheme();
+		theme = readTheme(THREE);
 		if (visible && intersecting) renderScene(performance.now(), 0);
 	});
 	themeObserver.observe(document.documentElement, {
@@ -514,7 +564,7 @@ function createLabCoreRuntime({
 	};
 }
 
-function createParticleRingGeometry(): THREE.BufferGeometry {
+function createParticleRingGeometry(THREE: ThreeModule): THREE.BufferGeometry {
 	const particleCount = 96;
 	const positions = new Float32Array(particleCount * 3);
 	for (let index = 0; index < particleCount; index += 1) {
@@ -530,7 +580,7 @@ function createParticleRingGeometry(): THREE.BufferGeometry {
 	return geometry;
 }
 
-function createRingLineGeometry(): THREE.BufferGeometry {
+function createRingLineGeometry(THREE: ThreeModule): THREE.BufferGeometry {
 	const segments = 64;
 	const points = Array.from({ length: segments }, (_, index) => {
 		const angle = (index / segments) * Math.PI * 2;
@@ -539,7 +589,7 @@ function createRingLineGeometry(): THREE.BufferGeometry {
 	return new THREE.BufferGeometry().setFromPoints(points);
 }
 
-function createGlowTexture(): THREE.CanvasTexture {
+function createGlowTexture(THREE: ThreeModule): THREE.CanvasTexture {
 	const canvas = document.createElement("canvas");
 	canvas.width = 128;
 	canvas.height = 128;
@@ -556,13 +606,13 @@ function createGlowTexture(): THREE.CanvasTexture {
 	return new THREE.CanvasTexture(canvas);
 }
 
-function readTheme(): LabCoreTheme {
+function readTheme(THREE: ThreeModule): LabCoreTheme {
 	const styles = getComputedStyle(document.documentElement);
 	return {
-		amber: readThemeColor(styles, "--game-amber", "#f5b04c"),
-		cold: readThemeColor(styles, "--muted-foreground", "#7890b2"),
-		negative: readThemeColor(styles, "--game-negative", "#f0655a"),
-		primary: readThemeColor(styles, "--primary", "#4fd8e8"),
+		amber: readThemeColor(styles, "--game-amber", "#f5b04c", THREE),
+		cold: readThemeColor(styles, "--muted-foreground", "#7890b2", THREE),
+		negative: readThemeColor(styles, "--game-negative", "#f0655a", THREE),
+		primary: readThemeColor(styles, "--primary", "#4fd8e8", THREE),
 	};
 }
 
@@ -570,6 +620,7 @@ function readThemeColor(
 	styles: CSSStyleDeclaration,
 	property: string,
 	fallback: string,
+	THREE: ThreeModule,
 ): THREE.Color {
 	const color = new THREE.Color();
 	try {

@@ -8,7 +8,14 @@ import { useGameState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/reports")({
 	head: () => ({
-		meta: [{ title: "Reports · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Reports · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Review blocking warnings and browse the immutable mechanical fact stream produced by the simulation.",
+			},
+		],
 	}),
 	component: ReportsRoute,
 });

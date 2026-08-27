@@ -8,7 +8,14 @@ import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/chronicle")({
 	head: () => ({
-		meta: [{ title: "Company Chronicle · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Company Chronicle · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Read the run's mechanical facts, milestones, quiet weeks, and branches that a future replay may open.",
+			},
+		],
 	}),
 	component: ChronicleRoute,
 });

@@ -8,7 +8,14 @@ import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/agiprogram")({
 	head: () => ({
-		meta: [{ title: "AGI Program Vault · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "AGI Program Vault · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Assemble the late-game AGI program keystones and program pieces unlocked across Eras IV–VI.",
+			},
+		],
 	}),
 	component: AgiProgramRoute,
 });

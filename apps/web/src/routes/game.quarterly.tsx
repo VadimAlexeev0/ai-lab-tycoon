@@ -8,7 +8,14 @@ import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/quarterly")({
 	head: () => ({
-		meta: [{ title: "Quarterly Review · AI Startup Lab Tycoon" }],
+		meta: [
+			{ title: "Quarterly Review · AI Startup Lab Tycoon" },
+			{
+				name: "description",
+				content:
+					"Review the decisions, trade-offs, and expectations that shaped the last thirteen weeks of the run.",
+			},
+		],
 	}),
 	component: QuarterlyRoute,
 });
