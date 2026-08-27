@@ -11,6 +11,9 @@ export type DebugDrawerProps = {
 	onForceChronicle: () => void;
 	onForceLineage: () => void;
 	onForceNotebook: () => void;
+	onForceAgiProgram: () => void;
+	agiOverride: number;
+	onAgiOverrideChange: (override: number) => void;
 	onQuarterChange: (quarter: number) => void;
 	onRivalProgressChange: (progress: number) => void;
 };
@@ -25,6 +28,9 @@ export default function DebugDrawer({
 	onForceChronicle,
 	onForceLineage,
 	onForceNotebook,
+	onForceAgiProgram,
+	agiOverride,
+	onAgiOverrideChange,
 	onQuarterChange,
 	onRivalProgressChange,
 }: DebugDrawerProps) {
@@ -124,6 +130,15 @@ export default function DebugDrawer({
 							>
 								Force Notebook / show all
 							</Button>
+							<Button
+								className="h-auto min-h-11 whitespace-normal text-left"
+								onClick={onForceAgiProgram}
+								size="sm"
+								type="button"
+								variant="outline"
+							>
+								Force AGI Program Vault
+							</Button>
 						</div>
 
 						<label className="block space-y-1.5" htmlFor="debug-quarter">
@@ -167,6 +182,28 @@ export default function DebugDrawer({
 								value={rivalProgress}
 							/>
 						</label>
+
+						<label className="block space-y-1.5" htmlFor="debug-agi-override">
+							<span className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs uppercase tracking-[0.12em]">
+								<span>AGI socket override</span>
+								<strong className="text-foreground">{agiOverride} / 6</strong>
+							</span>
+							<input
+								aria-valuemax={6}
+								aria-valuemin={0}
+								aria-valuenow={agiOverride}
+								className="w-full accent-[var(--game-amber)]"
+								id="debug-agi-override"
+								max={6}
+								min={0}
+								onChange={(event) =>
+									onAgiOverrideChange(Number(event.target.value))
+								}
+								type="range"
+								value={agiOverride}
+							/>
+						</label>
+
 						<p className="border-[var(--game-amber)]/30 border-t pt-2 text-muted-foreground text-xs leading-5">
 							Preview values stay outside the engine save. Use the URL controls
 							to make a review or news batch reproducible.

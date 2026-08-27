@@ -31,6 +31,7 @@ import {
 	PanelTop,
 	RotateCcw,
 	Settings2,
+	Sparkles,
 	X,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -60,6 +61,7 @@ export type GameSearch = {
 	chronicle?: "1";
 	lineage?: "1";
 	notebook?: "1";
+	agiOverride?: number;
 };
 
 export const Route = createFileRoute("/game")({
@@ -321,6 +323,35 @@ function GameLayout() {
 						}),
 					});
 				}}
+				onForceAgiProgram={() => {
+					void navigate({
+						to: "/game/agiprogram",
+						search: (current) => ({
+							...current,
+							agiOverride: current.agiOverride ?? 0,
+							chronicle: undefined,
+							lineage: undefined,
+							notebook: undefined,
+							quarterly: undefined,
+							pulse: undefined,
+						}),
+					});
+				}}
+				agiOverride={search.agiOverride ?? 0}
+				onAgiOverrideChange={(agiOverride) => {
+					void navigate({
+						to: "/game/agiprogram",
+						search: (current) => ({
+							...current,
+							agiOverride,
+							chronicle: undefined,
+							lineage: undefined,
+							notebook: undefined,
+							quarterly: undefined,
+							pulse: undefined,
+						}),
+					});
+				}}
 				onForceQuarterlyReview={() => {
 					void navigate({
 						to: "/game/quarterly",
@@ -567,6 +598,12 @@ const ARCHIVE_DESTINATIONS = [
 		label: "Lab Notebook",
 		shortLabel: "Notebook",
 		icon: BookOpen,
+	},
+	{
+		to: "/game/agiprogram",
+		label: "AGI Program",
+		shortLabel: "AGI Vault",
+		icon: Sparkles,
 	},
 ] as const;
 
@@ -987,6 +1024,7 @@ function validateGameSearch(search: Record<string, unknown>): GameSearch {
 		chronicle: search.chronicle === "1" ? "1" : undefined,
 		lineage: search.lineage === "1" ? "1" : undefined,
 		notebook: search.notebook === "1" ? "1" : undefined,
+		agiOverride: parseBoundedInteger(search.agiOverride, 0, 6),
 	};
 }
 
