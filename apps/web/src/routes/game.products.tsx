@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
+import ComputeGrid from "@/game/components/compute-grid";
 import ComputePanel from "@/game/components/compute-panel";
 import FundingPanel from "@/game/components/funding-panel";
 import GamePage from "@/game/components/game-page";
@@ -41,6 +42,7 @@ function ProductsRoute() {
 					state={game.state}
 				/>
 				<ComputePanel state={game.state} />
+				<ComputeGrid state={game.state} />
 				<RivalsPanel state={game.state} />
 				<FundingPanel
 					disabled={game.actionBusy}

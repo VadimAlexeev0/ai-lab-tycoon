@@ -1,4 +1,5 @@
 import { type GameState, selectRivals } from "@ai-lab-tycoon/engine";
+import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Eye, Gauge } from "lucide-react";
 
 export type RivalsPanelProps = {
@@ -20,6 +21,19 @@ const RIVAL_ART = {
 	},
 } as const;
 
+const GAUGE_RADIUS = 24;
+export const GAUGE_CIRCUMFERENCE = 2 * Math.PI * GAUGE_RADIUS;
+
+export function getGaugeStrokeOffset(
+	progress: number,
+	circumference = GAUGE_CIRCUMFERENCE,
+): number {
+	const boundedProgress = Number.isFinite(progress)
+		? Math.min(100, Math.max(0, progress))
+		: 0;
+	return circumference * (1 - boundedProgress / 100);
+}
+
 /** Show only the public rival clock and the launch pressure it creates. */
 export default function RivalsPanel({ state }: RivalsPanelProps) {
 	const rivals = selectRivals(state);
@@ -27,6 +41,10 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 		(maximum, rival) => Math.max(maximum, rival.progress),
 		0,
 	);
+	const leaderId =
+		maximumProgress > 0
+			? (rivals.find((rival) => rival.progress === maximumProgress)?.id ?? null)
+			: null;
 	const launchPressure = Math.floor(maximumProgress / 25);
 
 	return (
@@ -58,7 +76,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 							className="border border-border/70 bg-background/35 p-2.5"
 							key={rival.id}
 						>
-							<div className="flex items-start justify-between gap-2">
+							<div className="flex items-center justify-between gap-3">
 								<div className="flex min-w-0 items-start gap-2">
 									<img
 										alt={RIVAL_ART[rival.archetype].alt}
@@ -76,21 +94,10 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 										</p>
 									</div>
 								</div>
-								<span className="font-mono font-semibold text-foreground text-xs">
-									{rival.progress}%
-								</span>
-							</div>
-							<div
-								aria-label={`${rival.name} public progress ${rival.progress}%`}
-								className="mt-2 h-1.5 bg-muted"
-								role="progressbar"
-								aria-valuemax={100}
-								aria-valuemin={0}
-								aria-valuenow={rival.progress}
-							>
-								<div
-									className="h-full bg-primary"
-									style={{ width: `${Math.min(100, rival.progress)}%` }}
+								<RivalGauge
+									leader={rival.id === leaderId}
+									name={rival.name}
+									progress={rival.progress}
 								/>
 							</div>
 							<p className="mt-2 font-mono text-muted-foreground text-xs uppercase tracking-[0.08em]">
@@ -113,5 +120,64 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 				Launch pressure modifier: +{launchPressure} Hype requirement
 			</div>
 		</section>
+	);
+}
+
+function RivalGauge({
+	leader,
+	name,
+	progress,
+}: {
+	leader: boolean;
+	name: string;
+	progress: number;
+}) {
+	const boundedProgress = Number.isFinite(progress)
+		? Math.min(100, Math.max(0, progress))
+		: 0;
+	return (
+		<div
+			aria-label={`${name} public progress ${boundedProgress}%`}
+			aria-valuemax={100}
+			aria-valuemin={0}
+			aria-valuenow={boundedProgress}
+			className={cn(
+				"relative size-16 shrink-0 rounded-full",
+				leader ? "anim-pulse-glow" : undefined,
+			)}
+			data-rival-leader={leader ? "true" : "false"}
+			role="progressbar"
+		>
+			<svg
+				aria-hidden="true"
+				className="size-full -rotate-90"
+				viewBox="0 0 56 56"
+			>
+				<circle
+					className="text-muted-foreground/25"
+					cx="28"
+					cy="28"
+					fill="none"
+					r={GAUGE_RADIUS}
+					stroke="currentColor"
+					strokeWidth="4"
+				/>
+				<circle
+					className={leader ? "text-primary" : "text-primary/70"}
+					cx="28"
+					cy="28"
+					fill="none"
+					r={GAUGE_RADIUS}
+					stroke="currentColor"
+					strokeDasharray={GAUGE_CIRCUMFERENCE}
+					strokeDashoffset={getGaugeStrokeOffset(boundedProgress)}
+					strokeLinecap="round"
+					strokeWidth="4"
+				/>
+			</svg>
+			<span className="absolute inset-0 flex items-center justify-center font-mono font-semibold text-foreground text-xs">
+				{boundedProgress}%
+			</span>
+		</div>
 	);
 }

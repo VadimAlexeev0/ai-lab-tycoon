@@ -662,3 +662,26 @@
 		transform: translateX(460%) skewX(-18deg);
 	}
 }
+
+/* Compute slots signal a shortage with transform/opacity only. */
+.compute-slot-shortage {
+	animation: none;
+}
+
+@keyframes ailt-compute-shortage {
+	0%,
+	100% {
+		opacity: 0.72;
+		transform: scale(0.9);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.08);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.compute-slot-shortage {
+		animation: ailt-compute-shortage 1.2s ease-in-out infinite;
+	}
+}
