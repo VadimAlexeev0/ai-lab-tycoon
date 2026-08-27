@@ -156,11 +156,11 @@ function GameLayout() {
 	}
 
 	return (
-		<div className="relative min-h-0 min-w-0 overflow-hidden">
+		<div className="relative h-dvh min-h-0 min-w-0 overflow-hidden">
 			<main
 				id="main-content"
 				tabIndex={-1}
-				className="game-shell min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
+				className="game-shell h-full min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
 			>
 				<div
 					aria-atomic="true"
