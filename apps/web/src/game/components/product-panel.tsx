@@ -64,12 +64,14 @@ export type ProductPanelProps = {
 	state: GameState;
 	disabled?: boolean;
 	onResolveDecision: (choice: DecisionChoice) => void;
+	showLaunchDecisions?: boolean;
 };
 
 /** Product catalogue, launch offers, and the operational forecast per channel. */
 export default function ProductPanel({
 	disabled = false,
 	onResolveDecision,
+	showLaunchDecisions = true,
 	state,
 }: ProductPanelProps) {
 	const products = selectProducts(state);
@@ -98,7 +100,7 @@ export default function ProductPanel({
 				</span>
 			</div>
 
-			{launchDecisions.length > 0 ? (
+			{showLaunchDecisions && launchDecisions.length > 0 ? (
 				<div className="space-y-2">
 					{launchDecisions.map((decision) => (
 						<LaunchDecision

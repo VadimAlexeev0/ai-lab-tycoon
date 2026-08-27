@@ -136,18 +136,21 @@ const OPS_ADVISOR = {
 export type IncidentCardProps = {
 	state: GameState;
 	disabled?: boolean;
+	decisionId?: string;
 	onResolveDecision: (choice: DecisionChoice) => void;
 };
 
 /** Incident cards expose the mechanical trigger, effects, and valid responses. */
 export default function IncidentCard({
+	decisionId,
 	disabled = false,
 	onResolveDecision,
 	state,
 }: IncidentCardProps) {
 	const decisions = selectPendingDecisions(state).filter(
 		(decision): decision is Extract<typeof decision, { kind: "incident" }> =>
-			decision.kind === "incident",
+			decision.kind === "incident" &&
+			(decisionId === undefined || decision.id === decisionId),
 	);
 	if (decisions.length === 0) {
 		return (
