@@ -4,6 +4,7 @@ import {
 	type ModelDesignSpec,
 	type ModelFoundation,
 	type ModelTier,
+	type ProductChannel,
 	selectAvailableProjects,
 } from "@ai-lab-tycoon/engine";
 
@@ -164,12 +165,23 @@ function chooseDecision(
 	}
 
 	switch (decision.kind) {
-		case "launch":
+		case "launch": {
+			const channel = launchChannelForDecision(
+				state,
+				decision.modelId,
+				decision.channel,
+				name,
+				random,
+			);
+			if (channel === undefined) {
+				return { kind: "shelve", decisionId: decision.id };
+			}
 			return {
 				kind: "launch",
 				decisionId: decision.id,
-				channel: decision.channel ?? randomLaunchChannel(name, random),
+				channel,
 			};
+		}
 		case "evaluation":
 			return name === "random" && random.nextInt(100) < 18
 				? { kind: "shelve", decisionId: decision.id }
@@ -468,13 +480,82 @@ function researchOrderFor(name: BotName): readonly string[] {
 	return MODEL_RESEARCH_ORDER;
 }
 
+type LaunchChannelRequirements = Readonly<{
+	minEra: "text" | "assistant";
+	minimumTrust: number;
+	minimumHype: number;
+	launchCost: number;
+}>;
+
+/** Resource gates mirrored from the engine's product channel balance table. */
+const LAUNCH_CHANNEL_REQUIREMENTS = {
+	chat: { minEra: "text", minimumTrust: 30, minimumHype: 5, launchCost: 20 },
+	developer_api: {
+		minEra: "text",
+		minimumTrust: 35,
+		minimumHype: 15,
+		launchCost: 40,
+	},
+	enterprise: {
+		minEra: "assistant",
+		minimumTrust: 50,
+		minimumHype: 25,
+		launchCost: 80,
+	},
+} as const satisfies Readonly<
+	Record<ProductChannel, LaunchChannelRequirements>
+>;
+
+const LAUNCH_CHANNELS = ["chat", "developer_api", "enterprise"] as const;
+
+function launchChannelForDecision(
+	state: GameState,
+	modelId: string,
+	requestedChannel: ProductChannel | undefined,
+	name: BotName,
+	random: DeterministicRandom,
+): ProductChannel | undefined {
+	const maximumRivalProgress = state.rivals.items.reduce(
+		(maximum, rival) =>
+			rival.active ? Math.max(maximum, rival.progress) : maximum,
+		0,
+	);
+	const affordableChannels = LAUNCH_CHANNELS.filter((channel) => {
+		const requirements = LAUNCH_CHANNEL_REQUIREMENTS[channel];
+		const minimumHype =
+			requirements.minimumHype + Math.floor(maximumRivalProgress / 25);
+		return (
+			launchEraIndex(state.meta.era) >= launchEraIndex(requirements.minEra) &&
+			state.company.trust >= requirements.minimumTrust &&
+			state.company.hype >= minimumHype &&
+			state.company.cash >= requirements.launchCost &&
+			!state.products.items.some(
+				(product) => product.modelId === modelId && product.channel === channel,
+			)
+		);
+	});
+	if (requestedChannel !== undefined) {
+		return affordableChannels.includes(requestedChannel)
+			? requestedChannel
+			: undefined;
+	}
+	return randomLaunchChannel(name, random, affordableChannels);
+}
+
+function launchEraIndex(era: "text" | "assistant" | "multimodal"): number {
+	return era === "text" ? 0 : era === "assistant" ? 1 : 2;
+}
+
 function randomLaunchChannel(
 	name: BotName,
 	random: DeterministicRandom,
-): "chat" | "developer_api" | "enterprise" {
-	if (name !== "random") return "chat";
-	const channels = ["chat", "developer_api", "enterprise"] as const;
-	return channels[random.nextInt(channels.length)] ?? "chat";
+	availableChannels: readonly ProductChannel[],
+): ProductChannel | undefined {
+	if (availableChannels.length === 0) return undefined;
+	if (name !== "random") {
+		return availableChannels.includes("chat") ? "chat" : undefined;
+	}
+	return availableChannels[random.nextInt(availableChannels.length)];
 }
 
 function incidentResponse(
