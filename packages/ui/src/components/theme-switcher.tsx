@@ -26,10 +26,10 @@ export function ThemeSwitcher() {
 
 	return (
 		<div
-			className="flex items-center gap-2 rounded-md border border-border/80 bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur-sm"
+			className="inline-flex max-w-full items-center gap-1 rounded-full bg-card/80 p-1 shadow-sm ring-1 ring-border/50 backdrop-blur-sm"
 			data-theme-switcher="true"
 		>
-			<fieldset className="flex items-center gap-0.5 rounded border border-border/70 bg-background/70 p-0.5">
+			<fieldset className="flex items-center gap-0.5 border-0 p-0">
 				<legend className="sr-only">Color mode</legend>
 				{MODE_OPTIONS.map(({ value, label, Icon }) => {
 					const isActive = mode === value;
@@ -59,7 +59,9 @@ export function ThemeSwitcher() {
 				})}
 			</fieldset>
 
-			<fieldset className="flex items-center gap-0.5">
+			<span aria-hidden="true" className="h-4 w-px bg-border/50" />
+
+			<fieldset className="flex items-center gap-0.5 border-0 p-0">
 				<legend className="sr-only">Theme motif</legend>
 				{THEME_MOTIFS.map((themeMotif) => {
 					const details = MOTIF_METADATA[themeMotif];

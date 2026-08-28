@@ -324,3 +324,7 @@ export function useTheme(): ThemeContextValue {
 	}
 	return context;
 }
+
+export function useOptionalTheme(): ThemeContextValue | null {
+	return useContext(ThemeContext);
+}

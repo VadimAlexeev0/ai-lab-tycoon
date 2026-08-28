@@ -105,7 +105,7 @@ function LabRail({ state }: { state: GameState }) {
 			className="glass-pane glass-edge overflow-hidden"
 		>
 			<section className="pane-section" aria-labelledby="lab-rail-heading">
-				<div className="flex items-start justify-between gap-3">
+				<div className="flex items-baseline justify-between gap-3">
 					<div className="min-w-0">
 						<p className="meta-label text-primary">Lab systems</p>
 						<h2
@@ -115,7 +115,7 @@ function LabRail({ state }: { state: GameState }) {
 							Your lab
 						</h2>
 					</div>
-					<span className="shrink-0 text-muted-foreground text-xs">
+					<span className="shrink-0 text-right text-muted-foreground text-xs">
 						Core 01
 					</span>
 				</div>

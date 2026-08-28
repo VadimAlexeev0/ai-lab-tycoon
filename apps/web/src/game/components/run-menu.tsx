@@ -11,11 +11,22 @@ import {
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@ai-lab-tycoon/ui/components/dropdown-menu";
+import {
+	isThemeMode,
+	isThemeMotif,
+	MOTIF_METADATA,
+	THEME_MODES,
+	THEME_MOTIFS,
+	useOptionalTheme,
+} from "@ai-lab-tycoon/ui/components/theme-provider";
 import { ArrowRight, Keyboard, Settings2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -36,6 +47,7 @@ export default function RunMenu({
 	triggerLabel = "Open run actions",
 }: RunMenuProps) {
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const theme = useOptionalTheme();
 
 	function confirmDelete() {
 		setDeleteDialogOpen(false);
@@ -59,26 +71,74 @@ export default function RunMenu({
 					<Settings2 className="size-4" aria-hidden="true" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
-					<DropdownMenuLabel>Run actions</DropdownMenuLabel>
-					{includeNewRun ? (
-						<DropdownMenuItem onClick={onNewRun}>
-							<ArrowRight data-icon="inline-start" aria-hidden="true" />
-							New run
+					<DropdownMenuGroup>
+						<DropdownMenuLabel>Run actions</DropdownMenuLabel>
+						{includeNewRun ? (
+							<DropdownMenuItem onClick={onNewRun}>
+								<ArrowRight data-icon="inline-start" aria-hidden="true" />
+								New run
+							</DropdownMenuItem>
+						) : null}
+						<DropdownMenuItem
+							disabled={deleting}
+							onClick={() => setDeleteDialogOpen(true)}
+							variant="destructive"
+						>
+							<Trash2 data-icon="inline-start" aria-hidden="true" />
+							{deleting ? "Deleting…" : "Delete run"}
 						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem disabled>
+							<Keyboard data-icon="inline-start" aria-hidden="true" />
+							Keyboard shortcuts
+						</DropdownMenuItem>
+					</DropdownMenuGroup>
+					{theme !== null ? (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuGroup>
+								<DropdownMenuLabel>Appearance</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									<DropdownMenuLabel>Color mode</DropdownMenuLabel>
+									<DropdownMenuRadioGroup
+										onValueChange={(value) => {
+											if (isThemeMode(value)) {
+												theme.setMode(value);
+											}
+										}}
+										value={theme.mode}
+									>
+										{THEME_MODES.map((themeMode) => (
+											<DropdownMenuRadioItem key={themeMode} value={themeMode}>
+												Use {themeMode} mode
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuGroup>
+								<DropdownMenuGroup>
+									<DropdownMenuLabel>Theme motif</DropdownMenuLabel>
+									<DropdownMenuRadioGroup
+										onValueChange={(value) => {
+											if (isThemeMotif(value)) {
+												theme.setMotif(value);
+											}
+										}}
+										value={theme.motif}
+									>
+										{THEME_MOTIFS.map((themeMotif) => (
+											<DropdownMenuRadioItem
+												key={themeMotif}
+												value={themeMotif}
+											>
+												Use {MOTIF_METADATA[themeMotif].label.toLowerCase()}{" "}
+												theme
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</DropdownMenuGroup>
+							</DropdownMenuGroup>
+						</>
 					) : null}
-					<DropdownMenuItem
-						disabled={deleting}
-						onClick={() => setDeleteDialogOpen(true)}
-						variant="destructive"
-					>
-						<Trash2 data-icon="inline-start" aria-hidden="true" />
-						{deleting ? "Deleting…" : "Delete run"}
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem disabled>
-						<Keyboard data-icon="inline-start" aria-hidden="true" />
-						Keyboard shortcuts
-					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 
