@@ -1,3 +1,10 @@
+import {
+	advanceWeek,
+	type ResourceBarSummary,
+	selectPendingDecisions,
+	selectResourceBar,
+} from "@ai-lab-tycoon/engine";
+import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
@@ -12,6 +19,7 @@ import {
 	House,
 	Newspaper,
 	PanelTop,
+	Play,
 	Sparkles,
 } from "lucide-react";
 
@@ -98,7 +106,28 @@ export function isDestinationActive(
 		: pathname.startsWith(destination);
 }
 
-/** The single navigation surface for every game viewport. */
+const railNumberFormatter = new Intl.NumberFormat("en-US");
+
+function compactResources(resources: ResourceBarSummary) {
+	return [
+		{
+			label: "Cash",
+			value: `$${railNumberFormatter.format(resources.cash)}`,
+		},
+		{
+			label: "Insight",
+			value: railNumberFormatter.format(resources.insight),
+		},
+		{
+			label: "Trust",
+			value: railNumberFormatter.format(resources.trust),
+		},
+		{
+			label: "Hype",
+			value: railNumberFormatter.format(resources.hype),
+		},
+	] as const;
+}
 export default function GameRail() {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -106,6 +135,14 @@ export default function GameRail() {
 	const state = game.state;
 	const notebookCount =
 		state === null ? 0 : countDiscoveredNotebookTiles(state);
+	const isDashboard =
+		location.pathname === "/game" || location.pathname === "/game/";
+	const resources = state === null ? null : selectResourceBar(state);
+	const blockingDecision =
+		state === null
+			? undefined
+			: selectPendingDecisions(state).find((decision) => decision.blocking);
+	const isTerminal = state?.terminal.status === "lost";
 
 	return (
 		<aside
@@ -183,6 +220,59 @@ export default function GameRail() {
 			</nav>
 
 			<div className="mt-auto flex min-w-0 flex-col gap-2 pt-5">
+				{resources !== null && !isDashboard ? (
+					<div className="min-w-0 border-border/70 border-t px-1 pt-3 lg:px-2">
+						<p className="meta-label mb-2 hidden text-muted-foreground lg:block">
+							Run resources
+						</p>
+						<div className="space-y-1">
+							{compactResources(resources).map((resource) => (
+								<div
+									className="flex min-w-0 items-center justify-between gap-2 text-[10px] text-muted-foreground"
+									key={resource.label}
+									title={`${resource.label}: ${resource.value}`}
+								>
+									<span className="hidden truncate lg:inline">
+										{resource.label}
+									</span>
+									<span className="numeric-value truncate text-foreground">
+										{resource.value}
+									</span>
+								</div>
+							))}
+						</div>
+						<Button
+							aria-label={
+								blockingDecision === undefined
+									? "Advance week"
+									: "Open blocking decision"
+							}
+							className="mt-3 w-full justify-center px-2 lg:justify-start"
+							disabled={game.actionBusy || isTerminal}
+							onClick={() => {
+								if (blockingDecision !== undefined) {
+									void navigate({
+										to: "/game",
+										search: { decision: blockingDecision.id },
+									});
+									return;
+								}
+								void game.executeEngineCommand((current) =>
+									advanceWeek(current),
+								);
+							}}
+							size="sm"
+							type="button"
+						>
+							<Play data-icon="inline-start" aria-hidden="true" />
+							<span className="hidden lg:inline">
+								{blockingDecision === undefined
+									? "Advance week"
+									: "Resolve decision"}
+							</span>
+						</Button>
+					</div>
+				) : null}
 				{state !== null ? (
 					<div className="hidden min-w-0 items-center gap-2 border-border/70 border-t px-2 pt-3 lg:flex">
 						<span

@@ -6,12 +6,14 @@ import {
 	selectVisibleState,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
 
 export type AdvanceWeekButtonProps = {
+	className?: string;
 	state: GameState;
 	revision?: number;
 	onAdvanced: (result: {
@@ -21,6 +23,7 @@ export type AdvanceWeekButtonProps = {
 };
 
 export default function AdvanceWeekButton({
+	className,
 	state,
 	revision,
 	onAdvanced,
@@ -76,7 +79,10 @@ export default function AdvanceWeekButton({
 	return (
 		<section
 			aria-labelledby="time-controls-heading"
-			className="glass-pane flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+			className={cn(
+				"flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+				className,
+			)}
 		>
 			<h2 id="time-controls-heading" className="sr-only">
 				Time controls

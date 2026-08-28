@@ -4,6 +4,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@ai-lab-tycoon/ui/components/accordion";
+import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -13,6 +14,7 @@ import {
 	Rocket,
 	WalletCards,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import {
 	type ResourceDeltas,
@@ -21,8 +23,11 @@ import {
 } from "@/game/derived/week-digest";
 
 export type WeekDigestCardProps = {
+	advanceControl?: ReactNode;
 	digest: WeekDigest;
 	deltas?: ResourceDeltas;
+	marketPulse?: ReactNode;
+	className?: string;
 };
 
 type DigestRoute = "/game/models" | "/game/products" | "/game/teams";
@@ -36,8 +41,11 @@ type DigestRow = {
 
 /** A quiet, expandable record of the latest engine-backed week events. */
 export default function WeekDigestCard({
+	advanceControl,
+	className,
 	deltas,
 	digest,
+	marketPulse,
 }: WeekDigestCardProps) {
 	const rows = createDigestRows(digest);
 	const summary = summarizeWeekDigest(digest, deltas);
@@ -45,7 +53,7 @@ export default function WeekDigestCard({
 	return (
 		<section
 			aria-labelledby="week-digest-heading"
-			className="glass-pane glass-edge px-3"
+			className={cn("glass-pane glass-edge px-3", className)}
 		>
 			<h2 id="week-digest-heading" className="sr-only">
 				Week digest
@@ -53,14 +61,21 @@ export default function WeekDigestCard({
 			<Accordion>
 				<AccordionItem value="week-digest">
 					<AccordionTrigger>
-						<span className="min-w-0 pr-3">
-							<span className="meta-label block text-primary">
-								Latest record
-							</span>
-							<span className="mt-1 block truncate text-foreground text-sm">
-								{summary}
-							</span>
-						</span>
+						<div className="flex min-w-0 flex-1 items-center gap-3 pr-3">
+							<div className="min-w-0 flex-1">
+								<span className="meta-label block text-primary">
+									Latest record
+								</span>
+								<span className="mt-1 block truncate text-foreground text-sm">
+									{summary}
+								</span>
+							</div>
+							{marketPulse ? (
+								<div className="hidden min-w-0 flex-1 sm:block">
+									{marketPulse}
+								</div>
+							) : null}
+						</div>
 					</AccordionTrigger>
 					<AccordionContent>
 						{rows.length > 0 ? (
@@ -95,6 +110,11 @@ export default function WeekDigestCard({
 					</AccordionContent>
 				</AccordionItem>
 			</Accordion>
+			{advanceControl ? (
+				<div className="border-[var(--game-hairline)] border-t px-3 py-3">
+					{advanceControl}
+				</div>
+			) : null}
 		</section>
 	);
 }

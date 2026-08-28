@@ -25,15 +25,12 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 
-import AdvanceWeekButton from "@/game/components/advance-week-button";
 import DebugDrawer from "@/game/components/debug-drawer";
 import GameRail from "@/game/components/game-rail";
 import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
-import ResourceBar from "@/game/components/resource-bar";
-import WeekDigestCard from "@/game/components/week-digest-card";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { summarizeWeekDigest } from "@/game/derived/week-digest";
 import { GameStateProvider, useRunState } from "@/game/game-state-context";
@@ -169,15 +166,6 @@ function GameLayout() {
 				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-8 sm:px-6 sm:py-5 lg:px-8 lg:py-7">
 					{isActive && state !== null ? (
 						<>
-							<div className="grid min-w-0 gap-3">
-								<ResourceBar revision={game.revision} state={state} />
-							</div>
-							<AdvanceWeekButton
-								onAdvanced={game.handleAdvanced}
-								revision={game.revision}
-								state={state}
-							/>
-							<WeekDigestCard digest={digest} deltas={deltas} />
 							<ActionFeedback
 								actionError={game.actionError}
 								conflictRecord={game.conflictRecord}
