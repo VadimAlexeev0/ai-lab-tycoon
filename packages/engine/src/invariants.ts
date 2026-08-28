@@ -26,6 +26,7 @@ import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	MULTIMODAL_ERA,
+	RESEARCH_NODE_DEFINITIONS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
 import {
@@ -119,6 +120,7 @@ export function assertGameState(
 	assertProjectsState(state.projects);
 	assertComputeState(state.compute);
 	assertResearchState(state.research);
+	assertResearchNodeDefinitions(state);
 	assertModelsState(state.models);
 	assertProductsState(state.products);
 	assertRivalsState(state.rivals);
@@ -185,6 +187,22 @@ function assertComputeReservations(state: GameState): void {
 				`Compute ${name} does not match recomputed reservations (stored ${actual}, expected ${derived})`,
 			);
 		}
+	}
+}
+
+const RESEARCH_NODE_IDS = new Set<string>(
+	RESEARCH_NODE_DEFINITIONS.map((definition) => definition.id),
+);
+
+function assertResearchNodeDefinitions(state: GameState): void {
+	const unknownIds = state.research.nodes
+		.map((node) => node.id)
+		.filter((id) => !RESEARCH_NODE_IDS.has(id));
+
+	if (unknownIds.length > 0) {
+		throw new Error(
+			`Saved research state contains unknown research node ids: ${unknownIds.join(", ")}`,
+		);
 	}
 }
 

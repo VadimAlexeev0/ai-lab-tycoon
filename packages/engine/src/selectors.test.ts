@@ -48,6 +48,26 @@ describe("visible selectors", () => {
 		]);
 	});
 
+	it("throws a typed incompatible-save error for unknown research nodes", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const node = state.research.nodes[0];
+		if (node === undefined) throw new Error("Expected a research node");
+		node.id = "deleted_research_node";
+
+		let thrown: unknown;
+		try {
+			selectResearchNodes(state);
+		} catch (error: unknown) {
+			thrown = error;
+		}
+
+		expect(thrown).toBeInstanceOf(Error);
+		expect(thrown).toMatchObject({ name: "IncompatibleSaveError" });
+		expect((thrown as Error).message).toMatch(
+			/save is incompatible.*new run/i,
+		);
+	});
+
 	it("projects teams with an explicit idle or working status", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 

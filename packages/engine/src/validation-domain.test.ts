@@ -74,6 +74,17 @@ describe("assertGameState domain validation", () => {
 		);
 	});
 
+	it("rejects research nodes that are missing from the current catalog", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const node = state.research.nodes[0];
+		if (node === undefined) throw new Error("Expected a research node");
+		node.id = "deleted_research_node";
+
+		expect(() => assertGameState(state)).toThrow(
+			/unknown.*research.*node.*deleted_research_node/i,
+		);
+	});
+
 	it("rejects duplicate research prerequisites", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		const node = state.research.nodes.find(

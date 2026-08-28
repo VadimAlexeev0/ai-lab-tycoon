@@ -22,6 +22,10 @@ import type { GameState } from "./state.js";
 import { fundingFactors } from "./systems/funding.js";
 import type { DeepReadonly } from "./systems/types.js";
 
+export class IncompatibleSaveError extends Error {
+	name = "IncompatibleSaveError";
+}
+
 export type ResourceBarSummary = {
 	cash: number;
 	compute: {
@@ -248,7 +252,9 @@ export function selectResearchNodes(
 	return state.research.nodes.map((node) => {
 		const definition = getResearchDefinition(node.id);
 		if (definition === undefined) {
-			throw new Error(`Cannot project unknown research node: ${node.id}`);
+			throw new IncompatibleSaveError(
+				`Save is incompatible with the current research catalog: unknown node "${node.id}". Start a new run.`,
+			);
 		}
 		return {
 			id: node.id,
