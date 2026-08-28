@@ -12,6 +12,7 @@ import {
 	Archive,
 	BookOpen,
 	BrainCircuit,
+	CalendarDays,
 	BriefcaseBusiness,
 	ChartNoAxesCombined,
 	FlaskConical,
@@ -36,6 +37,11 @@ export const DESTINATIONS = [
 		to: "/game",
 		label: "Overview",
 		icon: House,
+	},
+	{
+		to: "/game/calendar",
+		label: "Calendar",
+		icon: CalendarDays,
 	},
 	{
 		to: "/game/teams",
