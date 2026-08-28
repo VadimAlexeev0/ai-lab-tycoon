@@ -247,6 +247,7 @@ function useAnonymousSession(): SessionState & { retry: () => void } {
 	const [state, setState] = useState<SessionState>({ status: "loading" });
 	const [_attempt, setAttempt] = useState(0);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: retry counter intentionally re-runs the bootstrap request
 	useEffect(() => {
 		let mounted = true;
 		void getOrCreateAnonymousSession()
@@ -267,7 +268,7 @@ function useAnonymousSession(): SessionState & { retry: () => void } {
 		return () => {
 			mounted = false;
 		};
-	}, []);
+	}, [_attempt]);
 
 	const retry = useCallback(() => {
 		resetAnonymousSessionBootstrap();
@@ -290,6 +291,7 @@ function useRunController(userId: string | null) {
 		null,
 	);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: retry counter intentionally re-runs the saved-run request
 	useEffect(() => {
 		if (userId === null) {
 			setSaveState({ status: "idle" });
@@ -328,7 +330,7 @@ function useRunController(userId: string | null) {
 		return () => {
 			mounted = false;
 		};
-	}, [userId]);
+	}, [userId, _loadAttempt]);
 
 	const retryLoad = useCallback(() => {
 		setLoadAttempt((current) => current + 1);
