@@ -184,12 +184,7 @@ export default function LabCore({ className, state }: LabCoreProps) {
 				className,
 			)}
 		>
-			<canvas
-				ref={canvasRef}
-				aria-hidden="true"
-				className="h-full w-full"
-				role="presentation"
-			/>
+			<canvas ref={canvasRef} className="h-full w-full" />
 		</div>
 	);
 }

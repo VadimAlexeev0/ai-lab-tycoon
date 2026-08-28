@@ -117,6 +117,8 @@ function GameLayout() {
 		if (heading instanceof HTMLElement) {
 			heading.focus({ preventScroll: true });
 		}
+		// biome ignores the headingId const (static); pathname drives re-runs.
+		// biome-ignore lint/correctness/useExhaustiveDependencies: headingId is a module-stable constant
 	}, [isActive, pathname]);
 
 	useEffect(() => {
