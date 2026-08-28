@@ -47,6 +47,7 @@ export function useWeekDigest(
 			return {
 				digest: {
 					week: state?.meta.week ?? 0,
+					facts: [],
 					launches: [],
 					trainingCompletions: [],
 					evaluations: [],

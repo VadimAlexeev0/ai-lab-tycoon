@@ -87,7 +87,9 @@ function GameLayout() {
 	);
 	const isActive = game.activeRun !== null && game.screen === "active";
 	const { digest, deltas } = useWeekDigest(state, game.revision);
-	const liveAnnouncement = isActive ? summarizeWeekDigest(digest, deltas) : "";
+	const liveAnnouncement = isActive
+		? summarizeWeekDigest(digest, deltas, state ?? undefined)
+		: "";
 
 	// Route-change focus handoff: after SPA navigation between game pages,
 	// move focus to the page heading so keyboard/AT users start at the top.

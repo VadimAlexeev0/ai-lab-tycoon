@@ -13,7 +13,7 @@ import GamePage from "@/game/components/game-page";
 import MarketPulse from "@/game/components/market-pulse";
 import OverviewHero from "@/game/components/overview-hero";
 import ResourceBar from "@/game/components/resource-bar";
-import WeekDigestCard from "@/game/components/week-digest-card";
+import WeekResolutionCard from "@/game/components/week-resolution-card";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { useRunState } from "@/game/game-state-context";
 
@@ -68,7 +68,7 @@ function DashboardRoute() {
 						state={state}
 					/>
 					<ResourceBar revision={game.revision} state={state} />
-					<WeekDigestCard
+					<WeekResolutionCard
 						advanceControl={
 							<AdvanceWeekButton
 								className="px-0 py-0"
@@ -87,6 +87,7 @@ function DashboardRoute() {
 								state={state}
 							/>
 						}
+						state={state}
 					/>
 				</div>
 				<div className="min-w-0 space-y-4">
