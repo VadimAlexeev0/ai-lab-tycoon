@@ -5,6 +5,7 @@ export type FoundationName = "fresh" | "continued" | "distilled";
 export type FundingOutcome = "accepted" | "declined";
 
 export type GameResult = {
+	replayVerified?: boolean;
 	index: number;
 	seed: number;
 	bot: BotName;

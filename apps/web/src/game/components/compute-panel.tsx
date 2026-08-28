@@ -1,5 +1,15 @@
-import { type GameState, selectResourceBar } from "@ai-lab-tycoon/engine";
+import {
+	buyCompute,
+	type GameState,
+	selectResourceBar,
+} from "@ai-lab-tycoon/engine";
+import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { AlertTriangle, Cpu } from "lucide-react";
+
+import { useRunState } from "@/game/game-state-context";
+
+const COMPUTE_PURCHASE_COST = 300;
+const COMPUTE_PURCHASE_UNITS = 12;
 
 export type ComputePanelProps = {
 	state: GameState;
@@ -12,9 +22,11 @@ type TrainingProject = Extract<
 
 /** Make training-versus-serving contention explicit before it becomes a surprise. */
 export default function ComputePanel({ state }: ComputePanelProps) {
+	const { actionBusy, executeEngineCommand } = useRunState();
 	const resources = selectResourceBar(state);
 	const { capacity, allocated, servingDemand, trainingDemand } =
 		resources.compute;
+	const trainingServingDemand = trainingDemand + servingDemand;
 	const evaluationProjects = state.projects.items.filter(
 		(project) => project.kind === "evaluation" && project.status === "active",
 	);
@@ -31,6 +43,13 @@ export default function ComputePanel({ state }: ComputePanelProps) {
 	const modelNames = new Map(
 		state.models.items.map((model) => [model.id, model.name]),
 	);
+	const purchaseDisabled =
+		actionBusy || state.company.cash < COMPUTE_PURCHASE_COST;
+	const purchaseTitle = actionBusy
+		? "Another command is in progress."
+		: state.company.cash < COMPUTE_PURCHASE_COST
+			? `Purchase compute requires $${COMPUTE_PURCHASE_COST}; current cash is $${state.company.cash}.`
+			: `Purchase ${COMPUTE_PURCHASE_UNITS} compute units for $${COMPUTE_PURCHASE_COST}.`;
 
 	return (
 		<section aria-label="Compute pressure" className="space-y-3">
@@ -51,6 +70,34 @@ export default function ComputePanel({ state }: ComputePanelProps) {
 				<Metric label="Allocated" value={`${allocated}`} />
 				<Metric label="Training" value={`${trainingDemand}`} />
 				<Metric label="Serving" value={`${servingDemand}`} />
+			</div>
+
+			<div className="flex flex-col gap-3 border-border/70 border-y py-3 sm:flex-row sm:items-center sm:justify-between">
+				<div className="min-w-0">
+					<p className="font-semibold text-foreground text-xs">
+						Compute purchase
+					</p>
+					<p className="mt-1 text-muted-foreground text-xs">
+						Training + serving demand: {trainingServingDemand}
+					</p>
+					<p className="mt-1 text-muted-foreground text-xs">
+						Capacity after purchase: {capacity + COMPUTE_PURCHASE_UNITS} (+
+						{COMPUTE_PURCHASE_UNITS})
+					</p>
+				</div>
+				<Button
+					aria-label={`Purchase compute for $${COMPUTE_PURCHASE_COST}`}
+					disabled={purchaseDisabled}
+					onClick={() => {
+						void executeEngineCommand(buyCompute);
+					}}
+					size="sm"
+					title={purchaseTitle}
+					type="button"
+					variant="outline"
+				>
+					Purchase compute
+				</Button>
 			</div>
 
 			<div

@@ -7,6 +7,8 @@ import {
 	designModel,
 	type GameState,
 	hireTeam,
+	replayCommandLog,
+	setAssertionsEnabled,
 	startRun,
 } from "@ai-lab-tycoon/engine";
 
@@ -21,12 +23,14 @@ type CliOptions = {
 	runs: number;
 	seed: number;
 	maxWeeks: number;
+	fast: boolean;
 };
 
 function parseArgs(argv: readonly string[]): CliOptions {
 	let runs = DEFAULT_RUNS;
 	let seed = 42;
 	let maxWeeks = DEFAULT_MAX_WEEKS;
+	let fast = process.env.SIM_FAST === "1";
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index];
 		switch (arg) {
@@ -49,6 +53,9 @@ function parseArgs(argv: readonly string[]): CliOptions {
 				maxWeeks = Number.parseInt(value.value, 10);
 				break;
 			}
+			case "--fast":
+				fast = true;
+				break;
 			default:
 				break;
 		}
@@ -64,7 +71,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
 	if (!Number.isInteger(maxWeeks) || maxWeeks < 1 || maxWeeks > 10_000) {
 		throw new Error("--max-weeks must be a positive integer");
 	}
-	return { runs, seed, maxWeeks };
+	return { runs, seed, maxWeeks, fast };
 }
 
 function nextValue(
@@ -73,10 +80,9 @@ function nextValue(
 	flag: string,
 ): { value: string; offset: number } {
 	const arg = argv[index];
-	const inline =
-		arg !== undefined && arg.includes("=")
-			? arg.slice(arg.indexOf("=") + 1)
-			: undefined;
+	const inline = arg?.includes("=")
+		? arg.slice(arg.indexOf("=") + 1)
+		: undefined;
 	if (inline !== undefined && inline.length > 0) {
 		return { value: inline, offset: index };
 	}
@@ -180,6 +186,15 @@ function playGame(bot: BotName, seed: number, maxWeeks: number): GameResult {
 	game.rivalLeaderWeeks = rivalLeaderWeeks;
 	game.foundationChoices = foundationChoices(state);
 	game.funding = fundingOutcomes(state);
+	try {
+		replayCommandLog(state.commandLog, { expectedState: state });
+		game.replayVerified = true;
+	} catch (error) {
+		game.replayVerified = false;
+		process.stderr.write(
+			`replay divergence (bot=${bot} seed=${seed}): ${(error as Error).message}\n`,
+		);
+	}
 	return game;
 }
 
@@ -271,6 +286,7 @@ function fundingOutcomes(state: GameState): GameResult["funding"] {
 
 async function main() {
 	const options = parseArgs(process.argv.slice(2));
+	setAssertionsEnabled(!options.fast);
 	const games: GameResult[] = [];
 	const runCount = options.runs;
 
@@ -286,6 +302,10 @@ async function main() {
 	}
 
 	const report = summarizeRuns(options.seed, runCount, options.maxWeeks, games);
+	const divergent = games.filter(
+		(game) => game.replayVerified === false,
+	).length;
+	process.stdout.write(`mode: ${options.fast ? "fast" : "validated"}\n`);
 	process.stdout.write(`${JSON.stringify(report)}\n`);
 	process.stdout.write(renderTable(report));
 
