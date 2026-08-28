@@ -30,6 +30,7 @@ function ChronicleRoute() {
 			title="Company chronicle"
 			description="Read the run as a manuscript of mechanical facts, milestones, quiet weeks, and the branches that a future replay may open."
 			headerVisual={<PlaceholderBadge />}
+			contentClassName="mx-auto max-w-[70ch]"
 		>
 			<Chronicle
 				forceDeathCertificate={search.chronicle === "1"}

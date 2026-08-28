@@ -114,7 +114,7 @@ function PriorityControl({
 	onResolveDecision: (decisionId: string) => void;
 }) {
 	const className =
-		"inline-flex h-7 shrink-0 items-center gap-1 border border-primary bg-primary px-2 font-semibold text-primary-foreground text-xs transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+		"inline-flex min-h-11 shrink-0 items-center gap-1 border border-primary bg-primary px-2 font-semibold text-primary-foreground text-xs transition-colors hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 
 	switch (action.kind) {
 		case "resolve_decision":
@@ -147,7 +147,7 @@ function PriorityControl({
 		case "advance_week":
 			return (
 				<Button
-					className="h-7 px-2 font-semibold text-xs"
+					className="min-h-11 px-2 font-semibold text-xs"
 					disabled={disabled}
 					onClick={onAdvance}
 					size="sm"

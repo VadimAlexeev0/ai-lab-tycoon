@@ -67,7 +67,7 @@ export default function Pane({
 							) : null}
 						</div>
 						{blocking ? (
-							<span className="shrink-0 border border-amber/50 bg-amber/10 px-2 py-1 text-amber text-xs">
+							<span className="shrink-0 border border-[var(--game-amber)]/50 bg-[var(--game-amber)]/10 px-2 py-1 text-[var(--game-amber)] text-xs">
 								Cannot dismiss
 							</span>
 						) : (

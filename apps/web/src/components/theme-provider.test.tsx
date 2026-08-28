@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+	readStoredTheme,
 	ThemeProvider,
 	useTheme,
 } from "../../../../packages/ui/src/components/theme-provider";
@@ -134,9 +135,25 @@ describe("theme switcher", () => {
 		fireEvent.click(
 			screen.getByRole("button", { name: "Use solarflare theme" }),
 		);
-
 		await waitFor(() => {
 			expect(document.documentElement.dataset.theme).toBe("solarflare");
+		});
+	});
+
+	describe("storage fallback", () => {
+		it("survives a localStorage getter that throws", () => {
+			Object.defineProperty(window, "localStorage", {
+				configurable: true,
+				get() {
+					throw new Error("storage blocked");
+				},
+			});
+
+			expect(readStoredTheme()).toBeNull();
+			Object.defineProperty(window, "localStorage", {
+				configurable: true,
+				value: createMemoryStorage(),
+			});
 		});
 	});
 });

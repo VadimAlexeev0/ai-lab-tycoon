@@ -18,7 +18,7 @@
 	--card-foreground: #142033;
 	--popover: #ffffff;
 	--popover-foreground: #142033;
-	--primary: #0b7f95;
+	--primary: #086b7d;
 	--primary-foreground: #f5fdff;
 	--secondary: #e5edf5;
 	--secondary-foreground: #243447;
@@ -29,8 +29,8 @@
 	--destructive: #b42318;
 	--border: #c8d6e5;
 	--input: #c8d6e5;
-	--ring: #169bb3;
-	--chart-1: #0b7f95;
+	--ring: #087a93;
+	--chart-1: #086b7d;
 	--chart-2: #e0a12b;
 	--chart-3: #536dce;
 	--chart-4: #4caa76;
@@ -38,22 +38,24 @@
 	--radius: 0.625rem;
 	--sidebar: #eaf1f8;
 	--sidebar-foreground: #142033;
-	--sidebar-primary: #0b7f95;
+	--sidebar-primary: #086b7d;
 	--sidebar-primary-foreground: #f5fdff;
 	--sidebar-accent: #d8f4f7;
 	--sidebar-accent-foreground: #0f4e5b;
 	--sidebar-border: #c8d6e5;
-	--sidebar-ring: #169bb3;
+	--sidebar-ring: #087a93;
 	--game-navy: #0a0e1a;
-	--game-cyan: #169bb3;
-	--game-amber: #d88d24;
-	--game-positive: #2f9e68;
-	--game-negative: #d95850;
+	--game-cyan: #087a93;
+	--game-amber: #94600e;
+	--game-positive: #24734d;
+	--game-negative: #b33b35;
 	--game-grid: rgba(10, 14, 26, 0.08);
 	--game-surface: #ffffff;
 	--game-surface-raised: #e8eff6;
 	--game-hairline: rgba(34, 69, 105, 0.16);
 	--game-horizon: rgba(79, 216, 232, 0.06);
+	--ailt-mobile-nav-offset: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+	--ailt-mobile-content-offset: calc(var(--ailt-mobile-nav-offset) + 1rem);
 }
 
 [data-theme="midnight"][data-mode="dark"] {
@@ -108,7 +110,7 @@
 	--card-foreground: #1c2a2a;
 	--popover: #ffffff;
 	--popover-foreground: #1c2a2a;
-	--primary: #0e807d;
+	--primary: #0a6d6a;
 	--primary-foreground: #f4fffd;
 	--secondary: #e5efec;
 	--secondary-foreground: #24403e;
@@ -119,8 +121,8 @@
 	--destructive: #b9382f;
 	--border: #cbd9d5;
 	--input: #b8ccc7;
-	--ring: #0e807d;
-	--chart-1: #0e807d;
+	--ring: #08736f;
+	--chart-1: #0a6d6a;
 	--chart-2: #d18b27;
 	--chart-3: #5976cc;
 	--chart-4: #4e9d71;
@@ -128,17 +130,17 @@
 	--radius: 0.625rem;
 	--sidebar: #eef3ef;
 	--sidebar-foreground: #1c2a2a;
-	--sidebar-primary: #0e807d;
+	--sidebar-primary: #0a6d6a;
 	--sidebar-primary-foreground: #f4fffd;
 	--sidebar-accent: #d9efeb;
 	--sidebar-accent-foreground: #0e5956;
 	--sidebar-border: #cbd9d5;
-	--sidebar-ring: #0e807d;
+	--sidebar-ring: #08736f;
 	--game-navy: #183333;
-	--game-cyan: #18a6a0;
-	--game-amber: #d9942e;
-	--game-positive: #339a69;
-	--game-negative: #d5524c;
+	--game-cyan: #08736f;
+	--game-amber: #8d5d0c;
+	--game-positive: #257448;
+	--game-negative: #ad3933;
 	--game-grid: rgba(24, 51, 51, 0.08);
 	--game-surface: #ffffff;
 	--game-surface-raised: #edf2ee;
@@ -198,7 +200,7 @@
 	--card-foreground: #2b2018;
 	--popover: #fffdfa;
 	--popover-foreground: #2b2018;
-	--primary: #c65f19;
+	--primary: #99480f;
 	--primary-foreground: #fff7ed;
 	--secondary: #f3e4d2;
 	--secondary-foreground: #4b2a18;
@@ -209,8 +211,8 @@
 	--destructive: #c03a27;
 	--border: #e0c9af;
 	--input: #d3b79b;
-	--ring: #e17828;
-	--chart-1: #d86e19;
+	--ring: #915018;
+	--chart-1: #99480f;
 	--chart-2: #e0a43a;
 	--chart-3: #bd4f35;
 	--chart-4: #7d6a44;
@@ -218,17 +220,17 @@
 	--radius: 0.625rem;
 	--sidebar: #f8ecdf;
 	--sidebar-foreground: #2b2018;
-	--sidebar-primary: #c65f19;
+	--sidebar-primary: #99480f;
 	--sidebar-primary-foreground: #fff7ed;
 	--sidebar-accent: #ffe3bf;
 	--sidebar-accent-foreground: #71350e;
 	--sidebar-border: #e0c9af;
-	--sidebar-ring: #e17828;
+	--sidebar-ring: #915018;
 	--game-navy: #302019;
-	--game-cyan: #f29e4c;
-	--game-amber: #d8741d;
-	--game-positive: #4f9d65;
-	--game-negative: #d95845;
+	--game-cyan: #915018;
+	--game-amber: #91470c;
+	--game-positive: #2f7144;
+	--game-negative: #ad382e;
 	--game-grid: rgba(48, 32, 25, 0.08);
 	--game-surface: #fffdfa;
 	--game-surface-raised: #f4e7d9;
@@ -288,7 +290,7 @@
 	--card-foreground: #102336;
 	--popover: #ffffff;
 	--popover-foreground: #102336;
-	--primary: #087ea4;
+	--primary: #066985;
 	--primary-foreground: #f2fbff;
 	--secondary: #dcebf4;
 	--secondary-foreground: #16435a;
@@ -299,8 +301,8 @@
 	--destructive: #b94352;
 	--border: #c6dce8;
 	--input: #b5d2df;
-	--ring: #0ea5c7;
-	--chart-1: #087ea4;
+	--ring: #087390;
+	--chart-1: #066985;
 	--chart-2: #4ea8de;
 	--chart-3: #607bd6;
 	--chart-4: #47a88e;
@@ -308,17 +310,17 @@
 	--radius: 0.625rem;
 	--sidebar: #e4f0f7;
 	--sidebar-foreground: #102336;
-	--sidebar-primary: #087ea4;
+	--sidebar-primary: #066985;
 	--sidebar-primary-foreground: #f2fbff;
 	--sidebar-accent: #cff1fb;
 	--sidebar-accent-foreground: #0a536b;
 	--sidebar-border: #c6dce8;
-	--sidebar-ring: #0ea5c7;
+	--sidebar-ring: #087390;
 	--game-navy: #102336;
-	--game-cyan: #0ea5c7;
-	--game-amber: #a58c31;
-	--game-positive: #3c9b78;
-	--game-negative: #c34f63;
+	--game-cyan: #087390;
+	--game-amber: #74610d;
+	--game-positive: #287151;
+	--game-negative: #ae3b50;
 	--game-grid: rgba(16, 35, 54, 0.08);
 	--game-surface: #ffffff;
 	--game-surface-raised: #e5f0f6;
@@ -456,12 +458,12 @@
 
 	.site-header :is(a, button):focus-visible,
 	.game-shell
-		:is(a, button, input, select, textarea, [role="button"]):focus-visible {
+		:is(a, button, select, input, textarea, [role="button"]):focus-visible {
 		outline: 3px solid var(--primary);
 		outline-offset: 2px;
 	}
 
-	.game-shell :is(button, select, input, textarea, [role="button"]) {
+	.game-shell :is(a, button, select, input, textarea, [role="button"]) {
 		min-height: 2.75rem;
 	}
 
@@ -474,9 +476,48 @@
 	}
 }
 
+[data-slot="dialog-content"]
+	:is(a, button, select, input, textarea, [role="button"]),
+[data-slot="dropdown-menu-content"]
+	:is(a, button, select, input, textarea, [role="button"]),
+[data-slot="dropdown-menu-item"],
+[data-theme-switcher] button {
+	min-height: 2.75rem;
+	min-width: 2.75rem;
+}
+
+.ailt-scroll-content {
+	scroll-padding-bottom: 1rem;
+}
+
+.ailt-ticker-dock {
+	bottom: 0;
+}
+
+.ailt-mobile-nav {
+	padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 1023px) {
+	.ailt-scroll-content {
+		padding-bottom: var(--ailt-mobile-content-offset) !important;
+		scroll-padding-bottom: var(--ailt-mobile-content-offset);
+	}
+
+	.ailt-ticker-dock {
+		bottom: var(--ailt-mobile-nav-offset) !important;
+	}
+}
+
 @layer components {
 	.surface-card {
-		@apply rounded-xl border-0 bg-card/60 shadow-lg shadow-black/20 ring-1 ring-white/5;
+		@apply rounded-xl border-0 bg-card/60 shadow-lg shadow-foreground/10 ring-1 ring-border/60;
+	}
+
+	.art-frame-vignette {
+		box-shadow:
+			inset 0 0 1rem color-mix(in srgb, var(--foreground) 12%, transparent),
+			inset 0 0 2rem color-mix(in srgb, var(--background) 24%, transparent);
 	}
 
 	.meta-label {

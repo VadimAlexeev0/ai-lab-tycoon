@@ -40,7 +40,7 @@ export function ThemeSwitcher() {
 							aria-label={`Use ${label.toLowerCase()} mode`}
 							aria-pressed={isActive}
 							className={cn(
-								"inline-flex min-h-8 min-w-8 items-center justify-center rounded px-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+								"inline-flex min-h-11 min-w-11 items-center justify-center rounded px-1.5 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 								isActive && "bg-primary/15 text-primary shadow-sm",
 							)}
 							data-theme-mode={value}
@@ -71,7 +71,7 @@ export function ThemeSwitcher() {
 							aria-label={`Use ${details.label.toLowerCase()} theme`}
 							aria-pressed={isActive}
 							className={cn(
-								"inline-flex min-h-8 min-w-8 items-center justify-center rounded-full border border-transparent p-1 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+								"inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-transparent p-1 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 								isActive && "border-primary ring-1 ring-primary/60",
 							)}
 							data-theme-motif={themeMotif}

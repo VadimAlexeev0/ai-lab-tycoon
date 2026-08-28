@@ -95,6 +95,7 @@ function GameLayout() {
 	const game = useRunState();
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
+	const pathname = useLocation().pathname;
 	const state = game.state;
 	const pendingDecisions = state === null ? [] : selectPendingDecisions(state);
 	const blockingDecision = pendingDecisions.find(
@@ -106,6 +107,17 @@ function GameLayout() {
 	const isActive = game.activeRun !== null && game.screen === "active";
 	const { digest, deltas } = useWeekDigest(state, game.revision);
 	const liveAnnouncement = isActive ? summarizeWeekDigest(digest, deltas) : "";
+
+	// Route-change focus handoff: after SPA navigation between game pages,
+	// move focus to the page heading so keyboard/AT users start at the top.
+	const headingId = "game-page-heading";
+	useEffect(() => {
+		if (!isActive) return;
+		const heading = document.getElementById(headingId);
+		if (heading instanceof HTMLElement) {
+			heading.focus({ preventScroll: true });
+		}
+	}, [isActive, pathname]);
 
 	useEffect(() => {
 		if (
@@ -172,7 +184,7 @@ function GameLayout() {
 				>
 					{isActive ? liveAnnouncement : ""}
 				</div>
-				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
+				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
 					<header className="flex min-h-11 items-center justify-between gap-3 border-border/70 border-b pb-3">
 						<div className="min-w-0">
 							<p className="truncate font-display font-semibold text-foreground text-lg sm:text-xl">
@@ -213,6 +225,33 @@ function GameLayout() {
 								onAdopt={game.adoptConflictRecord}
 								onDismiss={game.clearActionError}
 							/>
+							{state.terminal.status === "lost" ? (
+								<div
+									aria-live="assertive"
+									className="surface-card flex flex-wrap items-center justify-between gap-3 bg-[var(--game-negative)]/10 px-4 py-3 ring-1 ring-[var(--game-negative)]/50"
+									role="alert"
+									tabIndex={-1}
+								>
+									<div className="min-w-0">
+										<p className="font-semibold text-foreground text-sm">
+											The sandbox has ended — this run is over.
+										</p>
+										<p className="mt-1 text-muted-foreground text-xs leading-5">
+											Review the run result on the Products page, then start a
+											new run to try a different strategy.
+										</p>
+									</div>
+									<button
+										className="shrink-0 rounded-md border border-[var(--game-negative)] px-3 py-2 text-xs hover:bg-[var(--game-negative)]/20"
+										onClick={() => {
+											void navigate({ to: "/game/products" });
+										}}
+										type="button"
+									>
+										View run result
+									</button>
+								</div>
+							) : null}
 							<Outlet />
 						</>
 					) : (
@@ -356,7 +395,7 @@ function Navigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-9 shrink-0 items-center gap-2 px-3 font-semibold text-xs",
+								"flex min-h-11 shrink-0 items-center gap-2 px-3 font-semibold text-xs",
 								active
 									? "bg-primary text-primary-foreground"
 									: "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -385,7 +424,7 @@ function Navigation() {
 						<Link
 							aria-current={active ? "page" : undefined}
 							className={cn(
-								"flex min-h-8 shrink-0 items-center gap-1.5 px-2 text-xs",
+								"flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-xs",
 								active
 									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
 									: "text-muted-foreground/80 hover:bg-muted hover:text-foreground",
@@ -416,8 +455,7 @@ function MobileNavigation() {
 	return (
 		<nav
 			aria-label="Game destinations"
-			className="fixed inset-x-0 bottom-0 z-40 overflow-hidden border-border border-t bg-card/95 pt-1 backdrop-blur-sm lg:hidden"
-			style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+			className="ailt-mobile-nav fixed inset-x-0 bottom-0 z-40 overflow-hidden border-border border-t bg-card/95 pt-1 backdrop-blur-sm lg:hidden"
 		>
 			<div className="flex min-w-max items-stretch overflow-x-auto px-1">
 				{DESTINATIONS.map((destination) => {

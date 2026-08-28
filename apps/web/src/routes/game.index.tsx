@@ -116,9 +116,6 @@ function DashboardRoute() {
 							</p>
 						</div>
 					</section>
-					<p className="relative z-10 border-border/70 border-t pt-2 text-muted-foreground text-xs">
-						Drag to rotate · telemetry is live
-					</p>
 				</aside>
 			</div>
 		</GamePage>

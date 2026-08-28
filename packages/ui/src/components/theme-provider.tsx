@@ -123,13 +123,12 @@ export function parseStoredTheme(value: string | null): ThemePreference | null {
 	}
 }
 
-export function readStoredTheme(
-	storage: Storage | undefined = typeof window === "undefined"
-		? undefined
-		: window.localStorage,
-): ThemePreference | null {
+export function readStoredTheme(storage?: Storage): ThemePreference | null {
 	try {
-		return parseStoredTheme(storage?.getItem(THEME_STORAGE_KEY) ?? null);
+		const source =
+			storage ??
+			(typeof window === "undefined" ? undefined : window.localStorage);
+		return parseStoredTheme(source?.getItem(THEME_STORAGE_KEY) ?? null);
 	} catch {
 		return null;
 	}

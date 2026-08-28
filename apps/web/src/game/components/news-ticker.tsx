@@ -72,7 +72,7 @@ export default function NewsTicker({
 
 	if (hidden) {
 		return (
-			<div className="fixed inset-x-0 bottom-[4.25rem] z-30 flex justify-center px-3 lg:bottom-0 lg:justify-end lg:px-6 lg:pb-3">
+			<div className="ailt-ticker-dock fixed inset-x-0 bottom-[4.25rem] z-30 flex justify-center px-3 lg:bottom-0 lg:justify-end lg:px-6 lg:pb-3">
 				<Button
 					aria-label="Show industry news ticker"
 					onClick={() => setHidden(false)}
@@ -100,10 +100,10 @@ export default function NewsTicker({
 	const lead = headlines[0];
 
 	return (
-		<div className="fixed inset-x-0 bottom-[4.25rem] z-30 border-[var(--game-amber)]/40 border-t bg-card/95 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] backdrop-blur-sm lg:bottom-0">
+		<div className="ailt-ticker-dock fixed inset-x-0 bottom-[4.25rem] z-30 border-[var(--game-amber)]/40 border-t bg-card/95 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] backdrop-blur-sm lg:bottom-0">
 			<div className="mx-auto flex min-h-12 max-w-[1600px] items-stretch">
 				<Link
-					aria-label="Open Industry Pulse"
+					aria-label={`Open Industry Pulse: ${lead?.headline ?? "No industry headlines yet."}`}
 					className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden px-3 py-2 text-left hover:bg-[var(--game-amber)]/5 sm:px-5"
 					to="/game/pulse"
 				>
@@ -139,6 +139,7 @@ export default function NewsTicker({
 					<Button
 						aria-label={paused ? "Resume news ticker" : "Pause news ticker"}
 						aria-pressed={paused}
+						className="min-h-11 min-w-11"
 						onClick={() => setPaused((current) => !current)}
 						size="icon-sm"
 						type="button"
@@ -152,6 +153,7 @@ export default function NewsTicker({
 					</Button>
 					<Button
 						aria-label="Hide industry news ticker"
+						className="min-h-11 min-w-11"
 						onClick={() => setHidden(true)}
 						size="icon-sm"
 						type="button"

@@ -126,7 +126,7 @@ function SocketSlot({
 	return (
 		<div
 			aria-label={`${slot.label}: ${slot.complete ? "complete" : slot.requirement}`}
-			className={`absolute flex w-32 -translate-x-1/2 flex-col items-center text-center sm:w-44 ${position}`}
+			className={`absolute flex w-24 -translate-x-1/2 flex-col items-center text-center sm:w-44 ${position}`}
 			data-complete={slot.complete}
 			data-debug-override={debugOverride}
 			role="status"

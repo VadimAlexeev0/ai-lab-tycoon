@@ -30,6 +30,7 @@ function QuarterlyRoute() {
 			title="Quarterly review"
 			description="A narrative checkpoint for the decisions, trade-offs, and expectations that shaped the last thirteen weeks."
 			headerVisual={<PlaceholderBadge />}
+			contentClassName="mx-auto max-w-[70ch]"
 		>
 			<QuarterlyReview quarter={search.quarter} state={game.state} />
 		</GamePage>

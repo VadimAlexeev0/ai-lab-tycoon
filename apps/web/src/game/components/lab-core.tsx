@@ -186,9 +186,9 @@ export default function LabCore({ className, state }: LabCoreProps) {
 		>
 			<canvas
 				ref={canvasRef}
-				aria-label="Interactive AI core hologram. Drag to rotate."
-				className="h-full w-full cursor-grab touch-none active:cursor-grabbing"
-				role="img"
+				aria-hidden="true"
+				className="h-full w-full"
+				role="presentation"
 			/>
 		</div>
 	);

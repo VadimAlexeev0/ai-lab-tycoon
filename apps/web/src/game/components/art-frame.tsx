@@ -49,7 +49,7 @@ export default function ArtFrame({
 			<div
 				aria-hidden="true"
 				className={cn(
-					"pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0_0_1rem_rgba(255,255,255,0.12),inset_0_0_2rem_rgba(0,0,0,0.24)]",
+					"art-frame-vignette pointer-events-none absolute inset-0 rounded-[inherit]",
 					tint,
 				)}
 			/>
