@@ -6,6 +6,7 @@ import {
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	assertResearchDefinitions,
 	MODELS_BRANCH,
+	MULTIMODAL_ERA,
 	MULTIMODAL_MODELS_FUSION_ID,
 	RESEARCH_CATEGORIES,
 	RESEARCH_NODES,
@@ -37,6 +38,74 @@ function getInsightCost(node: unknown): number {
 function completeTextTier(state: ReturnType<typeof startRun>): void {
 	for (const node of state.research.nodes) {
 		if (node.era === TEXT_ERA) node.status = "completed";
+	}
+}
+
+function completeResearchNode(
+	state: ReturnType<typeof startRun>,
+	nodeId: string,
+	week: number,
+): ReturnType<typeof startRun> {
+	const project = state.projects.items.find(
+		(item) =>
+			item.kind === "research" &&
+			item.nodeId === nodeId &&
+			item.status === "available",
+	);
+	if (project === undefined) {
+		throw new Error(`Expected an available research project for ${nodeId}`);
+	}
+
+	const nextState = {
+		...state,
+		projects: {
+			items: state.projects.items.map((item) =>
+				item.id === project.id
+					? {
+							...item,
+							teamId: null,
+							status: "completed" as const,
+							progress: item.duration,
+						}
+					: { ...item },
+			),
+		},
+	};
+	const result = researchSystem(nextState, {
+		phase: "research",
+		week,
+	});
+
+	expect(result.facts).toContainEqual({
+		kind: "research_completed",
+		nodeId,
+		week,
+	});
+	return result.state;
+}
+
+function completeResearchEra(
+	state: ReturnType<typeof startRun>,
+	era: "text" | "assistant" | "multimodal",
+	week: number,
+): ReturnType<typeof startRun> {
+	let nextState = state;
+	while (true) {
+		const availableNode = nextState.research.nodes.find(
+			(node) => node.era === era && node.status === "available",
+		);
+		if (availableNode !== undefined) {
+			nextState = completeResearchNode(nextState, availableNode.id, week);
+			continue;
+		}
+
+		const pendingNode = nextState.research.nodes.find(
+			(node) => node.era === era && node.status !== "completed",
+		);
+		if (pendingNode === undefined) return nextState;
+		throw new Error(
+			`Research DAG stalled at locked node ${pendingNode.id} in ${era} era`,
+		);
 	}
 }
 
@@ -619,6 +688,47 @@ describe("LLM-history research data", () => {
 			result.state.research.nodes.some(
 				(node) => node.era === ASSISTANT_ERA && node.status === "available",
 			),
+		).toBe(true);
+	});
+
+	it("walks every research node through the DAG in a valid completion order", () => {
+		let state = startRun({ companyName: "Acme Labs" }, 42);
+		const week = 2;
+
+		state = completeResearchEra(state, TEXT_ERA, week);
+		expect(state.research.currentEra).toBe(ASSISTANT_ERA);
+		expect(state.meta.era).toBe(ASSISTANT_ERA);
+		expect(state.research.nodes).toContainEqual(
+			expect.objectContaining({
+				id: TEXT_MODELS_KEYSTONE_ID,
+				status: "completed",
+			}),
+		);
+		expect(
+			state.research.nodes.some(
+				(node) => node.era === ASSISTANT_ERA && node.status === "available",
+			),
+		).toBe(true);
+
+		state = completeResearchEra(state, ASSISTANT_ERA, week);
+		expect(state.research.currentEra).toBe(MULTIMODAL_ERA);
+		expect(state.meta.era).toBe(MULTIMODAL_ERA);
+		expect(state.research.nodes).toContainEqual(
+			expect.objectContaining({
+				id: ASSISTANT_MODELS_KEYSTONE_ID,
+				status: "completed",
+			}),
+		);
+		expect(
+			state.research.nodes.some(
+				(node) => node.era === MULTIMODAL_ERA && node.status === "available",
+			),
+		).toBe(true);
+
+		state = completeResearchEra(state, MULTIMODAL_ERA, week);
+		expect(state.research.nodes).toHaveLength(RESEARCH_NODES.length);
+		expect(
+			state.research.nodes.every((node) => node.status === "completed"),
 		).toBe(true);
 	});
 
