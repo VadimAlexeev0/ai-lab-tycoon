@@ -8,7 +8,9 @@ import ResearchTimeline from "@/game/components/research-timeline";
 import { useRunState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
 
-const LazyResearchTree = lazy(() => import("@/game/components/research-tree"));
+const LazyResearchTree = lazy(
+	() => import("@/game/components/research-tree-3d"),
+);
 
 export const Route = createFileRoute("/game/research")({
 	head: () => ({
