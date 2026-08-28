@@ -7,7 +7,6 @@ import {
 	selectVisibleModels,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
-import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import {
 	createFileRoute,
 	Link,
@@ -17,38 +16,23 @@ import {
 import {
 	Activity,
 	AlertCircle,
-	Archive,
 	ArrowRight,
-	BookOpen,
-	BrainCircuit,
 	BriefcaseBusiness,
-	ChartNoAxesCombined,
-	FlaskConical,
-	GitBranch,
-	House,
 	Loader2,
-	Newspaper,
-	PanelTop,
 	RotateCcw,
 	Settings2,
-	Sparkles,
 	X,
 } from "lucide-react";
 import { useEffect } from "react";
 
 import AdvanceWeekButton from "@/game/components/advance-week-button";
 import DebugDrawer from "@/game/components/debug-drawer";
-import EraBadge from "@/game/components/era-badge";
+import GameRail from "@/game/components/game-rail";
 import IncidentCard from "@/game/components/incident-card";
-import {
-	countDiscoveredNotebookTiles,
-	NOTEBOOK_TILE_COUNT,
-} from "@/game/components/lab-notebook";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
 import ResourceBar from "@/game/components/resource-bar";
-import RunMenu from "@/game/components/run-menu";
 import WeekDigestCard from "@/game/components/week-digest-card";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { summarizeWeekDigest } from "@/game/derived/week-digest";
@@ -111,14 +95,13 @@ function GameLayout() {
 	// Route-change focus handoff: after SPA navigation between game pages,
 	// move focus to the page heading so keyboard/AT users start at the top.
 	const headingId = "game-page-heading";
+	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname intentionally retriggers focus after SPA navigation
 	useEffect(() => {
 		if (!isActive) return;
 		const heading = document.getElementById(headingId);
 		if (heading instanceof HTMLElement) {
 			heading.focus({ preventScroll: true });
 		}
-		// biome ignores the headingId const (static); pathname drives re-runs.
-		// biome-ignore lint/correctness/useExhaustiveDependencies: headingId is a module-stable constant
 	}, [isActive, pathname]);
 
 	useEffect(() => {
@@ -167,12 +150,9 @@ function GameLayout() {
 		});
 	}
 
-	function startNewRun() {
-		void navigate({ to: "/play", search: { new: "1" } });
-	}
-
 	return (
-		<div className="relative h-dvh min-h-0 min-w-0 overflow-hidden">
+		<div className="lab-void relative grid h-dvh min-h-0 min-w-0 grid-cols-[4rem_minmax(0,1fr)] overflow-hidden lg:grid-cols-[14rem_minmax(0,1fr)]">
+			<GameRail />
 			<main
 				id="main-content"
 				tabIndex={-1}
@@ -186,29 +166,7 @@ function GameLayout() {
 				>
 					{isActive ? liveAnnouncement : ""}
 				</div>
-				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-5 sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-8 lg:py-7 lg:pb-8">
-					<header className="flex min-h-11 items-center justify-between gap-3 border-border/70 border-b pb-3">
-						<div className="min-w-0">
-							<p className="truncate font-display font-semibold text-foreground text-lg sm:text-xl">
-								{isActive && state !== null
-									? state.company.name
-									: "AI Startup Lab Tycoon"}
-							</p>
-						</div>
-						<div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
-							{isActive && state !== null ? (
-								<EraBadge era={state.research.currentEra} size="compact" />
-							) : null}
-							<SessionBadge
-								label={game.sessionLabel}
-								status={game.session.status}
-							/>
-							{isActive ? (
-								<RunMenu onDeleteRun={game.deleteRun} onNewRun={startNewRun} />
-							) : null}
-						</div>
-					</header>
-
+				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-8 sm:px-6 sm:py-5 lg:px-8 lg:py-7">
 					{isActive && state !== null ? (
 						<>
 							<div className="grid min-w-0 gap-3">
@@ -220,7 +178,6 @@ function GameLayout() {
 								state={state}
 							/>
 							<WeekDigestCard digest={digest} deltas={deltas} />
-							<Navigation />
 							<ActionFeedback
 								actionError={game.actionError}
 								conflictRecord={game.conflictRecord}
@@ -261,7 +218,6 @@ function GameLayout() {
 					)}
 				</div>
 			</main>
-			<MobileNavigation />
 			<NewsTicker
 				forceVisible={search.debug === "1" || search.pulse === "1"}
 				rivalProgressPct={search.rivalProgress}
@@ -375,256 +331,6 @@ function GameLayout() {
 					state={state}
 				/>
 			) : null}
-		</div>
-	);
-}
-
-function Navigation() {
-	const location = useLocation();
-	const game = useRunState();
-	const notebookCount =
-		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
-	return (
-		<div className="hidden min-w-0 lg:block">
-			<nav
-				aria-label="Desktop game destinations"
-				className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-lg bg-card/40 p-1"
-			>
-				{DESTINATIONS.map((destination) => {
-					const active = isDestinationActive(location.pathname, destination.to);
-					const Icon = destination.icon;
-					return (
-						<Link
-							aria-current={active ? "page" : undefined}
-							className={cn(
-								"flex min-h-11 shrink-0 items-center gap-2 px-3 font-semibold text-xs",
-								active
-									? "bg-primary text-primary-foreground"
-									: "text-muted-foreground hover:bg-muted hover:text-foreground",
-							)}
-							key={destination.to}
-							to={destination.to}
-						>
-							<Icon className="size-3.5" aria-hidden="true" />
-							{destination.label}
-						</Link>
-					);
-				})}
-			</nav>
-			<nav
-				aria-label="Archive destinations"
-				className="mt-2 flex min-w-0 items-center gap-1 overflow-x-auto rounded-lg bg-card/30 p-1"
-			>
-				<div className="flex shrink-0 items-center gap-1.5 px-2 font-semibold text-muted-foreground text-xs">
-					<Archive className="size-3.5" aria-hidden="true" />
-					<span>Archive</span>
-				</div>
-				{ARCHIVE_DESTINATIONS.map((destination) => {
-					const active = isDestinationActive(location.pathname, destination.to);
-					const Icon = destination.icon;
-					return (
-						<Link
-							aria-current={active ? "page" : undefined}
-							className={cn(
-								"flex min-h-11 shrink-0 items-center gap-1.5 px-2 text-xs",
-								active
-									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
-									: "text-muted-foreground/80 hover:bg-muted hover:text-foreground",
-							)}
-							key={destination.to}
-							to={destination.to}
-						>
-							<Icon className="size-3.5" aria-hidden="true" />
-							{destination.to === "/game/notebook"
-								? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
-								: destination.label}
-							<span className="border border-[var(--game-amber)]/50 px-1 py-0.5 text-[10px] text-[var(--game-amber)] leading-none">
-								Preview
-							</span>
-						</Link>
-					);
-				})}
-			</nav>
-		</div>
-	);
-}
-
-function MobileNavigation() {
-	const location = useLocation();
-	const game = useRunState();
-	const notebookCount =
-		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
-	return (
-		<nav
-			aria-label="Game destinations"
-			className="ailt-mobile-nav fixed inset-x-0 bottom-0 z-40 overflow-hidden border-border border-t bg-card/95 pt-1 backdrop-blur-sm lg:hidden"
-		>
-			<div className="flex min-w-max items-stretch overflow-x-auto px-1">
-				{DESTINATIONS.map((destination) => {
-					const active = isDestinationActive(location.pathname, destination.to);
-					const Icon = destination.icon;
-					return (
-						<Link
-							aria-current={active ? "page" : undefined}
-							className={cn(
-								"flex min-h-11 min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-xs",
-								active
-									? "bg-primary text-primary-foreground"
-									: "text-muted-foreground hover:bg-muted hover:text-foreground",
-							)}
-							key={destination.to}
-							to={destination.to}
-						>
-							<Icon className="size-4" aria-hidden="true" />
-							<span className="max-w-full truncate">
-								{destination.shortLabel}
-							</span>
-						</Link>
-					);
-				})}
-				<div
-					aria-hidden="true"
-					className="mx-1 my-1 w-px shrink-0 bg-border/70"
-				/>
-				<div className="flex min-w-[4.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-muted-foreground text-xs">
-					<Archive className="size-4" aria-hidden="true" />
-					<span>Archive</span>
-				</div>
-				{ARCHIVE_DESTINATIONS.map((destination) => {
-					const active = isDestinationActive(location.pathname, destination.to);
-					const Icon = destination.icon;
-					return (
-						<Link
-							aria-current={active ? "page" : undefined}
-							className={cn(
-								"flex min-h-11 min-w-[5.5rem] shrink-0 flex-col items-center justify-center gap-0.5 px-1 text-xs",
-								active
-									? "bg-[var(--game-amber)]/15 text-[var(--game-amber)]"
-									: "text-muted-foreground hover:bg-muted hover:text-foreground",
-							)}
-							key={destination.to}
-							to={destination.to}
-						>
-							<Icon className="size-4" aria-hidden="true" />
-							<span className="max-w-full truncate">
-								{destination.to === "/game/notebook"
-									? `Notebook ${notebookCount}/${NOTEBOOK_TILE_COUNT}`
-									: destination.shortLabel}
-							</span>
-							<span className="text-[10px] leading-none">Preview</span>
-						</Link>
-					);
-				})}
-			</div>
-		</nav>
-	);
-}
-
-const DESTINATIONS = [
-	{
-		to: "/game",
-		label: "Overview",
-		shortLabel: "Home",
-		icon: House,
-	},
-	{
-		to: "/game/teams",
-		label: "Teams",
-		shortLabel: "Teams",
-		icon: BriefcaseBusiness,
-	},
-	{
-		to: "/game/research",
-		label: "Research",
-		shortLabel: "Research",
-		icon: FlaskConical,
-	},
-	{
-		to: "/game/models",
-		label: "Models",
-		shortLabel: "Models",
-		icon: BrainCircuit,
-	},
-	{
-		to: "/game/products",
-		label: "Products",
-		shortLabel: "Products",
-		icon: ChartNoAxesCombined,
-	},
-	{
-		to: "/game/reports",
-		label: "Reports",
-		shortLabel: "Reports",
-		icon: PanelTop,
-	},
-] as const;
-
-const ARCHIVE_DESTINATIONS = [
-	{
-		to: "/game/quarterly",
-		label: "Quarterly Review",
-		shortLabel: "Quarterly",
-		icon: PanelTop,
-	},
-	{
-		to: "/game/pulse",
-		label: "Industry Pulse",
-		shortLabel: "Pulse",
-		icon: Newspaper,
-	},
-	{
-		to: "/game/chronicle",
-		label: "Company Chronicle",
-		shortLabel: "Chronicle",
-		icon: BookOpen,
-	},
-	{
-		to: "/game/lineage",
-		label: "Model Lineage",
-		shortLabel: "Lineage",
-		icon: GitBranch,
-	},
-	{
-		to: "/game/notebook",
-		label: "Lab Notebook",
-		shortLabel: "Notebook",
-		icon: BookOpen,
-	},
-	{
-		to: "/game/agiprogram",
-		label: "AGI Program",
-		shortLabel: "AGI Vault",
-		icon: Sparkles,
-	},
-] as const;
-
-function isDestinationActive(pathname: string, destination: string): boolean {
-	return destination === "/game"
-		? pathname === "/game" || pathname === "/game/"
-		: pathname.startsWith(destination);
-}
-
-function SessionBadge({
-	label,
-	status,
-}: {
-	label: string;
-	status: "loading" | "ready" | "error";
-}) {
-	return (
-		<div className="surface-card meta-label flex min-w-0 max-w-full items-center gap-2 px-3 py-2 text-muted-foreground">
-			<span
-				aria-hidden="true"
-				className={cn(
-					"size-2 shrink-0 rounded-full",
-					status === "ready"
-						? "bg-[var(--game-positive)] shadow-[0_0_12px_var(--game-positive)]"
-						: status === "error"
-							? "bg-[var(--game-negative)]"
-							: "animate-pulse bg-[var(--game-amber)]",
-				)}
-			/>
-			<span className="min-w-0 break-words">{label}</span>
 		</div>
 	);
 }

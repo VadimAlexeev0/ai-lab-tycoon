@@ -54,8 +54,6 @@
 	--game-surface-raised: #e8eff6;
 	--game-hairline: rgba(34, 69, 105, 0.16);
 	--game-horizon: rgba(79, 216, 232, 0.06);
-	--ailt-mobile-nav-offset: calc(4.25rem + env(safe-area-inset-bottom, 0px));
-	--ailt-mobile-content-offset: calc(var(--ailt-mobile-nav-offset) + 1rem);
 }
 
 [data-theme="midnight"][data-mode="dark"] {
@@ -530,19 +528,26 @@
 	bottom: 0;
 }
 
-.ailt-mobile-nav {
-	padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+.lab-void {
+	isolation: isolate;
+	position: relative;
 }
 
-@media (max-width: 1023px) {
-	.ailt-scroll-content {
-		padding-bottom: var(--ailt-mobile-content-offset) !important;
-		scroll-padding-bottom: var(--ailt-mobile-content-offset);
-	}
-
-	.ailt-ticker-dock {
-		bottom: var(--ailt-mobile-nav-offset) !important;
-	}
+.lab-void::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background-image:
+		linear-gradient(var(--game-grid) 1px, transparent 1px),
+		linear-gradient(90deg, var(--game-grid) 1px, transparent 1px);
+	background-size: 48px 48px;
+	mask-image: radial-gradient(
+		ellipse 90% 70% at 50% 20%,
+		black 30%,
+		transparent 75%
+	);
 }
 
 @layer components {
