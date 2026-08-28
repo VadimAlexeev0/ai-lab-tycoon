@@ -7,7 +7,7 @@ import StartRunForm from "@/game/components/start-run-form";
 import {
 	type ActiveRunSnapshot,
 	GameStateProvider,
-	useGameState,
+	useRunState,
 } from "@/game/game-state-context";
 import type { ActiveRunRecord } from "@/utils/orpc";
 
@@ -34,7 +34,7 @@ function HomeComponent() {
 }
 
 function StartScreen() {
-	const game = useGameState();
+	const game = useRunState();
 	const navigate = useNavigate();
 	const isDeleting = game.saveState.status === "deleting";
 

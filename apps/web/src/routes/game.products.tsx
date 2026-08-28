@@ -7,7 +7,7 @@ import GamePage from "@/game/components/game-page";
 import ProductPanel from "@/game/components/product-panel";
 import RivalsPanel from "@/game/components/rivals-panel";
 import RunResult from "@/game/components/run-result";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState, useUiState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/products")({
 	head: () => ({
@@ -24,7 +24,8 @@ export const Route = createFileRoute("/game/products")({
 });
 
 function ProductsRoute() {
-	const game = useGameState();
+	const game = useRunState();
+	const ui = useUiState();
 	const navigate = useNavigate();
 	if (game.state === null) return null;
 
@@ -60,8 +61,8 @@ function ProductsRoute() {
 				/>
 				<RunResult
 					disabled={game.actionBusy}
-					milestoneDismissed={game.milestoneDismissed}
-					onContinueSandbox={game.continueSandbox}
+					milestoneDismissed={ui.milestoneDismissed}
+					onContinueSandbox={ui.continueSandbox}
 					onRestartRun={restartRun}
 					state={game.state}
 				/>

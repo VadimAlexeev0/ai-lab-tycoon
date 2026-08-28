@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import TeamPanel from "@/game/components/team-panel";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/teams")({
 	head: () => ({
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/game/teams")({
 });
 
 function TeamsRoute() {
-	const game = useGameState();
+	const game = useRunState();
 	if (game.state === null) return null;
 
 	return (

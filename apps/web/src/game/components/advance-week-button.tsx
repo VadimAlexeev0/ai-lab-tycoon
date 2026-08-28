@@ -7,7 +7,7 @@ import {
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
 
@@ -27,12 +27,15 @@ export default function AdvanceWeekButton({
 }: AdvanceWeekButtonProps) {
 	const [isAdvancing, setIsAdvancing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const visibleState = selectVisibleState(state);
-	const pendingDecisions = selectPendingDecisions(state);
+	const visibleState = useMemo(() => selectVisibleState(state), [state]);
+	const pendingDecisions = useMemo(
+		() => selectPendingDecisions(state),
+		[state],
+	);
 	const blockingDecision = pendingDecisions.find(
 		(decision) => decision.blocking,
 	);
-	const nextObjective = selectNextObjective(state);
+	const nextObjective = useMemo(() => selectNextObjective(state), [state]);
 	const isTerminal = visibleState.terminal.status === "lost";
 	const isBlocked = blockingDecision !== undefined;
 	const isDisabled = isAdvancing || isBlocked || isTerminal;

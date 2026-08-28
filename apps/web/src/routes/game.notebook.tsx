@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import GamePage from "@/game/components/game-page";
 import LabNotebook from "@/game/components/lab-notebook";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
 
 export const Route = createFileRoute("/game/notebook")({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/game/notebook")({
 });
 
 function NotebookRoute() {
-	const game = useGameState();
+	const game = useRunState();
 	const search = GameRoute.useSearch();
 	if (game.state === null) return null;
 

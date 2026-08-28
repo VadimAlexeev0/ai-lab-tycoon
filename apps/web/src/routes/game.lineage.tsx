@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import GamePage from "@/game/components/game-page";
 import LineageGallery from "@/game/components/lineage-gallery";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/lineage")({
 	head: () => ({
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/game/lineage")({
 });
 
 function LineageRoute() {
-	const game = useGameState();
+	const game = useRunState();
 	if (game.state === null) return null;
 
 	return (

@@ -3,10 +3,11 @@ import {
 	selectNextObjective,
 	selectVisibleState,
 } from "@ai-lab-tycoon/engine";
+import { useMemo } from "react";
 
 export default function OverviewPanel({ state }: { state: GameState }) {
-	const visible = selectVisibleState(state);
-	const objective = selectNextObjective(state);
+	const visible = useMemo(() => selectVisibleState(state), [state]);
+	const objective = useMemo(() => selectNextObjective(state), [state]);
 	return (
 		<section aria-labelledby="overview-panel-heading" className="space-y-4">
 			<div className="flex flex-wrap items-end justify-between gap-2">

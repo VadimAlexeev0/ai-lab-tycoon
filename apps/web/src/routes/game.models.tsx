@@ -3,7 +3,7 @@ import { lazy, Suspense } from "react";
 
 import GamePage from "@/game/components/game-page";
 import ModelCard from "@/game/components/model-card";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState } from "@/game/game-state-context";
 
 const LazyModelDesigner = lazy(
 	() => import("@/game/components/model-designer"),
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/game/models")({
 });
 
 function ModelsRoute() {
-	const game = useGameState();
+	const game = useRunState();
 	if (game.state === null) return null;
 
 	return (

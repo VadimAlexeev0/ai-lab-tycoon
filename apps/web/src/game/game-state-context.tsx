@@ -18,6 +18,7 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 
@@ -52,9 +53,11 @@ export type ActiveRunSnapshot = {
 
 export type RunScreen = "selection" | "new" | "active";
 
+export type UiDensity = "concise" | "detailed";
+
 type EngineOperation = (state: GameState) => EngineResult;
 
-type GameStateContextValue = {
+export type RunContextValue = {
 	session: SessionState;
 	sessionLabel: string;
 	saveState: SaveState;
@@ -66,8 +69,6 @@ type GameStateContextValue = {
 	actionBusy: boolean;
 	actionError: string | null;
 	conflictRecord: ActiveRunRecord | null;
-	acknowledgedReportIds: ReadonlySet<string>;
-	milestoneDismissed: boolean;
 	retrySession: () => void;
 	retryLoad: () => void;
 	resumeRun: () => void;
@@ -86,11 +87,24 @@ type GameStateContextValue = {
 	resolveDecision: (choice: DecisionChoice) => Promise<boolean>;
 	adoptConflictRecord: (record: ActiveRunRecord) => void;
 	clearActionError: () => void;
-	acknowledgeReport: (reportId: string) => void;
-	continueSandbox: () => void;
 };
 
-const GameStateContext = createContext<GameStateContextValue | null>(null);
+export type UiStateContextValue = {
+	acknowledgedReportIds: ReadonlySet<string>;
+	milestoneDismissed: boolean;
+	density: UiDensity;
+	digestDismissed: boolean;
+	setDensity: (density: UiDensity) => void;
+	acknowledgeReport: (reportId: string) => void;
+	continueSandbox: () => void;
+	dismissDigest: () => void;
+	restoreDigest: () => void;
+};
+
+export type GameStateContextValue = RunContextValue & UiStateContextValue;
+
+const RunContext = createContext<RunContextValue | null>(null);
+const UiStateContext = createContext<UiStateContextValue | null>(null);
 
 export function GameStateProvider({ children }: { children: ReactNode }) {
 	const session = useAnonymousSession();
@@ -100,11 +114,21 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 		ReadonlySet<string>
 	>(new Set<string>());
 	const [milestoneDismissed, setMilestoneDismissed] = useState(false);
+	const [density, setDensity] = useState<UiDensity>("detailed");
+	const [digestDismissed, setDigestDismissed] = useState(false);
 
+	const runId =
+		controller.activeRun?.state.meta.runId ??
+		controller.savedRun?.state.meta.runId ??
+		null;
+	const uiRunIdRef = useRef<string | null | undefined>(undefined);
 	useEffect(() => {
+		if (uiRunIdRef.current === runId) return;
+		uiRunIdRef.current = runId;
 		setAcknowledgedReportIds(new Set<string>());
 		setMilestoneDismissed(false);
-	}, []);
+		setDigestDismissed(false);
+	}, [runId]);
 
 	const acknowledgeReport = useCallback((reportId: string) => {
 		setAcknowledgedReportIds((current) => new Set([...current, reportId]));
@@ -114,6 +138,14 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 		setMilestoneDismissed(true);
 	}, []);
 
+	const dismissDigest = useCallback(() => {
+		setDigestDismissed(true);
+	}, []);
+
+	const restoreDigest = useCallback(() => {
+		setDigestDismissed(false);
+	}, []);
+
 	const sessionLabel =
 		session.status === "ready"
 			? `ANON / ${session.session.userId.slice(0, 8)}`
@@ -121,43 +153,94 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 				? "SESSION ERROR"
 				: "SESSION STARTING";
 
-	const value = useMemo<GameStateContextValue>(
+	const runValue = useMemo<RunContextValue>(
 		() => ({
-			...controller,
 			session,
 			sessionLabel,
+			saveState: controller.saveState,
+			savedRun: controller.savedRun,
+			activeRun: controller.activeRun,
 			state: controller.activeRun?.state ?? null,
 			revision: controller.activeRun?.record.revision,
+			screen: controller.screen,
+			actionBusy: controller.actionBusy,
+			actionError: controller.actionError,
+			conflictRecord: controller.conflictRecord,
+			retryLoad: controller.retryLoad,
+			resumeRun: controller.resumeRun,
+			chooseNewRun: controller.chooseNewRun,
+			handleStarted: controller.handleStarted,
+			handleAdvanced: controller.handleAdvanced,
+			deleteRun: controller.deleteRun,
+			executeEngineCommand: controller.executeEngineCommand,
+			assignProject: controller.assignProject,
+			cancelProject: controller.cancelProject,
+			designModel: controller.designModel,
+			evaluateModel: controller.evaluateModel,
+			resolveDecision: controller.resolveDecision,
+			adoptConflictRecord: controller.adoptConflictRecord,
+			clearActionError: controller.clearActionError,
+			retrySession: session.retry,
+		}),
+		[controller, session, sessionLabel],
+	);
+
+	const uiValue = useMemo<UiStateContextValue>(
+		() => ({
 			acknowledgedReportIds,
 			milestoneDismissed,
+			density,
+			digestDismissed,
+			setDensity,
 			acknowledgeReport,
 			continueSandbox,
-			retrySession: session.retry,
+			dismissDigest,
+			restoreDigest,
 		}),
 		[
 			acknowledgeReport,
 			acknowledgedReportIds,
-			controller,
-			continueSandbox,
+			density,
+			digestDismissed,
+			dismissDigest,
 			milestoneDismissed,
-			session,
-			sessionLabel,
+			continueSandbox,
+			restoreDigest,
 		],
 	);
 
 	return (
-		<GameStateContext.Provider value={value}>
-			{children}
-		</GameStateContext.Provider>
+		<RunContext.Provider value={runValue}>
+			<UiStateContext.Provider value={uiValue}>
+				{children}
+			</UiStateContext.Provider>
+		</RunContext.Provider>
 	);
 }
 
-export function useGameState(): GameStateContextValue {
-	const value = useContext(GameStateContext);
+export function useRunState(): RunContextValue {
+	const value = useContext(RunContext);
 	if (value === null) {
-		throw new Error("useGameState must be used inside GameStateProvider");
+		throw new Error("useRunState must be used inside GameStateProvider");
 	}
 	return value;
+}
+
+export function useUiState(): UiStateContextValue {
+	const value = useContext(UiStateContext);
+	if (value === null) {
+		throw new Error("useUiState must be used inside GameStateProvider");
+	}
+	return value;
+}
+
+/**
+ * Compatibility selector for integrations that still need both slices.
+ * Route components should prefer useRunState/useUiState to avoid broad
+ * re-renders when UI-only state changes.
+ */
+export function useGameState(): GameStateContextValue {
+	return { ...useRunState(), ...useUiState() };
 }
 
 function useAnonymousSession(): SessionState & { retry: () => void } {
@@ -186,13 +269,13 @@ function useAnonymousSession(): SessionState & { retry: () => void } {
 		};
 	}, []);
 
-	function retry() {
+	const retry = useCallback(() => {
 		resetAnonymousSessionBootstrap();
 		setState({ status: "loading" });
 		setAttempt((current) => current + 1);
-	}
+	}, []);
 
-	return { ...state, retry };
+	return useMemo(() => ({ ...state, retry }), [retry, state]);
 }
 
 function useRunController(userId: string | null) {
@@ -403,29 +486,54 @@ function useRunController(userId: string | null) {
 		setConflictRecord(null);
 	}, []);
 
-	return {
-		saveState,
-		savedRun,
-		activeRun,
-		screen,
-		actionBusy,
-		actionError,
-		conflictRecord,
-		retryLoad,
-		resumeRun,
-		chooseNewRun,
-		handleStarted,
-		handleAdvanced,
-		deleteRun,
-		executeEngineCommand,
-		assignProject,
-		cancelProject,
-		designModel,
-		evaluateModel,
-		resolveDecision,
-		adoptConflictRecord,
-		clearActionError,
-	};
+	return useMemo(
+		() => ({
+			saveState,
+			savedRun,
+			activeRun,
+			screen,
+			actionBusy,
+			actionError,
+			conflictRecord,
+			retryLoad,
+			resumeRun,
+			chooseNewRun,
+			handleStarted,
+			handleAdvanced,
+			deleteRun,
+			executeEngineCommand,
+			assignProject,
+			cancelProject,
+			designModel,
+			evaluateModel,
+			resolveDecision,
+			adoptConflictRecord,
+			clearActionError,
+		}),
+		[
+			actionBusy,
+			actionError,
+			activeRun,
+			adoptConflictRecord,
+			assignProject,
+			cancelProject,
+			chooseNewRun,
+			clearActionError,
+			deleteRun,
+			designModel,
+			evaluateModel,
+			executeEngineCommand,
+			conflictRecord,
+			handleAdvanced,
+			handleStarted,
+			resolveDecision,
+			retryLoad,
+			resumeRun,
+			saveState,
+			savedRun,
+			screen,
+		],
+	);
 }
 
 function normalizeActiveRun(value: unknown): ActiveRunRecord | null {

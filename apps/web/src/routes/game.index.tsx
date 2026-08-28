@@ -6,7 +6,7 @@ import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import OverviewPanel from "@/game/components/overview-panel";
 import PriorityStrip from "@/game/components/priority-strip";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState } from "@/game/game-state-context";
 
 const LazyLabCore = lazy(() => import("@/game/components/lab-core"));
 
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/game/")({
 });
 
 function DashboardRoute() {
-	const game = useGameState();
+	const game = useRunState();
 	const { state } = game;
 	const navigate = useNavigate();
 	if (state === null) return null;

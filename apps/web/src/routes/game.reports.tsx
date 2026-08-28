@@ -4,7 +4,7 @@ import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import ReportHistory from "@/game/components/report-history";
 import ReportQueue from "@/game/components/report-queue";
-import { useGameState } from "@/game/game-state-context";
+import { useRunState, useUiState } from "@/game/game-state-context";
 
 export const Route = createFileRoute("/game/reports")({
 	head: () => ({
@@ -21,7 +21,8 @@ export const Route = createFileRoute("/game/reports")({
 });
 
 function ReportsRoute() {
-	const game = useGameState();
+	const game = useRunState();
+	const ui = useUiState();
 	if (game.state === null) return null;
 
 	return (
@@ -40,12 +41,12 @@ function ReportsRoute() {
 		>
 			<div className="space-y-6">
 				<ReportQueue
-					acknowledgedIds={game.acknowledgedReportIds}
-					onAcknowledge={game.acknowledgeReport}
+					acknowledgedIds={ui.acknowledgedReportIds}
+					onAcknowledge={ui.acknowledgeReport}
 					state={game.state}
 				/>
 				<ReportHistory
-					acknowledgedIds={game.acknowledgedReportIds}
+					acknowledgedIds={ui.acknowledgedReportIds}
 					state={game.state}
 				/>
 			</div>

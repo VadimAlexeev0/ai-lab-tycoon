@@ -61,7 +61,7 @@ import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
 import ResourceBar from "@/game/components/resource-bar";
-import { GameStateProvider, useGameState } from "@/game/game-state-context";
+import { GameStateProvider, useRunState } from "@/game/game-state-context";
 
 export type GameSearch = {
 	decision?: string;
@@ -101,7 +101,7 @@ function GameRoute() {
 }
 
 function GameLayout() {
-	const game = useGameState();
+	const game = useRunState();
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const state = game.state;
@@ -272,19 +272,8 @@ function GameLayout() {
 
 					{isActive && state !== null ? (
 						<>
-							<div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.38fr)]">
+							<div className="grid min-w-0 gap-3">
 								<ResourceBar state={state} />
-								<div className="surface-card flex min-w-0 items-center justify-between gap-3 bg-primary/10 px-3 py-2 ring-1 ring-primary/35">
-									<div className="min-w-0">
-										<p className="meta-label text-primary">Current week</p>
-										<p className="numeric-value mt-1 font-semibold text-foreground text-lg leading-none">
-											Week {state.meta.week}
-										</p>
-									</div>
-									<span className="hidden text-muted-foreground text-xs sm:block">
-										Era {state.meta.era}
-									</span>
-								</div>
 							</div>
 							<AdvanceWeekButton
 								onAdvanced={game.handleAdvanced}
@@ -425,7 +414,7 @@ function GameLayout() {
 
 function Navigation() {
 	const location = useLocation();
-	const game = useGameState();
+	const game = useRunState();
 	const notebookCount =
 		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
 	return (
@@ -495,7 +484,7 @@ function Navigation() {
 
 function MobileNavigation() {
 	const location = useLocation();
-	const game = useGameState();
+	const game = useRunState();
 	const notebookCount =
 		game.state === null ? 0 : countDiscoveredNotebookTiles(game.state);
 	return (
@@ -681,9 +670,9 @@ function ActionFeedback({
 	onDismiss,
 }: {
 	actionError: string | null;
-	conflictRecord: ReturnType<typeof useGameState>["conflictRecord"];
+	conflictRecord: ReturnType<typeof useRunState>["conflictRecord"];
 	onAdopt: (
-		record: NonNullable<ReturnType<typeof useGameState>["conflictRecord"]>,
+		record: NonNullable<ReturnType<typeof useRunState>["conflictRecord"]>,
 	) => void;
 	onDismiss: () => void;
 }) {
@@ -717,7 +706,7 @@ function ActionFeedback({
 }
 
 function GameRouteState() {
-	const game = useGameState();
+	const game = useRunState();
 	if (game.session.status === "loading") {
 		return (
 			<section
