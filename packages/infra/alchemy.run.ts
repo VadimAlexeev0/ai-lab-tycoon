@@ -8,6 +8,11 @@ config({ path: "./.env" });
 config({ path: "../../apps/web/.env" });
 config({ path: "../../apps/server/.env" });
 
+if (process.env.NODE_ENV === "production") {
+	config({ path: "../../apps/web/.env.prod", override: true });
+	config({ path: "../../apps/server/.env.prod", override: true });
+}
+
 export const db = Cloudflare.D1.Database("database", {
 	migrationsDir: "../../packages/db/src/migrations",
 });
