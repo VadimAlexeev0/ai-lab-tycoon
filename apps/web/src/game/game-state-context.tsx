@@ -363,13 +363,6 @@ function useRunController(userId: string | null) {
 
 	const deleteRun = useCallback(async () => {
 		if (userId === null || savedRun === null) return;
-		if (
-			!window.confirm(
-				"Delete this run? All progress for this anonymous player will be permanently removed.",
-			)
-		) {
-			return;
-		}
 
 		setSaveState({ status: "deleting", record: savedRun });
 		try {

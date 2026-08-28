@@ -27,7 +27,6 @@ function ReportsRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Module 05 / evidence"
 			title="Reports"
 			description="Review blocking warnings and browse the immutable mechanical fact stream produced by the simulation."
 			headerVisual={

@@ -25,7 +25,6 @@ function TeamsRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Module 01 / staffing"
 			title="Teams and projects"
 			description="Keep every team productive: assign a legal project, monitor progress, or cancel an active commitment when the run needs to pivot."
 			headerVisual={

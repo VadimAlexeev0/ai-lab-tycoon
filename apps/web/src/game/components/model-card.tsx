@@ -6,6 +6,11 @@ import {
 	type VisibleModelEstimate,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import {
+	Progress,
+	ProgressLabel,
+	ProgressValue,
+} from "@ai-lab-tycoon/ui/components/progress";
 import { Activity, BadgeCheck, FlaskConical } from "lucide-react";
 
 const SCORE_DIMENSIONS = [
@@ -68,6 +73,7 @@ export default function ModelCard({
 							key={visibleModel.id}
 							model={source}
 							onEvaluate={onEvaluate}
+							state={state}
 							visible={visibleModel}
 						/>
 					);
@@ -81,11 +87,13 @@ function ModelRegisterCard({
 	disabled,
 	model,
 	onEvaluate,
+	state,
 	visible,
 }: {
 	disabled: boolean;
 	model: Model;
 	onEvaluate: (modelId: string, evaluation: EvaluationKind) => void;
+	state: GameState;
 	visible: VisibleModelEstimate;
 }) {
 	const evaluations =
@@ -96,7 +104,24 @@ function ModelRegisterCard({
 					safety_reliability: true,
 				}) as EvaluationKind[]);
 	const activeEvaluation = model.projectId;
-	const project = model.projectId;
+	const activeProject = model.projectId
+		? state.projects.items.find((candidate) => candidate.id === model.projectId)
+		: undefined;
+	const trainingProject =
+		model.status === "training" && activeProject?.kind === "training"
+			? activeProject
+			: undefined;
+	const trainingProgress = trainingProject
+		? Math.min(
+				100,
+				Math.max(
+					0,
+					Math.round(
+						(trainingProject.progress / trainingProject.duration) * 100,
+					),
+				),
+			)
+		: undefined;
 	return (
 		<article className="surface-card p-3">
 			<div className="flex items-start justify-between gap-3">
@@ -125,10 +150,23 @@ function ModelRegisterCard({
 				<StatusLabel status={model.status} />
 			</div>
 
-			{project ? (
+			{activeProject ? (
 				<p className="mt-3 border border-primary/25 bg-primary/5 px-2 py-1.5 text-primary text-xs">
-					Project active · {project}
+					Project active · {activeProject.id}
 				</p>
+			) : null}
+
+			{trainingProject && trainingProgress !== undefined ? (
+				<Progress
+					aria-label={`${visible.name} training progress`}
+					className="mt-3 gap-1.5"
+					value={trainingProgress}
+				>
+					<ProgressLabel className="text-muted-foreground">
+						Training progress
+					</ProgressLabel>
+					<ProgressValue>{() => `${trainingProgress}%`}</ProgressValue>
+				</Progress>
 			) : null}
 
 			{visible.estimates ? (

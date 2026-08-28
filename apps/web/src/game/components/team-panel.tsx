@@ -4,6 +4,11 @@ import {
 	selectTeams,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import {
+	Progress,
+	ProgressLabel,
+	ProgressValue,
+} from "@ai-lab-tycoon/ui/components/progress";
 import { CheckCircle2, CircleDashed, OctagonAlert } from "lucide-react";
 
 import ProjectPicker from "@/game/components/project-picker";
@@ -161,19 +166,16 @@ function ActiveProject({
 					Cancel
 				</Button>
 			</div>
-			<div
-				aria-label={`${projectLabel(project.kind)} progress ${progress}%`}
-				className="h-1.5 bg-muted"
-				role="progressbar"
-				aria-valuemax={100}
-				aria-valuemin={0}
-				aria-valuenow={progress}
+			<Progress
+				aria-label={`${projectLabel(project.kind)} progress`}
+				className="mt-1 gap-1.5"
+				value={Math.min(100, Math.max(0, progress))}
 			>
-				<div
-					className="h-full bg-primary transition-[width]"
-					style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-				/>
-			</div>
+				<ProgressLabel className="text-muted-foreground">
+					Project progress
+				</ProgressLabel>
+				<ProgressValue>{() => `${progress}%`}</ProgressValue>
+			</Progress>
 			<p className="text-muted-foreground text-xs">
 				{project.progress} / {project.duration} weeks · {project.id}
 			</p>

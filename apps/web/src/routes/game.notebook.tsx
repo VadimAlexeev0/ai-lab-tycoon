@@ -27,7 +27,6 @@ function NotebookRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / lab notebook"
 			title="Lab notebook"
 			description="Collect the first-time discoveries that make this run legible, one mechanical event at a time."
 			headerVisual={<PlaceholderBadge />}

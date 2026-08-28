@@ -27,7 +27,6 @@ function AgiProgramRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / AGI program"
 			title="AGI program vault"
 			description="A late-game assembly board for the keystones and program pieces that arrive across Eras IV–VI."
 			headerVisual={<PlaceholderBadge />}

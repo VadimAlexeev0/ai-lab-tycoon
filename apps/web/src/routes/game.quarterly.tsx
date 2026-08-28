@@ -27,7 +27,6 @@ function QuarterlyRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / quarterly review"
 			title="Quarterly review"
 			description="A narrative checkpoint for the decisions, trade-offs, and expectations that shaped the last thirteen weeks."
 			headerVisual={<PlaceholderBadge />}

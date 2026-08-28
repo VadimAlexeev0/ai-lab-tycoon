@@ -1,4 +1,9 @@
 import { type GameState, selectRivals } from "@ai-lab-tycoon/engine";
+import {
+	Progress,
+	ProgressLabel,
+	ProgressValue,
+} from "@ai-lab-tycoon/ui/components/progress";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Eye, Gauge } from "lucide-react";
 
@@ -104,6 +109,18 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 										progress={rival.progress}
 									/>
 								</div>
+								<Progress
+									aria-label={`${rival.name} public progress`}
+									className="mt-3 gap-1.5"
+									value={Math.min(100, Math.max(0, rival.progress))}
+								>
+									<ProgressLabel className="text-muted-foreground">
+										Public progress
+									</ProgressLabel>
+									<ProgressValue>
+										{() => `${Math.min(100, Math.max(0, rival.progress))}%`}
+									</ProgressValue>
+								</Progress>
 								<div className="mt-2 space-y-1">
 									<span
 										className={cn(

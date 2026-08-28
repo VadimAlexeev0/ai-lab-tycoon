@@ -30,13 +30,11 @@ function ProductsRoute() {
 	if (game.state === null) return null;
 
 	function restartRun() {
-		game.chooseNewRun();
-		void navigate({ to: "/" });
+		void navigate({ to: "/play", search: { new: "1" } });
 	}
 
 	return (
 		<GamePage
-			eyebrow="Module 04 / market operations"
 			title="Products"
 			description="Turn model readiness into operating products, watch compute demand, and keep funding and rival pressure in view."
 		>

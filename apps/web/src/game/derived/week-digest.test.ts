@@ -1,7 +1,11 @@
 import { type Fact, startRun } from "@ai-lab-tycoon/engine";
 import { describe, expect, it } from "vitest";
 
-import { deriveWeekDigest, diffResourceBar } from "./week-digest";
+import {
+	deriveWeekDigest,
+	diffResourceBar,
+	summarizeWeekDigest,
+} from "./week-digest";
 
 function report(id: string, fact: Fact) {
 	return {
@@ -110,6 +114,43 @@ describe("deriveWeekDigest", () => {
 			insight: 15,
 			trust: -10,
 			hype: 0,
+		});
+	});
+
+	describe("summarizeWeekDigest", () => {
+		it("names the most useful events and cash movement", () => {
+			const previous = startRun({ companyName: "Acme Labs" }, 42);
+			const current = startRun({ companyName: "Acme Labs" }, 42);
+			current.meta.week = 14;
+			current.reports.items = [
+				report("launch", {
+					kind: "product_launched",
+					productId: "Apex-1",
+					channel: "enterprise",
+					week: 14,
+				}),
+				report("incident", {
+					kind: "incident_resolved",
+					incidentId: "incident_001",
+					incident: "outage",
+					response: "repair",
+					week: 14,
+				}),
+			];
+			current.company.cash = previous.company.cash + 800;
+
+			const digest = deriveWeekDigest(previous, current);
+
+			expect(
+				summarizeWeekDigest(digest, diffResourceBar(previous, current)),
+			).toBe("Week 14: Apex-1 launched · Outage contained · +$800");
+		});
+
+		it("provides a calm empty-state summary", () => {
+			const state = startRun({ companyName: "Acme Labs" }, 42);
+			expect(summarizeWeekDigest(deriveWeekDigest(null, state))).toBe(
+				"Week 1: No new activity recorded.",
+			);
 		});
 	});
 });

@@ -1,23 +1,12 @@
+import type { GameState } from "@ai-lab-tycoon/engine";
 import {
 	type DecisionChoice,
 	type FundingRound,
-	type GameState,
 	type PendingDecision,
 	selectPendingDecisions,
 	selectVisibleModels,
 } from "@ai-lab-tycoon/engine";
-import { Avatar, AvatarFallback } from "@ai-lab-tycoon/ui/components/avatar";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuShortcut,
-	DropdownMenuTrigger,
-} from "@ai-lab-tycoon/ui/components/dropdown-menu";
-import { Separator } from "@ai-lab-tycoon/ui/components/separator";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import {
 	createFileRoute,
@@ -37,9 +26,7 @@ import {
 	FlaskConical,
 	GitBranch,
 	House,
-	Keyboard,
 	Loader2,
-	MoreHorizontal,
 	Newspaper,
 	PanelTop,
 	RotateCcw,
@@ -61,6 +48,10 @@ import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
 import ResourceBar from "@/game/components/resource-bar";
+import RunMenu from "@/game/components/run-menu";
+import WeekDigestCard from "@/game/components/week-digest-card";
+import { useWeekDigest } from "@/game/derived/use-week-digest";
+import { summarizeWeekDigest } from "@/game/derived/week-digest";
 import { GameStateProvider, useRunState } from "@/game/game-state-context";
 
 export type GameSearch = {
@@ -113,16 +104,8 @@ function GameLayout() {
 		(decision) => decision.id === search.decision,
 	);
 	const isActive = game.activeRun !== null && game.screen === "active";
-	const reportCountThisWeek =
-		state === null
-			? 0
-			: state.reports.items.filter(
-					(report) => report.fact.week === state.meta.week,
-				).length;
-	const liveAnnouncement =
-		state === null
-			? ""
-			: `Week ${state.meta.week}. ${reportCountThisWeek} new ${reportCountThisWeek === 1 ? "report" : "reports"}.`;
+	const { digest, deltas } = useWeekDigest(state, game.revision);
+	const liveAnnouncement = isActive ? summarizeWeekDigest(digest, deltas) : "";
 
 	useEffect(() => {
 		if (
@@ -171,8 +154,7 @@ function GameLayout() {
 	}
 
 	function startNewRun() {
-		game.chooseNewRun();
-		void navigate({ to: "/" });
+		void navigate({ to: "/play", search: { new: "1" } });
 	}
 
 	return (
@@ -191,95 +173,39 @@ function GameLayout() {
 					{isActive ? liveAnnouncement : ""}
 				</div>
 				<div className="mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
-					<header className="flex flex-col gap-3 pb-4 lg:flex-row lg:items-end lg:justify-between">
-						<div className="min-w-0 space-y-1.5">
-							<p className="meta-label text-primary">
-								Operations / command console
+					<header className="flex min-h-11 items-center justify-between gap-3 border-border/70 border-b pb-3">
+						<div className="min-w-0">
+							<p className="truncate font-display font-semibold text-foreground text-lg sm:text-xl">
+								{isActive && state !== null
+									? state.company.name
+									: "AI Startup Lab Tycoon"}
 							</p>
-							<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-								<h1 className="font-display font-semibold text-3xl text-foreground sm:text-4xl">
-									AI Startup Lab Tycoon
-								</h1>
-								<span className="text-muted-foreground text-xs">
-									V1 / deterministic sandbox
-								</span>
-							</div>
-							{isActive && state !== null ? (
-								<p className="max-w-2xl text-muted-foreground text-sm leading-6">
-									{state.company.name} · Every decision spends resources, moves
-									the frontier, and leaves a mechanical record.
-								</p>
-							) : (
-								<p className="max-w-2xl text-muted-foreground text-sm leading-6">
-									A route-per-element command center for deterministic AI
-									company operations.
-								</p>
-							)}
 						</div>
-						<div className="flex max-w-full flex-wrap items-center gap-2 self-start lg:self-end">
+						<div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+							{isActive && state !== null ? (
+								<EraBadge era={state.research.currentEra} size="compact" />
+							) : null}
 							<SessionBadge
 								label={game.sessionLabel}
 								status={game.session.status}
 							/>
-							{isActive && state !== null ? (
-								<EraBadge era={state.research.currentEra} size="compact" />
-							) : null}
 							{isActive ? (
-								<DropdownMenu>
-									<DropdownMenuTrigger
-										aria-label="Open run actions"
-										render={
-											<Button
-												aria-label="Open run actions"
-												size="icon"
-												type="button"
-												variant="outline"
-											/>
-										}
-									>
-										<Avatar aria-hidden="true" size="sm">
-											<AvatarFallback>
-												<MoreHorizontal className="size-4" />
-											</AvatarFallback>
-										</Avatar>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuLabel>Run actions</DropdownMenuLabel>
-										<DropdownMenuItem onClick={startNewRun}>
-											<ArrowRight data-icon="inline-start" aria-hidden="true" />
-											New run
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											disabled={game.saveState.status === "deleting"}
-											onClick={() => void game.deleteRun()}
-											variant="destructive"
-										>
-											<X data-icon="inline-start" aria-hidden="true" />
-											Delete run
-										</DropdownMenuItem>
-										<DropdownMenuSeparator />
-										<DropdownMenuItem disabled>
-											<Keyboard data-icon="inline-start" aria-hidden="true" />
-											Keyboard shortcuts
-											<DropdownMenuShortcut>Wave 2</DropdownMenuShortcut>
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
+								<RunMenu onDeleteRun={game.deleteRun} onNewRun={startNewRun} />
 							) : null}
 						</div>
 					</header>
-					<Separator />
 
 					{isActive && state !== null ? (
 						<>
 							<div className="grid min-w-0 gap-3">
-								<ResourceBar state={state} />
+								<ResourceBar revision={game.revision} state={state} />
 							</div>
 							<AdvanceWeekButton
 								onAdvanced={game.handleAdvanced}
 								revision={game.revision}
 								state={state}
 							/>
+							<WeekDigestCard digest={digest} deltas={deltas} />
 							<Navigation />
 							<ActionFeedback
 								actionError={game.actionError}

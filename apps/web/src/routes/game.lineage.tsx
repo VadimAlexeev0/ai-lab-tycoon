@@ -25,7 +25,6 @@ function LineageRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / model lineage"
 			title="Model lineage gallery"
 			description="Trace the public family tree of this run's models, from fresh foundations through continued and distilled descendants."
 			headerVisual={<PlaceholderBadge />}

@@ -1,5 +1,14 @@
 import { type GameState, type RunSetup, startRun } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@ai-lab-tycoon/ui/components/dialog";
 import { Input } from "@ai-lab-tycoon/ui/components/input";
 import { Label } from "@ai-lab-tycoon/ui/components/label";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
@@ -61,19 +70,36 @@ export default function StartRunForm({
 	const [selectedFounder, setSelectedFounder] = useState<
 		(typeof FOUNDER_ARCHETYPES)[number]["id"] | null
 	>(null);
+	const [pendingStart, setPendingStart] = useState<{
+		setup: RunSetup;
+		seed: number;
+	} | null>(null);
+	const [confirmNewRunOpen, setConfirmNewRunOpen] = useState(false);
+
+	async function startRunNow(setup: RunSetup, seed: number) {
+		setIsStarting(true);
+		try {
+			// Calling the engine command here keeps web validation identical to the
+			// persisted command semantics instead of maintaining a second schema.
+			const state = startRun(setup, seed);
+			const record = await persistActiveRun(state);
+			await onStarted({ state, record });
+		} catch (cause: unknown) {
+			setError(toErrorMessage(cause, "The new run could not be saved."));
+		} finally {
+			setIsStarting(false);
+		}
+	}
+
+	async function confirmNewRun() {
+		if (pendingStart === null) return;
+		setConfirmNewRunOpen(false);
+		await startRunNow(pendingStart.setup, pendingStart.seed);
+	}
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
 		event.preventDefault();
 		setError(null);
-
-		if (
-			hasExistingRun &&
-			!window.confirm(
-				"Start a new run? This replaces your current saved run and cannot be undone.",
-			)
-		) {
-			return;
-		}
 
 		const setup: RunSetup = { companyName: companyName.trim() };
 		const seedResult = parseSeed(seedInput);
@@ -82,18 +108,13 @@ export default function StartRunForm({
 			return;
 		}
 
-		setIsStarting(true);
-		try {
-			// Calling the engine command here keeps web validation identical to the
-			// persisted command semantics instead of maintaining a second schema.
-			const state = startRun(setup, seedResult);
-			const record = await persistActiveRun(state);
-			await onStarted({ state, record });
-		} catch (cause: unknown) {
-			setError(toErrorMessage(cause, "The new run could not be saved."));
-		} finally {
-			setIsStarting(false);
+		if (hasExistingRun) {
+			setPendingStart({ setup, seed: seedResult });
+			setConfirmNewRunOpen(true);
+			return;
 		}
+
+		await startRunNow(setup, seedResult);
 	}
 
 	return (
@@ -225,6 +246,30 @@ export default function StartRunForm({
 					{isStarting ? "Initializing run…" : "Start run"}
 				</Button>
 			</form>
+
+			<Dialog onOpenChange={setConfirmNewRunOpen} open={confirmNewRunOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Replace the saved run?</DialogTitle>
+						<DialogDescription>
+							Starting a new run permanently replaces the current anonymous
+							autosave. This action cannot be undone.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<DialogClose render={<Button type="button" variant="outline" />}>
+							Cancel
+						</DialogClose>
+						<Button
+							disabled={isStarting}
+							onClick={() => void confirmNewRun()}
+							type="button"
+						>
+							Replace and start
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</section>
 	);
 }

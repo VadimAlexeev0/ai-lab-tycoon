@@ -105,6 +105,47 @@ export function emptyResourceDeltas(): ResourceDeltas {
 	};
 }
 
+/** Create a compact, human-readable line for live announcements and cards. */
+export function summarizeWeekDigest(
+	digest: WeekDigest,
+	deltas: ResourceDeltas = emptyResourceDeltas(),
+): string {
+	const eventLabels = [
+		...digest.launches.map((fact) => `${fact.productId} launched`),
+		...digest.incidents.map((fact) =>
+			fact.kind === "incident_resolved"
+				? `${humanize(fact.incident)} contained`
+				: `${humanize(fact.incident)} incident reported`,
+		),
+		...digest.trainingCompletions.map((fact) => `${fact.modelId} trained`),
+		...digest.evaluations.map((fact) => `${fact.modelId} evaluated`),
+		...digest.fundingEvents.map(
+			(fact) =>
+				`${fact.round === "series_a" ? "Series A" : "Seed"} funding ${fact.outcome}`,
+		),
+		...digest.projectCompletions.map((fact) => `${fact.projectId} completed`),
+	];
+	const visibleEvents = eventLabels.slice(0, 3);
+	if (eventLabels.length > visibleEvents.length) {
+		visibleEvents.push(
+			`+${eventLabels.length - visibleEvents.length} more events`,
+		);
+	}
+
+	const resourceLabels = [
+		deltas.cash === 0 ? null : formatSignedCurrency(deltas.cash),
+		deltas.insight === 0
+			? null
+			: formatSignedResource(deltas.insight, "insight"),
+		deltas.trust === 0 ? null : formatSignedResource(deltas.trust, "trust"),
+		deltas.hype === 0 ? null : formatSignedResource(deltas.hype, "hype"),
+	].filter((label): label is string => label !== null);
+	const parts = [...visibleEvents, ...resourceLabels];
+	return parts.length === 0
+		? `Week ${digest.week}: No new activity recorded.`
+		: `Week ${digest.week}: ${parts.join(" · ")}`;
+}
+
 function factsOfKind<K extends Fact["kind"]>(
 	facts: readonly Fact[],
 	kind: K,
@@ -132,4 +173,20 @@ function subtractResourceBars(
 		trust: current.trust - previous.trust,
 		hype: current.hype - previous.hype,
 	};
+}
+
+const numberFormatter = new Intl.NumberFormat("en-US");
+
+function formatSignedCurrency(value: number): string {
+	return `${value > 0 ? "+" : "−"}$${numberFormatter.format(Math.abs(value))}`;
+}
+
+function formatSignedResource(value: number, name: string): string {
+	return `${value > 0 ? "+" : "−"}${numberFormatter.format(Math.abs(value))} ${name}`;
+}
+
+function humanize(value: string): string {
+	return value
+		.replaceAll("_", " ")
+		.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }

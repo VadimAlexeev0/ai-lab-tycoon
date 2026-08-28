@@ -1,8 +1,9 @@
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertCircle, Play, RotateCcw, Save, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlertCircle, Play, RotateCcw, Save } from "lucide-react";
+import { type ReactNode, useEffect } from "react";
 import ArtFrame from "@/game/components/art-frame";
+import RunMenu from "@/game/components/run-menu";
 import StartRunForm from "@/game/components/start-run-form";
 import {
 	type ActiveRunSnapshot,
@@ -10,6 +11,10 @@ import {
 	useRunState,
 } from "@/game/game-state-context";
 import type { ActiveRunRecord } from "@/utils/orpc";
+
+export type PlaySearch = {
+	new?: "1";
+};
 
 export const Route = createFileRoute("/play")({
 	head: () => ({
@@ -22,6 +27,7 @@ export const Route = createFileRoute("/play")({
 			},
 		],
 	}),
+	validateSearch: validatePlaySearch,
 	component: HomeComponent,
 });
 
@@ -35,8 +41,16 @@ function HomeComponent() {
 
 function StartScreen() {
 	const game = useRunState();
+	const search = Route.useSearch();
 	const navigate = useNavigate();
 	const isDeleting = game.saveState.status === "deleting";
+	const forceNewRun = search.new === "1";
+
+	useEffect(() => {
+		if (forceNewRun && game.screen !== "new") {
+			game.chooseNewRun();
+		}
+	}, [forceNewRun, game.chooseNewRun, game.screen]);
 
 	async function enterGame() {
 		await navigate({ to: "/game" });
@@ -75,7 +89,7 @@ function StartScreen() {
 
 	return (
 		<SelectionScreen>
-			{game.screen === "selection" && game.savedRun !== null ? (
+			{!forceNewRun && game.screen === "selection" && game.savedRun !== null ? (
 				<ResumeRunState
 					disabled={isDeleting}
 					onDelete={() => void game.deleteRun()}
@@ -83,7 +97,7 @@ function StartScreen() {
 					onResume={resumeRun}
 					run={game.savedRun}
 				/>
-			) : game.screen === "new" ? (
+			) : game.screen === "new" || forceNewRun ? (
 				<StartRunForm
 					hasExistingRun={game.savedRun !== null}
 					onStarted={handleStarted}
@@ -100,28 +114,19 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 		<section
 			aria-labelledby="run-selection-heading"
 			className="surface-card relative isolate overflow-hidden p-4 sm:p-5"
+			id="main-content"
+			tabIndex={-1}
 		>
 			<div
 				aria-hidden="true"
-				className="pointer-events-none absolute inset-2 z-0 hidden sm:inset-3 dark:block"
+				className="pointer-events-none absolute inset-2 z-0 sm:inset-3"
 			>
 				<ArtFrame
 					alt=""
 					className="h-full w-full rounded-xl ring-white/10"
 					loading="eager"
 					src="/art-v2/hero-single-monolith.png"
-					tint="bg-background/20"
-				/>
-			</div>
-			<div
-				aria-hidden="true"
-				className="pointer-events-none absolute inset-2 z-0 sm:inset-3 dark:hidden"
-			>
-				<ArtFrame
-					alt=""
-					className="h-full w-full rounded-xl ring-white/10"
-					src="/art-v2/fog-monolith-alt.png"
-					tint="bg-background/10"
+					tint="bg-primary/10"
 				/>
 			</div>
 			<div
@@ -204,15 +209,12 @@ function ResumeRunState({
 				>
 					Start new run
 				</Button>
-				<Button
-					disabled={disabled}
-					onClick={onDelete}
-					type="button"
-					variant="destructive"
-				>
-					<Trash2 data-icon="inline-start" aria-hidden="true" />
-					{disabled ? "Deleting…" : "Delete run"}
-				</Button>
+				<RunMenu
+					includeNewRun={false}
+					deleting={disabled}
+					onDeleteRun={onDelete}
+					triggerLabel="Open saved run actions"
+				/>
 			</div>
 		</section>
 	);
@@ -318,4 +320,8 @@ function SaveErrorState({
 			</Button>
 		</section>
 	);
+}
+
+function validatePlaySearch(search: Record<string, unknown>): PlaySearch {
+	return { new: search.new === "1" ? "1" : undefined };
 }

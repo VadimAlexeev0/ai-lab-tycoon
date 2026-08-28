@@ -29,7 +29,6 @@ function ModelsRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Module 03 / model workbench"
 			title="Models"
 			description="Design, train, and evaluate models while keeping private engine scores behind the public estimate boundary."
 		>

@@ -27,7 +27,6 @@ function ChronicleRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / company chronicle"
 			title="Company chronicle"
 			description="Read the run as a manuscript of mechanical facts, milestones, quiet weeks, and the branches that a future replay may open."
 			headerVisual={<PlaceholderBadge />}

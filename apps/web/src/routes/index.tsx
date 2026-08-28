@@ -80,7 +80,7 @@ function LandingPage() {
 		<main
 			id="main-content"
 			tabIndex={-1}
-			className="h-full min-h-0 overflow-y-auto overflow-x-clip bg-background"
+			className="game-shell h-full min-h-0 overflow-y-auto overflow-x-clip bg-background"
 		>
 			<section
 				aria-labelledby="landing-hero-heading"
@@ -155,6 +155,12 @@ function LandingPage() {
 								<HeroSignal label="Replayable" value="∞" />
 								<HeroSignal label="No timers" value="00" />
 							</div>
+						</div>
+						<div className="surface-card hidden border-primary/25 bg-background/55 p-4 backdrop-blur-sm sm:block lg:hidden">
+							<p className="meta-label text-primary">Operating premise</p>
+							<p className="mt-2 font-display font-medium text-foreground text-lg leading-tight">
+								Progress compounds. So does responsibility.
+							</p>
 						</div>
 					</div>
 					<div className="anim-fade-up hidden min-w-0 justify-self-end lg:block">
@@ -288,6 +294,7 @@ function LandingPage() {
 						The archive is where a run becomes more than a score: a record of
 						what you noticed and what you chose.
 					</p>
+					<PlaceholderBadge className="self-start sm:self-end" />
 				</div>
 				<div className="mt-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 					{ARCHIVE_SURFACES.map((surface) => (
@@ -308,7 +315,6 @@ function LandingPage() {
 							<p className="mt-3 text-muted-foreground text-sm leading-6">
 								{surface.description}
 							</p>
-							<PlaceholderBadge className="mt-5 w-full justify-center text-center" />
 						</Link>
 					))}
 				</div>

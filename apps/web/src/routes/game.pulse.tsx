@@ -27,7 +27,6 @@ function PulseRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Archive / industry pulse"
 			title="Industry pulse"
 			description="A deterministic press desk for the public clocks, market shifts, and rival signals around your lab."
 			headerVisual={<PlaceholderBadge />}

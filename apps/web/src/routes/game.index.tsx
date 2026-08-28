@@ -32,7 +32,6 @@ function DashboardRoute() {
 
 	return (
 		<GamePage
-			eyebrow="Module 00 / control room"
 			title="Command overview"
 			description="Read the lab's current health, resource posture, and next mechanical objective before choosing the next route."
 		>
