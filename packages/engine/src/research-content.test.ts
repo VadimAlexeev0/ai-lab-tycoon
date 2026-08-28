@@ -100,7 +100,7 @@ describe("LLM-history research content", () => {
 		).toBe(true);
 	});
 
-	it("keeps descriptions concise and insight pacing within the old tree budget", () => {
+	it("keeps descriptions concise and insight pacing within the tiered tree budget", () => {
 		expect(
 			nodes.every(
 				(node) =>
@@ -109,6 +109,9 @@ describe("LLM-history research content", () => {
 					(node.description as string).length < 160,
 			),
 		).toBe(true);
+		expect(new Set(RESEARCH_NODES.map((node) => node.insightCost))).toEqual(
+			new Set([1, 2, 4]),
+		);
 		expect(
 			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
 		).toBeGreaterThanOrEqual(70);

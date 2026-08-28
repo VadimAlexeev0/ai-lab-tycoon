@@ -18,7 +18,7 @@ export const CONVERGENCE_NODES = [
 		category: "convergence",
 		branch: MODELS_BRANCH,
 		status: "locked",
-		insightCost: 4,
+		insightCost: 2,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"computer_use",
@@ -35,7 +35,7 @@ export const CONVERGENCE_NODES = [
 		category: "convergence",
 		branch: PRODUCTS_SAFETY_BRANCH,
 		status: "locked",
-		insightCost: 3,
+		insightCost: 4,
 		prerequisites: [
 			ASSISTANT_MODELS_KEYSTONE_ID,
 			"rag_memory",
