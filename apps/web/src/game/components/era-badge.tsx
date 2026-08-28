@@ -1,10 +1,15 @@
 import type { GameState } from "@ai-lab-tycoon/engine";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
-
-import ArtFrame from "@/game/components/art-frame";
+import { Layers3, type LucideIcon, MessageCircle, Type } from "lucide-react";
 
 export const ERA_ORDER = ["text", "assistant", "multimodal"] as const;
 export type Era = (typeof ERA_ORDER)[number];
+
+const ERA_ICONS: Record<Era, LucideIcon> = {
+	text: Type,
+	assistant: MessageCircle,
+	multimodal: Layers3,
+};
 
 export const ERA_LABELS: Record<Era, string> = {
 	text: "Text era",
@@ -57,6 +62,7 @@ export default function EraBadge({
 	const progressLabel = progress
 		? `${progress.completed}/${progress.total} nodes to ${nextLabel}`
 		: undefined;
+	const EraIcon = ERA_ICONS[era];
 
 	return (
 		<span
@@ -69,12 +75,18 @@ export default function EraBadge({
 			data-era-size={size}
 			role="status"
 		>
-			<ArtFrame
-				alt=""
-				className={cn("shrink-0", isHeader ? "size-8" : "size-6")}
-				src="/art-v2/torus-ice.png"
-				tint="bg-primary/10"
-			/>
+			<span
+				aria-hidden="true"
+				className={cn(
+					"flex shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary ring-1 ring-primary/30",
+					isHeader ? "size-8" : "size-6",
+				)}
+			>
+				<EraIcon
+					className={isHeader ? "size-4" : "size-3.5"}
+					strokeWidth={1.75}
+				/>
+			</span>
 			<span className="min-w-0">
 				<span className="block truncate font-semibold text-xs">
 					{ERA_LABELS[era]}

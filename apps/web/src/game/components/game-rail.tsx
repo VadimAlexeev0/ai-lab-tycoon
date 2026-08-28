@@ -12,8 +12,8 @@ import {
 	Archive,
 	BookOpen,
 	BrainCircuit,
-	CalendarDays,
 	BriefcaseBusiness,
+	CalendarDays,
 	ChartNoAxesCombined,
 	FlaskConical,
 	GitBranch,
@@ -329,16 +329,27 @@ function RailLink({
 			aria-current={active ? "page" : undefined}
 			aria-label={text}
 			className={cn(
-				"group flex min-h-11 min-w-0 items-center justify-center gap-3 rounded-lg border-transparent border-l-2 px-2 text-xs transition-colors lg:justify-start",
+				"group relative flex min-h-11 min-w-0 items-center justify-center gap-3 rounded-lg px-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:justify-start",
 				active
 					? archive
-						? "border-l-[var(--game-amber)] bg-[var(--game-amber)]/15 text-[var(--game-amber)] shadow-[inset_2px_0_0_var(--game-amber)]"
-						: "border-l-primary bg-primary/10 text-foreground shadow-[inset_2px_0_0_var(--primary)]"
+						? "bg-[var(--game-amber)]/10 text-[var(--game-amber)] hover:bg-[var(--game-amber)]/15"
+						: "bg-primary/10 text-foreground hover:bg-primary/15"
 					: "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
 			)}
 			to={destination.to}
 			title={text}
 		>
+			{active ? (
+				<span
+					aria-hidden="true"
+					className={cn(
+						"pointer-events-none absolute inset-y-2 left-0 w-0.5 rounded-full",
+						archive
+							? "bg-gradient-to-b from-[var(--game-amber)]/40 via-[var(--game-amber)] to-[var(--game-amber)]/70"
+							: "bg-gradient-to-b from-primary/40 via-primary to-primary/70",
+					)}
+				/>
+			) : null}
 			<Icon className="size-4 shrink-0" aria-hidden="true" />
 			<span className="hidden min-w-0 truncate lg:block">{text}</span>
 		</Link>
