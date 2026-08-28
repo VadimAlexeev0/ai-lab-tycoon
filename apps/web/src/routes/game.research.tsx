@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 
 import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
+import ResearchConstellation from "@/game/components/research-constellation";
 import ResearchTimeline from "@/game/components/research-timeline";
 import { useRunState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
@@ -59,6 +60,18 @@ function ResearchRoute() {
 				</>
 			}
 		>
+			<section
+				aria-label="Research frontier constellation"
+				className="glass-pane glass-edge overflow-hidden"
+			>
+				<Suspense
+					fallback={
+						<PanelLoadingState label="Loading research constellation…" />
+					}
+				>
+					<ResearchConstellation state={game.state} />
+				</Suspense>
+			</section>
 			<Suspense
 				fallback={<PanelLoadingState label="Loading research frontier map…" />}
 			>

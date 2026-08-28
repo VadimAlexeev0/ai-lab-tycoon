@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import GamePage from "@/game/components/game-page";
+import MarketPulse from "@/game/components/market-pulse";
 import { IndustryPulse } from "@/game/components/news-ticker";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
 import { useRunState } from "@/game/game-state-context";
@@ -31,6 +32,12 @@ function PulseRoute() {
 			description="A deterministic press desk for the public clocks, market shifts, and rival signals around your lab."
 			headerVisual={<PlaceholderBadge />}
 		>
+			<section
+				aria-label="Market pulse waveform"
+				className="glass-pane glass-edge overflow-hidden"
+			>
+				<MarketPulse className="h-32 sm:h-44" state={game.state} weeks={13} />
+			</section>
 			<IndustryPulse
 				rivalProgressPct={search.rivalProgress}
 				state={game.state}

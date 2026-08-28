@@ -72,7 +72,7 @@ export default function NewsTicker({
 
 	if (hidden) {
 		return (
-			<div className="ailt-ticker-dock fixed inset-x-0 bottom-[4.25rem] z-30 flex justify-center px-3 lg:bottom-0 lg:justify-end lg:px-6 lg:pb-3">
+			<div className="ailt-ticker-dock fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 lg:justify-end lg:px-6 lg:pb-3">
 				<Button
 					aria-label="Show industry news ticker"
 					onClick={() => setHidden(false)}

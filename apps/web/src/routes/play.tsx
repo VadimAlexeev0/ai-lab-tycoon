@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertCircle, Play, RotateCcw, Save } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import ArtFrame from "@/game/components/art-frame";
+import MonolithAmbiance from "@/game/components/monolith-ambiance";
 import RunMenu from "@/game/components/run-menu";
 import StartRunForm from "@/game/components/start-run-form";
 import {
@@ -117,6 +118,7 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 			id="main-content"
 			tabIndex={-1}
 		>
+			<MonolithAmbiance />
 			<div
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-2 z-0 sm:inset-3"

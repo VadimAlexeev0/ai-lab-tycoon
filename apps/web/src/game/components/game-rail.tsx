@@ -147,7 +147,7 @@ export default function GameRail() {
 	return (
 		<aside
 			aria-label="Game command rail"
-			className="sticky top-0 z-30 flex h-dvh min-h-0 w-16 min-w-16 flex-col overflow-y-auto border-border/70 border-r bg-background/75 px-2 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:w-56 lg:min-w-56 lg:px-3"
+			className="fixed inset-y-0 left-0 z-30 flex h-dvh min-h-0 w-16 min-w-16 flex-col overflow-y-auto border-border/70 border-r bg-background/75 px-2 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm lg:w-56 lg:px-3"
 		>
 			<div className="flex min-w-0 flex-col gap-3">
 				<Link

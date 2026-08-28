@@ -4,6 +4,7 @@ import ComputeGrid from "@/game/components/compute-grid";
 import ComputePanel from "@/game/components/compute-panel";
 import FundingPanel from "@/game/components/funding-panel";
 import GamePage from "@/game/components/game-page";
+import MarketPulse from "@/game/components/market-pulse";
 import ProductPanel from "@/game/components/product-panel";
 import RivalsPanel from "@/game/components/rivals-panel";
 import RunResult from "@/game/components/run-result";
@@ -39,6 +40,12 @@ function ProductsRoute() {
 			description="Turn model readiness into operating products, watch compute demand, and keep funding and rival pressure in view."
 		>
 			<div className="space-y-6">
+				<section
+					aria-label="Market pulse waveform"
+					className="glass-pane glass-edge overflow-hidden"
+				>
+					<MarketPulse className="h-20 sm:h-24" state={game.state} weeks={26} />
+				</section>
 				<ProductPanel
 					disabled={game.actionBusy}
 					onResolveDecision={(choice) => {

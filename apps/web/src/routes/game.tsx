@@ -153,7 +153,7 @@ function GameLayout() {
 			<main
 				id="main-content"
 				tabIndex={-1}
-				className="game-shell h-full min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
+				className="game-shell col-start-2 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
 			>
 				<div
 					aria-atomic="true"

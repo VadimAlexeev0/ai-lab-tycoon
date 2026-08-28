@@ -1,37 +1,17 @@
 import { type GameState, selectResourceBar } from "@ai-lab-tycoon/engine";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
-import { type MutableRefObject, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 
+import {
+	createGlowTexture,
+	createThreeSceneRuntime,
+	type ThreeModule,
+	type ThreeSceneContext,
+	type ThreeSceneRuntime,
+} from "./three-scene";
+
 const FLASH_DURATION_MS = 900;
-const MAX_DEVICE_PIXEL_RATIO = 1.5;
-type ThreeConstructor<Instance> = new (...args: unknown[]) => Instance;
-type ThreeModule = {
-	AdditiveBlending: number;
-	BufferAttribute: ThreeConstructor<THREE.BufferAttribute>;
-	BufferGeometry: ThreeConstructor<THREE.BufferGeometry>;
-	CanvasTexture: ThreeConstructor<THREE.CanvasTexture>;
-	Color: ThreeConstructor<THREE.Color>;
-	Group: ThreeConstructor<THREE.Group>;
-	IcosahedronGeometry: ThreeConstructor<THREE.IcosahedronGeometry>;
-	LineBasicMaterial: ThreeConstructor<THREE.LineBasicMaterial>;
-	LineLoop: ThreeConstructor<THREE.LineLoop>;
-	MathUtils: {
-		clamp(value: number, min: number, max: number): number;
-		randFloatSpread(range: number): number;
-	};
-	Mesh: ThreeConstructor<THREE.Mesh>;
-	MeshBasicMaterial: ThreeConstructor<THREE.MeshBasicMaterial>;
-	PerspectiveCamera: ThreeConstructor<THREE.PerspectiveCamera>;
-	Points: ThreeConstructor<THREE.Points>;
-	PointsMaterial: ThreeConstructor<THREE.PointsMaterial>;
-	Scene: ThreeConstructor<THREE.Scene>;
-	SphereGeometry: ThreeConstructor<THREE.SphereGeometry>;
-	Sprite: ThreeConstructor<THREE.Sprite>;
-	SpriteMaterial: ThreeConstructor<THREE.SpriteMaterial>;
-	Vector3: ThreeConstructor<THREE.Vector3>;
-	WebGLRenderer: ThreeConstructor<THREE.WebGLRenderer>;
-};
 
 export type LabCoreVisualState = {
 	computeShortage: boolean;
@@ -45,24 +25,24 @@ type LabCoreProps = {
 	state: GameState;
 };
 
-type LabCoreTheme = {
-	amber: THREE.Color;
-	cold: THREE.Color;
-	negative: THREE.Color;
-	primary: THREE.Color;
-};
-
-type PointerState = {
-	dragging: boolean;
-	lastX: number;
-	lastY: number;
-	velocityX: number;
-	velocityY: number;
-};
-
-type LabCoreRuntime = {
-	dispose: () => void;
-	render: () => void;
+type LabCoreObjects = {
+	accentColor: THREE.Color;
+	core: THREE.Mesh;
+	coreColor: THREE.Color;
+	coreGeometry: THREE.SphereGeometry;
+	coreMaterial: THREE.MeshBasicMaterial;
+	glow: THREE.Sprite;
+	glowMaterial: THREE.SpriteMaterial;
+	glowTexture: THREE.CanvasTexture;
+	ringGeometry: THREE.BufferGeometry;
+	ringLine: THREE.LineLoop;
+	ringLineGeometry: THREE.BufferGeometry;
+	ringLineMaterial: THREE.LineBasicMaterial;
+	ringMaterial: THREE.PointsMaterial;
+	ringParticles: THREE.Points;
+	shell: THREE.Mesh;
+	shellGeometry: THREE.IcosahedronGeometry;
+	shellMaterial: THREE.MeshBasicMaterial;
 };
 
 /** Project engine state into the small set of signals the hologram needs. */
@@ -109,6 +89,7 @@ export default function LabCore({ className, state }: LabCoreProps) {
 	const flashUntilRef = useRef(0);
 	const reducedMotionRef = useRef(false);
 	const renderRef = useRef<(() => void) | null>(null);
+	const [unavailable, setUnavailable] = useState(false);
 	const visual = useMemo(() => getLabCoreVisualState(state), [state]);
 
 	useEffect(() => {
@@ -131,34 +112,44 @@ export default function LabCore({ className, state }: LabCoreProps) {
 		const canvas = canvasRef.current;
 		if (host === null || canvas === null) return;
 
-		let runtime: LabCoreRuntime | null = null;
+		let runtime: ThreeSceneRuntime | null = null;
 		let disposed = false;
 		const markUnavailable = () => {
 			if (disposed) return;
-			canvas.setAttribute(
-				"aria-label",
-				"AI core visualization is unavailable in this browser",
-			);
+			setUnavailable(true);
 		};
 
-		void Promise.all([
-			import("./lab-core-three"),
-			import("./lab-core-three-renderer"),
-		])
-			.then(([module, rendererModule]) => {
+		void import("./three-core")
+			.then((module) => {
 				if (disposed) return;
-				const THREE = {
-					...module,
-					WebGLRenderer: rendererModule.WebGLRenderer,
-				} as unknown as ThreeModule;
+				const THREE = module as unknown as ThreeModule;
 				try {
-					runtime = createLabCoreRuntime({
+					let objects: LabCoreObjects | null = null;
+					runtime = createThreeSceneRuntime({
 						THREE,
 						canvas,
-						flashUntilRef,
+						drawFrame: (context, now, deltaSeconds) => {
+							if (objects !== null) {
+								drawLabCoreFrame(
+									context,
+									objects,
+									flashUntilRef,
+									visualRef,
+									now,
+									deltaSeconds,
+								);
+							}
+						},
 						host,
+						interactive: true,
 						reducedMotionRef,
-						visualRef,
+						setup: (context) => {
+							objects = createLabCoreObjects(context);
+							return () => {
+								if (objects !== null) disposeLabCoreObjects(objects);
+								objects = null;
+							};
+						},
 					});
 				} catch {
 					markUnavailable();
@@ -180,45 +171,30 @@ export default function LabCore({ className, state }: LabCoreProps) {
 		<div
 			ref={hostRef}
 			className={cn(
-				"relative h-40 min-h-40 w-full min-w-0 overflow-hidden sm:h-60 sm:min-h-60",
+				"relative h-36 min-h-36 w-full min-w-0 overflow-hidden sm:h-56 sm:min-h-56",
 				className,
 			)}
 		>
-			<canvas ref={canvasRef} className="h-full w-full" />
+			<canvas
+				ref={canvasRef}
+				aria-hidden="true"
+				tabIndex={-1}
+				className="h-full w-full"
+			/>
+			{unavailable ? (
+				<p className="absolute inset-x-3 top-1/2 -translate-y-1/2 text-center text-muted-foreground text-xs">
+					The live core visualization is unavailable; the lab status remains in
+					the surrounding panel.
+				</p>
+			) : null}
+			<p className="sr-only">{labCoreSummary(visual)}</p>
 		</div>
 	);
 }
 
-function createLabCoreRuntime({
-	THREE,
-	canvas,
-	flashUntilRef,
-	host,
-	reducedMotionRef,
-	visualRef,
-}: {
-	THREE: ThreeModule;
-	canvas: HTMLCanvasElement;
-	flashUntilRef: MutableRefObject<number>;
-	host: HTMLDivElement;
-	reducedMotionRef: MutableRefObject<boolean>;
-	visualRef: MutableRefObject<LabCoreVisualState>;
-}): LabCoreRuntime {
-	const renderer = new THREE.WebGLRenderer({
-		alpha: true,
-		antialias: true,
-		powerPreference: "high-performance",
-		canvas,
-	});
-	renderer.setClearColor(0x000000, 0);
-
-	const scene = new THREE.Scene();
-	const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-	camera.position.z = 5.3;
-
-	const root = new THREE.Group();
+function createLabCoreObjects(context: ThreeSceneContext): LabCoreObjects {
+	const { THREE, root } = context;
 	root.rotation.x = -0.12;
-	scene.add(root);
 
 	const shellGeometry = new THREE.IcosahedronGeometry(1.2, 1);
 	const shellMaterial = new THREE.MeshBasicMaterial({
@@ -272,295 +248,150 @@ function createLabCoreRuntime({
 	ringLine.rotation.x = 0.32;
 	root.add(ringLine);
 
-	const pointer: PointerState = {
-		dragging: false,
-		lastX: 0,
-		lastY: 0,
-		velocityX: 0,
-		velocityY: 0,
-	};
-	let theme = readTheme(THREE);
-	let visible = document.visibilityState === "visible";
-	let intersecting = true;
-	let reducedMotion = window.matchMedia(
-		"(prefers-reduced-motion: reduce)",
-	).matches;
-	let frameId: number | null = null;
-	let lastFrame = performance.now();
-	let disposed = false;
-
-	reducedMotionRef.current = reducedMotion;
-
-	const accentColor = new THREE.Color();
-	const coreColor = new THREE.Color();
-
-	function canAnimate(): boolean {
-		return !disposed && visible && intersecting && !reducedMotion;
-	}
-
-	function renderScene(now: number, deltaSeconds: number): void {
-		if (disposed || !visible || !intersecting) return;
-		const visual = visualRef.current;
-		if (deltaSeconds > 0) {
-			const damping = 0.9 ** (deltaSeconds * 60);
-			if (!pointer.dragging) {
-				root.rotation.y += pointer.velocityX * deltaSeconds * 60;
-				root.rotation.x = THREE.MathUtils.clamp(
-					root.rotation.x + pointer.velocityY * deltaSeconds * 60,
-					-1.25,
-					1.25,
-				);
-				pointer.velocityX *= damping;
-				pointer.velocityY *= damping;
-			}
-
-			const orbitSpeed = visual.lost
-				? 0.02
-				: visual.trainingActive
-					? 1.7
-					: 0.78;
-			shell.rotation.y += deltaSeconds * (visual.lost ? 0.04 : 0.12);
-			shell.rotation.x += deltaSeconds * (visual.lost ? 0.015 : 0.035);
-			ringParticles.rotation.y += deltaSeconds * orbitSpeed;
-			ringParticles.rotation.z += deltaSeconds * orbitSpeed * 0.11;
-			ringLine.rotation.y += deltaSeconds * orbitSpeed * 0.82;
-			core.rotation.y -= deltaSeconds * 0.2;
-		}
-
-		const flashProgress = Math.max(
-			0,
-			Math.min(1, (flashUntilRef.current - now) / FLASH_DURATION_MS),
-		);
-		if (flashProgress === 0) flashUntilRef.current = 0;
-		const flashStrength = flashProgress * flashProgress;
-		const warningPulse =
-			visual.computeShortage && !visual.lost && !reducedMotion
-				? 0.84 + (Math.sin(now * 0.008) + 1) * 0.08
-				: 1;
-		const accentBase = visual.lost
-			? theme.cold
-			: visual.computeShortage
-				? theme.amber
-				: theme.primary;
-		const coreBase = visual.lost
-			? theme.cold
-			: visual.computeShortage
-				? theme.negative
-				: theme.primary;
-		const shellIntensity = visual.lost ? 0.55 : 1 + flashStrength * 0.65;
-		const coreIntensity = visual.lost
-			? 0.45
-			: (visual.trainingActive ? 1.12 : 1) * warningPulse + flashStrength * 1.7;
-
-		accentColor.copy(accentBase).multiplyScalar(shellIntensity);
-		coreColor.copy(coreBase).multiplyScalar(coreIntensity);
-		shellMaterial.color.copy(accentColor);
-		shellMaterial.opacity = visual.lost
-			? 0.2
-			: visual.computeShortage
-				? 0.74
-				: 0.62;
-		ringMaterial.color.copy(accentColor);
-		ringMaterial.opacity = visual.lost
-			? 0.18
-			: visual.computeShortage
-				? 0.8
-				: 0.78;
-		ringLineMaterial.color.copy(accentColor);
-		ringLineMaterial.opacity = visual.lost
-			? 0.12
-			: visual.computeShortage
-				? 0.52
-				: 0.42;
-		coreMaterial.color.copy(coreColor);
-		coreMaterial.opacity = visual.lost
-			? 0.3
-			: Math.min(1, 0.74 * warningPulse + flashStrength * 0.22);
-		glowMaterial.color.copy(coreColor);
-		glowMaterial.opacity = visual.lost
-			? 0.08
-			: Math.min(1, 0.28 * warningPulse + flashStrength * 0.5);
-
-		const warningScale =
-			visual.computeShortage && !visual.lost && !reducedMotion
-				? 0.94 + (Math.sin(now * 0.008) + 1) * 0.045
-				: 1;
-		core.scale.setScalar(warningScale + flashStrength * 0.18);
-		glow.scale.setScalar((visual.lost ? 1.7 : 2.2) + flashStrength * 0.5);
-		renderer.render(scene, camera);
-	}
-
-	function scheduleFrame(): void {
-		if (frameId !== null || !canAnimate()) return;
-		lastFrame = performance.now();
-		frameId = requestAnimationFrame(tick);
-	}
-
-	function stopFrame(): void {
-		if (frameId === null) return;
-		cancelAnimationFrame(frameId);
-		frameId = null;
-	}
-
-	function syncFrameLoop(): void {
-		if (canAnimate()) {
-			scheduleFrame();
-		} else {
-			stopFrame();
-			if (visible && intersecting) renderScene(performance.now(), 0);
-		}
-	}
-
-	function tick(now: number): void {
-		frameId = null;
-		if (!canAnimate()) {
-			renderScene(now, 0);
-			return;
-		}
-		const deltaSeconds = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
-		lastFrame = now;
-		renderScene(now, deltaSeconds);
-		scheduleFrame();
-	}
-
-	function resize(): void {
-		const rect = host.getBoundingClientRect();
-		const width = Math.max(1, rect.width);
-		const height = Math.max(1, rect.height);
-		renderer.setPixelRatio(
-			Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO),
-		);
-		renderer.setSize(width, height, false);
-		camera.aspect = width / height;
-		camera.updateProjectionMatrix();
-		if (visible && intersecting) renderScene(performance.now(), 0);
-	}
-
-	function onPointerDown(event: PointerEvent): void {
-		if (event.pointerType === "mouse" && event.button !== 0) return;
-		pointer.dragging = true;
-		pointer.lastX = event.clientX;
-		pointer.lastY = event.clientY;
-		pointer.velocityX = 0;
-		pointer.velocityY = 0;
-		canvas.style.cursor = "grabbing";
-		canvas.setPointerCapture(event.pointerId);
-	}
-
-	function onPointerMove(event: PointerEvent): void {
-		if (!pointer.dragging) return;
-		const deltaX = event.clientX - pointer.lastX;
-		const deltaY = event.clientY - pointer.lastY;
-		pointer.lastX = event.clientX;
-		pointer.lastY = event.clientY;
-		pointer.velocityX = deltaX * 0.008;
-		pointer.velocityY = deltaY * 0.008;
-		root.rotation.y += pointer.velocityX;
-		root.rotation.x = THREE.MathUtils.clamp(
-			root.rotation.x + pointer.velocityY,
-			-1.25,
-			1.25,
-		);
-		renderScene(performance.now(), 0);
-	}
-
-	function onPointerUp(event: PointerEvent): void {
-		if (!pointer.dragging) return;
-		pointer.dragging = false;
-		if (reducedMotion) {
-			pointer.velocityX = 0;
-			pointer.velocityY = 0;
-		}
-		canvas.style.cursor = "";
-		if (canvas.hasPointerCapture(event.pointerId)) {
-			canvas.releasePointerCapture(event.pointerId);
-		}
-		syncFrameLoop();
-	}
-
-	function onVisibilityChange(): void {
-		visible = document.visibilityState === "visible";
-		syncFrameLoop();
-	}
-
-	function onIntersectionChange(entries: IntersectionObserverEntry[]): void {
-		intersecting = entries[0]?.isIntersecting ?? true;
-		syncFrameLoop();
-	}
-
-	function onMotionPreferenceChange(): void {
-		reducedMotion = window.matchMedia(
-			"(prefers-reduced-motion: reduce)",
-		).matches;
-		reducedMotionRef.current = reducedMotion;
-		if (reducedMotion) {
-			pointer.velocityX = 0;
-			pointer.velocityY = 0;
-		}
-		syncFrameLoop();
-	}
-
-	const resizeObserver = new ResizeObserver(resize);
-	resizeObserver.observe(host);
-	const intersectionObserver =
-		typeof IntersectionObserver === "undefined"
-			? null
-			: new IntersectionObserver(onIntersectionChange, { threshold: 0.01 });
-	intersectionObserver?.observe(host);
-	const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-	mediaQuery.addEventListener("change", onMotionPreferenceChange);
-	canvas.addEventListener("pointerdown", onPointerDown);
-	canvas.addEventListener("pointermove", onPointerMove);
-	canvas.addEventListener("pointerup", onPointerUp);
-	canvas.addEventListener("pointercancel", onPointerUp);
-	document.addEventListener("visibilitychange", onVisibilityChange);
-	const themeObserver = new MutationObserver(() => {
-		theme = readTheme(THREE);
-		if (visible && intersecting) renderScene(performance.now(), 0);
-	});
-	themeObserver.observe(document.documentElement, {
-		attributeFilter: ["data-mode", "data-theme", "data-theme-mode"],
-		attributes: true,
-	});
-
-	resize();
-	syncFrameLoop();
-
 	return {
-		dispose() {
-			if (disposed) return;
-			disposed = true;
-			stopFrame();
-			resizeObserver.disconnect();
-			intersectionObserver?.disconnect();
-			mediaQuery.removeEventListener("change", onMotionPreferenceChange);
-			canvas.removeEventListener("pointerdown", onPointerDown);
-			canvas.removeEventListener("pointermove", onPointerMove);
-			canvas.removeEventListener("pointerup", onPointerUp);
-			canvas.removeEventListener("pointercancel", onPointerUp);
-			document.removeEventListener("visibilitychange", onVisibilityChange);
-			themeObserver.disconnect();
-			shellGeometry.dispose();
-			shellMaterial.dispose();
-			coreGeometry.dispose();
-			coreMaterial.dispose();
-			glowTexture.dispose();
-			glowMaterial.dispose();
-			ringGeometry.dispose();
-			ringMaterial.dispose();
-			ringLineGeometry.dispose();
-			ringLineMaterial.dispose();
-			renderer.dispose();
-		},
-		render() {
-			if (visible && intersecting) renderScene(performance.now(), 0);
-			syncFrameLoop();
-		},
+		accentColor: new THREE.Color(),
+		core,
+		coreColor: new THREE.Color(),
+		coreGeometry,
+		coreMaterial,
+		glow,
+		glowMaterial,
+		glowTexture,
+		ringGeometry,
+		ringLine,
+		ringLineGeometry,
+		ringLineMaterial,
+		ringMaterial,
+		ringParticles,
+		shell,
+		shellGeometry,
+		shellMaterial,
 	};
 }
 
+function drawLabCoreFrame(
+	context: ThreeSceneContext,
+	objects: LabCoreObjects,
+	flashUntilRef: { current: number },
+	visualRef: { current: LabCoreVisualState },
+	now: number,
+	deltaSeconds: number,
+): void {
+	const { pointer, root, theme, THREE } = context;
+	const {
+		accentColor,
+		core,
+		coreColor,
+		coreMaterial,
+		glow,
+		glowMaterial,
+		ringLineMaterial,
+		ringMaterial,
+		ringParticles,
+		shell,
+		shellMaterial,
+	} = objects;
+	const visual = visualRef.current;
+	if (deltaSeconds > 0) {
+		const damping = 0.9 ** (deltaSeconds * 60);
+		if (!pointer.dragging) {
+			root.rotation.y += pointer.velocityX * deltaSeconds * 60;
+			root.rotation.x = THREE.MathUtils.clamp(
+				root.rotation.x + pointer.velocityY * deltaSeconds * 60,
+				-1.25,
+				1.25,
+			);
+			pointer.velocityX *= damping;
+			pointer.velocityY *= damping;
+		}
+
+		const orbitSpeed = visual.lost ? 0.02 : visual.trainingActive ? 1.7 : 0.78;
+		shell.rotation.y += deltaSeconds * (visual.lost ? 0.04 : 0.12);
+		shell.rotation.x += deltaSeconds * (visual.lost ? 0.015 : 0.035);
+		ringParticles.rotation.y += deltaSeconds * orbitSpeed;
+		ringParticles.rotation.z += deltaSeconds * orbitSpeed * 0.11;
+		objects.ringLine.rotation.y += deltaSeconds * orbitSpeed * 0.82;
+		core.rotation.y -= deltaSeconds * 0.2;
+	}
+
+	const flashProgress = Math.max(
+		0,
+		Math.min(1, (flashUntilRef.current - now) / FLASH_DURATION_MS),
+	);
+	if (flashProgress === 0) flashUntilRef.current = 0;
+	const flashStrength = flashProgress * flashProgress;
+	const warningPulse =
+		visual.computeShortage && !visual.lost
+			? 0.84 + (Math.sin(now * 0.008) + 1) * 0.08
+			: 1;
+	const accentBase = visual.lost
+		? theme.cold
+		: visual.computeShortage
+			? theme.amber
+			: theme.primary;
+	const coreBase = visual.lost
+		? theme.cold
+		: visual.computeShortage
+			? theme.negative
+			: theme.primary;
+	const shellIntensity = visual.lost ? 0.55 : 1 + flashStrength * 0.65;
+	const coreIntensity = visual.lost
+		? 0.45
+		: (visual.trainingActive ? 1.12 : 1) * warningPulse + flashStrength * 1.7;
+
+	accentColor.copy(accentBase).multiplyScalar(shellIntensity);
+	coreColor.copy(coreBase).multiplyScalar(coreIntensity);
+	shellMaterial.color.copy(accentColor);
+	shellMaterial.opacity = visual.lost
+		? 0.2
+		: visual.computeShortage
+			? 0.74
+			: 0.62;
+	ringMaterial.color.copy(accentColor);
+	ringMaterial.opacity = visual.lost
+		? 0.18
+		: visual.computeShortage
+			? 0.8
+			: 0.78;
+	ringLineMaterial.color.copy(accentColor);
+	ringLineMaterial.opacity = visual.lost
+		? 0.12
+		: visual.computeShortage
+			? 0.52
+			: 0.42;
+	coreMaterial.color.copy(coreColor);
+	coreMaterial.opacity = visual.lost
+		? 0.3
+		: Math.min(1, 0.74 * warningPulse + flashStrength * 0.22);
+	glowMaterial.color.copy(coreColor);
+	glowMaterial.opacity = visual.lost
+		? 0.08
+		: Math.min(1, 0.28 * warningPulse + flashStrength * 0.5);
+
+	const warningScale =
+		visual.computeShortage && !visual.lost
+			? 0.94 + (Math.sin(now * 0.008) + 1) * 0.045
+			: 1;
+	core.scale.setScalar(warningScale + flashStrength * 0.18);
+	glow.scale.setScalar((visual.lost ? 1.7 : 2.2) + flashStrength * 0.5);
+}
+
+function disposeLabCoreObjects(objects: LabCoreObjects): void {
+	objects.shellGeometry.dispose();
+	objects.shellMaterial.dispose();
+	objects.coreGeometry.dispose();
+	objects.coreMaterial.dispose();
+	objects.glowTexture.dispose();
+	objects.glowMaterial.dispose();
+	objects.ringGeometry.dispose();
+	objects.ringMaterial.dispose();
+	objects.ringLineGeometry.dispose();
+	objects.ringLineMaterial.dispose();
+}
+
 function createParticleRingGeometry(THREE: ThreeModule): THREE.BufferGeometry {
-	const particleCount = 96;
+	const coarse = window.matchMedia("(pointer: coarse)").matches;
+	const particleCount = coarse ? 48 : 96;
 	const positions = new Float32Array(particleCount * 3);
 	for (let index = 0; index < particleCount; index += 1) {
 		const angle = (index / particleCount) * Math.PI * 2;
@@ -584,47 +415,11 @@ function createRingLineGeometry(THREE: ThreeModule): THREE.BufferGeometry {
 	return new THREE.BufferGeometry().setFromPoints(points);
 }
 
-function createGlowTexture(THREE: ThreeModule): THREE.CanvasTexture {
-	const canvas = document.createElement("canvas");
-	canvas.width = 128;
-	canvas.height = 128;
-	const context = canvas.getContext("2d");
-	if (context !== null) {
-		const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
-		gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
-		gradient.addColorStop(0.25, "rgba(255, 255, 255, 0.7)");
-		gradient.addColorStop(0.58, "rgba(255, 255, 255, 0.2)");
-		gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-		context.fillStyle = gradient;
-		context.fillRect(0, 0, 128, 128);
-	}
-	return new THREE.CanvasTexture(canvas);
-}
-
-function readTheme(THREE: ThreeModule): LabCoreTheme {
-	const styles = getComputedStyle(document.documentElement);
-	return {
-		amber: readThemeColor(styles, "--game-amber", "#f5b04c", THREE),
-		cold: readThemeColor(styles, "--muted-foreground", "#7890b2", THREE),
-		negative: readThemeColor(styles, "--game-negative", "#f0655a", THREE),
-		primary: readThemeColor(styles, "--primary", "#4fd8e8", THREE),
-	};
-}
-
-function readThemeColor(
-	styles: CSSStyleDeclaration,
-	property: string,
-	fallback: string,
-	THREE: ThreeModule,
-): THREE.Color {
-	const color = new THREE.Color();
-	try {
-		color.set(styles.getPropertyValue(property).trim() || fallback);
-		if (![color.r, color.g, color.b].every(Number.isFinite)) {
-			color.set(fallback);
-		}
-	} catch {
-		color.set(fallback);
-	}
-	return color;
+function labCoreSummary(visual: LabCoreVisualState): string {
+	const mode = visual.lost
+		? "The run is lost."
+		: visual.computeShortage
+			? "Compute shortage warning is active."
+			: "Compute capacity is stable.";
+	return `Lab core telemetry: ${mode} ${visual.trainingActive ? "Training is active." : "No training project is active."}`;
 }

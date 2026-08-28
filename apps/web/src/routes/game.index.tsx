@@ -10,6 +10,7 @@ import { lazy, Suspense } from "react";
 
 import AdvanceWeekButton from "@/game/components/advance-week-button";
 import GamePage from "@/game/components/game-page";
+import MarketPulse from "@/game/components/market-pulse";
 import OverviewHero from "@/game/components/overview-hero";
 import ResourceBar from "@/game/components/resource-bar";
 import WeekDigestCard from "@/game/components/week-digest-card";
@@ -17,6 +18,9 @@ import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { useRunState } from "@/game/game-state-context";
 
 const LazyLabCore = lazy(() => import("@/game/components/lab-core"));
+const LazyRivalConstellation = lazy(
+	() => import("@/game/components/rival-constellation"),
+);
 
 export const Route = createFileRoute("/game/")({
 	head: () => ({
@@ -75,7 +79,14 @@ function DashboardRoute() {
 						}
 						deltas={deltas}
 						digest={digest}
-						marketPulse={<MarketPulseSlotPlaceholder />}
+						marketPulse={
+							<MarketPulse
+								animate={false}
+								className="h-16 min-h-16"
+								showCurrentCash={false}
+								state={state}
+							/>
+						}
 					/>
 				</div>
 				<div className="min-w-0 space-y-4">
@@ -134,34 +145,14 @@ function LabRail({ state }: { state: GameState }) {
 					</h2>
 					<span className="text-muted-foreground text-xs">Public clocks</span>
 				</div>
-				<RivalConstellationPlaceholder state={state} />
+				<Suspense
+					fallback={<PanelLoadingState label="Loading rival constellation…" />}
+				>
+					<LazyRivalConstellation className="mt-2" state={state} />
+				</Suspense>
 				<RivalLeaderSummary state={state} />
 			</section>
 		</aside>
-	);
-}
-
-function RivalConstellationPlaceholder({ state }: { state: GameState }) {
-	const rivals = selectRivals(state);
-	return (
-		<div
-			aria-hidden="true"
-			className="relative mt-2 h-36 overflow-hidden rounded-lg bg-background/25"
-			data-three-slot="rival-constellation"
-		>
-			<div className="absolute inset-x-8 top-1/2 border-[var(--game-hairline)] border-t" />
-			<span className="absolute top-1/2 left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-primary/20 shadow-[0_0_18px_color-mix(in_srgb,var(--game-cyan)_35%,transparent)]" />
-			{rivals.map((rival, index) => (
-				<span
-					className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full border border-primary/60 bg-primary/30"
-					key={rival.id}
-					style={{
-						left: `${20 + (index * 60) / Math.max(1, rivals.length - 1)}%`,
-						opacity: 0.35 + Math.min(0.65, Math.max(0, rival.progress) / 100),
-					}}
-				/>
-			))}
-		</div>
 	);
 }
 
@@ -267,20 +258,6 @@ function LinkStatus({
 				{detail}
 			</span>
 		</Link>
-	);
-}
-
-function MarketPulseSlotPlaceholder() {
-	return (
-		<div
-			className="flex h-12 min-w-24 flex-col justify-center border-[var(--game-hairline)] border-l pl-3"
-			data-market-pulse-slot="true"
-			role="img"
-			aria-label="Market pulse slot"
-		>
-			<span className="meta-label text-[var(--game-amber)]">Market pulse</span>
-			<span className="mt-1 text-muted-foreground text-xs">Ledger signal</span>
-		</div>
 	);
 }
 

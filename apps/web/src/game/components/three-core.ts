@@ -1,5 +1,6 @@
 export {
 	AdditiveBlending,
+	BoxGeometry,
 	BufferAttribute,
 	BufferGeometry,
 	CanvasTexture,
@@ -8,6 +9,7 @@ export {
 	IcosahedronGeometry,
 	LineBasicMaterial,
 	LineLoop,
+	LineSegments,
 	MathUtils,
 	Mesh,
 	MeshBasicMaterial,
@@ -19,4 +21,5 @@ export {
 	Sprite,
 	SpriteMaterial,
 	Vector3,
+	WebGLRenderer,
 } from "three";

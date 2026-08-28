@@ -6,7 +6,7 @@ import {
 } from "@ai-lab-tycoon/ui/components/progress";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Eye, Gauge } from "lucide-react";
-
+import RivalConstellation from "@/game/components/rival-constellation";
 import { rivalDoctrineForId } from "@/game/rival-doctrine";
 
 export type RivalsPanelProps = {
@@ -72,6 +72,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 					? "Two focused rivals are visible in the Text era. The third enters with the Assistant era."
 					: "All three rivals are public in this era; only progress and launch pressure are shown."}
 			</p>
+			<RivalConstellation className="h-40 sm:h-52" state={state} />
 
 			{rivals.length > 0 ? (
 				<ul

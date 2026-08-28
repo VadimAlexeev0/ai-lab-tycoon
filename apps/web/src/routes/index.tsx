@@ -5,6 +5,7 @@ import { ArrowRight, Check, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 import ArtFrame from "@/game/components/art-frame";
+import MonolithAmbiance from "@/game/components/monolith-ambiance";
 import PlaceholderBadge from "@/game/components/placeholder-badge";
 
 const FEATURES = [
@@ -86,6 +87,7 @@ function LandingPage() {
 				aria-labelledby="landing-hero-heading"
 				className="relative isolate flex min-h-[34rem] items-center overflow-hidden border-border/70 border-b sm:min-h-[40rem]"
 			>
+				<MonolithAmbiance />
 				<ArtFrame
 					alt=""
 					className="absolute inset-0 h-full w-full rounded-none opacity-75 ring-0"
