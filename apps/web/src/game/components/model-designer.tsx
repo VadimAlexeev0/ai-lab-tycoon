@@ -322,7 +322,7 @@ export default function ModelDesigner({
 
 				{validation.length > 0 ? (
 					<div
-						className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 ring-1 ring-[var(--game-amber)]/50"
+						className="glass-pane bg-[var(--game-amber)]/10 px-3 py-2 ring-1 ring-[var(--game-amber)]/50"
 						role="status"
 					>
 						<p className="font-semibold text-[var(--game-amber)] text-xs">
@@ -446,8 +446,8 @@ function BasicsStep({
 								aria-pressed={family === candidate}
 								className={
 									family === candidate
-										? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
-										: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
+										? "glass-pane bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+										: "glass-pane bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 								}
 								disabled={!available}
 								key={candidate}
@@ -503,8 +503,8 @@ function BasicsStep({
 									aria-pressed={foundation === candidate}
 									className={
 										foundation === candidate
-											? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
-											: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
+											? "glass-pane bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+											: "glass-pane bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 									}
 									disabled={!available}
 									key={candidate}
@@ -620,8 +620,8 @@ function ReviewStep({
 								aria-pressed={tier === candidate}
 								className={
 									tier === candidate
-										? "surface-card bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
-										: "surface-card bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
+										? "glass-pane bg-primary/10 p-3 text-left outline-none ring-1 ring-primary focus-visible:ring-2 focus-visible:ring-ring"
+										: "glass-pane bg-background/35 p-3 text-left outline-none hover:bg-background/55 focus-visible:ring-2 focus-visible:ring-ring"
 								}
 								key={candidate}
 								onClick={() => onTierChange(candidate)}

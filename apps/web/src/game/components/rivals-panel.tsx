@@ -82,7 +82,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 						const doctrine = rivalDoctrineForId(rival.id);
 						return (
 							<li
-								className="surface-card bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs"
+								className="glass-pane bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs"
 								key={rival.id}
 							>
 								<div className="flex items-center justify-between gap-3">
@@ -146,7 +146,7 @@ export default function RivalsPanel({ state }: RivalsPanelProps) {
 					})}
 				</ul>
 			) : (
-				<p className="surface-card bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs">
+				<p className="glass-pane bg-[var(--game-cyan)]/5 px-3 py-3 text-muted-foreground text-xs">
 					No public rival clocks are active.
 				</p>
 			)}

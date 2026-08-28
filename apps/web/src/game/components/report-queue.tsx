@@ -77,7 +77,7 @@ export default function ReportQueue({
 					))}
 				</div>
 			) : (
-				<div className="surface-card px-3 py-3">
+				<div className="glass-pane px-3 py-3">
 					<div className="flex items-center gap-2">
 						<Info
 							className="size-3.5 text-[var(--game-positive)]"
@@ -112,10 +112,10 @@ function QueueReport({
 		<article
 			className={
 				blocking
-					? "surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
+					? "glass-pane bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 					: important
-						? "surface-card bg-[var(--game-amber)]/10 p-3 ring-1 ring-[var(--game-amber)]/50"
-						: "surface-card p-3"
+						? "glass-pane bg-[var(--game-amber)]/10 p-3 ring-1 ring-[var(--game-amber)]/50"
+						: "glass-pane p-3"
 			}
 		>
 			<div className="flex items-start gap-2">

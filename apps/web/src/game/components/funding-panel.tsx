@@ -138,7 +138,7 @@ function RoundCard({
 	).length;
 	const locked = status === "locked";
 	return (
-		<article className="surface-card p-3">
+		<article className="glass-pane p-3">
 			<div className="flex items-start justify-between gap-2">
 				<div>
 					<p className="font-medium text-foreground text-sm">{info.label}</p>

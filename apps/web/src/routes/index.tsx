@@ -136,7 +136,7 @@ function LandingPage() {
 								How it works
 							</Button>
 						</div>
-						<div className="surface-card mt-10 max-w-md bg-background/45 p-4 backdrop-blur-sm sm:mt-12">
+						<div className="glass-pane glass-edge mt-10 max-w-md bg-background/45 p-4 backdrop-blur-sm sm:mt-12">
 							<div className="flex items-center gap-2">
 								<span
 									aria-hidden="true"
@@ -156,15 +156,9 @@ function LandingPage() {
 								<HeroSignal label="No timers" value="00" />
 							</div>
 						</div>
-						<div className="surface-card hidden border-primary/25 bg-background/55 p-4 backdrop-blur-sm sm:block lg:hidden">
-							<p className="meta-label text-primary">Operating premise</p>
-							<p className="mt-2 font-display font-medium text-foreground text-lg leading-tight">
-								Progress compounds. So does responsibility.
-							</p>
-						</div>
 					</div>
 					<div className="anim-fade-up hidden min-w-0 justify-self-end lg:block">
-						<div className="max-w-sm border border-primary/25 bg-background/45 p-5 shadow-2xl shadow-black/20 backdrop-blur-md">
+						<div className="glass-pane glass-edge max-w-sm bg-background/45 p-5">
 							<p className="meta-label text-muted-foreground">
 								The operating premise
 							</p>
@@ -207,7 +201,7 @@ function LandingPage() {
 				<div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 					{FEATURES.map((feature) => (
 						<article
-							className="surface-card group flex min-w-0 flex-col overflow-hidden p-3 transition-transform hover:-translate-y-1 motion-reduce:transition-none"
+							className="glass-pane glass-edge group flex min-w-0 flex-col overflow-hidden p-3 transition-colors hover:border-[color-mix(in_srgb,var(--game-cyan)_35%,var(--game-hairline))] motion-reduce:transition-none"
 							key={feature.number}
 						>
 							<ArtFrame
@@ -299,7 +293,7 @@ function LandingPage() {
 				<div className="mt-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 					{ARCHIVE_SURFACES.map((surface) => (
 						<Link
-							className="surface-card group flex min-w-0 flex-col p-4 transition-colors hover:bg-card motion-reduce:transition-none"
+							className="glass-pane glass-edge glass-edge-amber group flex min-w-0 flex-col p-4 transition-colors hover:bg-card motion-reduce:transition-none"
 							key={surface.to}
 							to={surface.to}
 						>
@@ -355,7 +349,7 @@ function HeroSignal({ label, value }: { label: string; value: string }) {
 
 function BuiltDifferentItem({ children }: { children: ReactNode }) {
 	return (
-		<li className="surface-card flex min-w-0 items-start gap-3 bg-background/35 p-4">
+		<li className="glass-pane flex min-w-0 items-start gap-3 bg-background/35 p-4">
 			<Check
 				className="mt-0.5 size-4 shrink-0 text-primary"
 				aria-hidden="true"

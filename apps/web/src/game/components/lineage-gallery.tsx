@@ -150,7 +150,7 @@ export default function LineageGallery({ state }: LineageGalleryProps) {
 						gallery projection.
 					</p>
 				</div>
-				<div className="surface-card bg-[var(--game-cyan)]/5 px-3 py-2 text-xs ring-1 ring-[var(--game-cyan)]/35">
+				<div className="glass-pane bg-[var(--game-cyan)]/5 px-3 py-2 text-xs ring-1 ring-[var(--game-cyan)]/35">
 					<p className="text-[var(--game-cyan)]">Public register</p>
 					<p className="mt-1 font-semibold text-foreground">
 						{state.models.items.length} model
@@ -183,7 +183,7 @@ function EmptyLineageState() {
 	return (
 		<section
 			aria-label="Empty model lineage"
-			className="surface-card bg-[var(--game-cyan)]/5 px-5 py-12 text-center ring-1 ring-[var(--game-cyan)]/30"
+			className="glass-pane bg-[var(--game-cyan)]/5 px-5 py-12 text-center ring-1 ring-[var(--game-cyan)]/30"
 		>
 			<Layers3
 				className="mx-auto size-7 text-[var(--game-cyan)] opacity-80"
@@ -207,7 +207,7 @@ function FamilyWall({ family }: { family: LineageFamily }) {
 	return (
 		<section
 			aria-labelledby={`lineage-family-${family.id}`}
-			className="surface-card bg-[var(--game-cyan)]/5 p-3 ring-1 ring-white/5 sm:p-4"
+			className="glass-pane bg-[var(--game-cyan)]/5 p-3 ring-1 ring-white/5 sm:p-4"
 			style={{ minHeight: `${wallHeight}px` }}
 		>
 			<div className="relative z-10 flex items-center justify-between gap-3 border-border/60 border-b pb-2">
@@ -295,7 +295,7 @@ function LineageModelCard({
 				: "border-[var(--game-cyan)]/55 text-[var(--game-cyan)]";
 
 	return (
-		<article className="surface-card relative min-h-24 overflow-hidden bg-card/80 p-3">
+		<article className="pane-section relative min-h-24 overflow-hidden rounded-lg bg-card/80">
 			<div
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-0 bg-center bg-cover opacity-20"

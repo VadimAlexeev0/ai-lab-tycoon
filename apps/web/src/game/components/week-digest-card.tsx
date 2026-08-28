@@ -45,7 +45,7 @@ export default function WeekDigestCard({
 	return (
 		<section
 			aria-labelledby="week-digest-heading"
-			className="surface-card px-3"
+			className="glass-pane glass-edge px-3"
 		>
 			<h2 id="week-digest-heading" className="sr-only">
 				Week digest

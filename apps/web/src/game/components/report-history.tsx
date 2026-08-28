@@ -81,7 +81,7 @@ export default function ReportHistory({
 			{filteredReports.length > 0 ? (
 				<ul className="space-y-2" aria-label={`${filter} report facts`}>
 					{filteredReports.map((report) => (
-						<li className="surface-card px-3 py-2" key={report.id}>
+						<li className="glass-pane px-3 py-2" key={report.id}>
 							<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
 								<span className="font-semibold text-foreground text-xs">
 									{report.priority} · {report.id}
@@ -102,7 +102,7 @@ export default function ReportHistory({
 					))}
 				</ul>
 			) : (
-				<p className="surface-card px-3 py-3">
+				<p className="glass-pane px-3 py-3">
 					No {filter === "all" ? "facts" : `${filter} facts`} in the report
 					history.
 				</p>

@@ -110,7 +110,7 @@ export default function ComputePanel({ state }: ComputePanelProps) {
 
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="surface-card px-2.5 py-2">
+		<div className="glass-pane px-2.5 py-2">
 			<p className="text-muted-foreground text-xs">{label}</p>
 			<p className="mt-1 font-semibold text-foreground text-sm">{value}</p>
 		</div>

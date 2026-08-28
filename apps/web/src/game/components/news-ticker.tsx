@@ -100,7 +100,7 @@ export default function NewsTicker({
 	const lead = headlines[0];
 
 	return (
-		<div className="ailt-ticker-dock fixed inset-x-0 bottom-[4.25rem] z-30 border-[var(--game-amber)]/40 border-t bg-card/95 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] backdrop-blur-sm lg:bottom-0">
+		<div className="ailt-ticker-dock fixed inset-x-0 bottom-0 z-30 border-[var(--game-amber)]/40 border-t bg-card/95 shadow-[0_-6px_24px_rgba(0,0,0,0.18)] backdrop-blur-sm">
 			<div className="mx-auto flex min-h-12 max-w-[1600px] items-stretch">
 				<Link
 					aria-label={`Open Industry Pulse: ${lead?.headline ?? "No industry headlines yet."}`}
@@ -188,7 +188,7 @@ export function IndustryPulse({ state, rivalProgressPct }: IndustryPulseProps) {
 	return (
 		<article
 			aria-labelledby="industry-pulse-heading"
-			className="surface-card relative overflow-hidden bg-card/70 p-4 ring-1 ring-[var(--game-amber)]/55 sm:p-5 lg:p-6"
+			className="glass-pane glass-edge glass-edge-amber relative overflow-hidden bg-card/70 p-4 sm:p-5 lg:p-6"
 		>
 			<header className="relative flex flex-col gap-4 border-[var(--game-amber)]/30 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
 				<div className="max-w-3xl space-y-2">
@@ -256,7 +256,7 @@ export function HeadlineCard({
 
 	return (
 		<article
-			className="group surface-card relative flex min-h-64 min-w-0 flex-col bg-background/35 p-3 transition-colors hover:bg-background/55"
+			className="group relative flex min-h-64 min-w-0 flex-col rounded-lg border border-[var(--game-hairline)] bg-background/35 p-3 transition-colors hover:bg-background/55"
 			data-headline-id={headline.id}
 			data-sentiment={headline.sentiment}
 		>

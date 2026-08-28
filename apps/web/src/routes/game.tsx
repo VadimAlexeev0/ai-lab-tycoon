@@ -187,7 +187,7 @@ function GameLayout() {
 							{state.terminal.status === "lost" ? (
 								<div
 									aria-live="assertive"
-									className="surface-card flex flex-wrap items-center justify-between gap-3 bg-[var(--game-negative)]/10 px-4 py-3 ring-1 ring-[var(--game-negative)]/50"
+									className="glass-pane flex flex-wrap items-center justify-between gap-3 bg-[var(--game-negative)]/10 px-4 py-3 ring-1 ring-[var(--game-negative)]/50"
 									role="alert"
 									tabIndex={-1}
 								>
@@ -351,7 +351,7 @@ function ActionFeedback({
 	if (actionError === null) return null;
 	return (
 		<div
-			className="surface-card flex flex-wrap items-start gap-2 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5 ring-1 ring-[var(--game-negative)]/50"
+			className="glass-pane flex flex-wrap items-start gap-2 bg-[var(--game-negative)]/10 px-3 py-2 text-[var(--game-negative)] text-xs leading-5 ring-1 ring-[var(--game-negative)]/50"
 			role="alert"
 		>
 			<AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
@@ -383,7 +383,7 @@ function GameRouteState() {
 		return (
 			<section
 				aria-live="polite"
-				className="surface-card flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
+				className="glass-pane flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
 			>
 				<Loader2
 					className="size-5 animate-spin text-primary"
@@ -399,7 +399,7 @@ function GameRouteState() {
 		return (
 			<section
 				role="alert"
-				className="surface-card flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
+				className="glass-pane flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
 			>
 				<AlertCircle
 					className="size-5 text-[var(--game-negative)]"
@@ -422,7 +422,7 @@ function GameRouteState() {
 		return (
 			<section
 				aria-live="polite"
-				className="surface-card flex min-h-32 items-center gap-3 px-4"
+				className="glass-pane flex min-h-32 items-center gap-3 px-4"
 			>
 				<Loader2
 					className="size-4 animate-spin text-primary"
@@ -443,7 +443,7 @@ function GameRouteState() {
 		return (
 			<section
 				role="alert"
-				className="surface-card flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
+				className="glass-pane flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
 			>
 				<AlertCircle
 					className="size-5 shrink-0 text-[var(--game-negative)]"
@@ -470,7 +470,7 @@ function GameRouteState() {
 		);
 	}
 	return (
-		<section className="surface-card px-4 py-5">
+		<section className="glass-pane px-4 py-5">
 			<div className="flex items-center gap-2">
 				<Settings2 className="size-4 text-primary" aria-hidden="true" />
 				<h2 className="font-semibold text-foreground text-sm">No active run</h2>

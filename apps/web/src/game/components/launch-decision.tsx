@@ -30,7 +30,7 @@ export default function LaunchDecision({
 		decision.channel === undefined ? CHANNELS : [decision.channel];
 	return (
 		<article
-			className="surface-card border-0 bg-[var(--game-amber)]/10 p-3 ring-1 ring-[var(--game-amber)]/60"
+			className="glass-pane border-0 bg-[var(--game-amber)]/10 p-3 ring-1 ring-[var(--game-amber)]/60"
 			id={`launch-decision-${decision.id}`}
 		>
 			<div className="flex items-start gap-2">

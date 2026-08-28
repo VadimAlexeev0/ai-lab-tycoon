@@ -51,7 +51,7 @@ export default function OverviewPanel({ state }: { state: GameState }) {
 
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="surface-card px-2.5 py-2">
+		<div className="border-border/70 border-t px-2.5 py-2">
 			<p className="text-muted-foreground text-xs">{label}</p>
 			<p className="numeric-value mt-1 font-semibold text-foreground text-sm">
 				{value}

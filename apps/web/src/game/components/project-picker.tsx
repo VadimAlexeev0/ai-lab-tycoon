@@ -32,7 +32,7 @@ export default function ProjectPicker({
 
 	if (availableProjects.length === 0) {
 		return (
-			<p className="surface-card bg-background/40 px-3 py-2 text-muted-foreground text-xs leading-5">
+			<p className="glass-pane bg-background/40 px-3 py-2 text-muted-foreground text-xs leading-5">
 				No projects are ready for assignment. Advance the week to reveal the
 				next research action.
 			</p>

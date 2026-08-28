@@ -103,7 +103,7 @@ function ResearchCard({
 	return (
 		<article
 			aria-label={`${humanize(source.id)} research node`}
-			className="surface-card flex min-h-52 flex-col bg-background/35 p-3"
+			className="glass-pane flex min-h-52 flex-col bg-background/35 p-3"
 		>
 			<div className="flex items-start justify-between gap-2">
 				<div className="min-w-0">

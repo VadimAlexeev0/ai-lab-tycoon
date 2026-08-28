@@ -272,7 +272,7 @@ function ResearchNodeCard({
 			aria-label={`${humanize(node.node.id)} research node, ${node.state}${node.state === "locked" && prerequisiteLabel.length > 0 ? `, requires ${prerequisiteLabel}` : ""}`}
 			aria-pressed={selected}
 			className={cn(
-				"surface-card absolute flex flex-col gap-2 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+				"glass-pane absolute flex flex-col gap-2 p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
 				node.state === "completed"
 					? "bg-[var(--game-positive)]/5 ring-1 ring-[var(--game-positive)]/60"
 					: node.state === "available"

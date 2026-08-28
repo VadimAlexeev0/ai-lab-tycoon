@@ -113,7 +113,7 @@ function SelectionScreen({ children }: { children: ReactNode }) {
 	return (
 		<section
 			aria-labelledby="run-selection-heading"
-			className="surface-card relative isolate overflow-hidden p-4 sm:p-5"
+			className="glass-pane relative isolate overflow-hidden p-4 sm:p-5"
 			id="main-content"
 			tabIndex={-1}
 		>
@@ -171,7 +171,7 @@ function ResumeRunState({
 	return (
 		<section
 			aria-labelledby="resume-run-heading"
-			className="surface-card bg-primary/5 p-4 ring-1 ring-primary/40 sm:p-5"
+			className="pane-section rounded-lg bg-primary/5 ring-1 ring-primary/40 sm:p-5"
 		>
 			<div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
 				<div>
@@ -224,7 +224,7 @@ function SessionLoadingState() {
 	return (
 		<section
 			aria-live="polite"
-			className="surface-card flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
+			className="glass-pane flex min-h-48 flex-col items-center justify-center gap-3 px-6 text-center"
 		>
 			<Save className="size-5 animate-pulse text-primary" aria-hidden="true" />
 			<div>
@@ -249,7 +249,7 @@ function SessionErrorState({
 	return (
 		<section
 			role="alert"
-			className="surface-card flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
+			className="glass-pane flex min-h-48 flex-col items-center justify-center gap-4 bg-[var(--game-negative)]/10 px-6 text-center ring-1 ring-[var(--game-negative)]/60"
 		>
 			<AlertCircle
 				className="size-5 text-[var(--game-negative)]"
@@ -275,7 +275,7 @@ function SaveLoadingState() {
 	return (
 		<section
 			aria-live="polite"
-			className="surface-card flex min-h-32 items-center gap-3 px-4"
+			className="glass-pane flex min-h-32 items-center gap-3 px-4"
 		>
 			<Save className="size-4 animate-pulse text-primary" aria-hidden="true" />
 			<div>
@@ -300,7 +300,7 @@ function SaveErrorState({
 	return (
 		<section
 			role="alert"
-			className="surface-card flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
+			className="glass-pane flex min-h-32 flex-col items-start gap-3 bg-[var(--game-negative)]/10 px-4 py-4 ring-1 ring-[var(--game-negative)]/60 sm:flex-row sm:items-center"
 		>
 			<AlertCircle
 				className="size-5 shrink-0 text-[var(--game-negative)]"

@@ -61,7 +61,7 @@ export default function TeamPanel({
 							)
 						: undefined;
 					return (
-						<article className="surface-card p-3" key={team.id}>
+						<article className="glass-pane p-3" key={team.id}>
 							<div className="flex items-start justify-between gap-3">
 								<div className="min-w-0">
 									<p className="text-muted-foreground text-xs">{team.id}</p>

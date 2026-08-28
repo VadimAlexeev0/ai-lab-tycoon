@@ -133,7 +133,7 @@ export default function Chronicle({
 	return (
 		<article
 			aria-labelledby="chronicle-surface-heading"
-			className="surface-card bg-[var(--game-amber)]/5 p-4 text-foreground shadow-black/20 shadow-lg ring-1 ring-[var(--game-amber)]/45 sm:p-5 lg:p-7"
+			className="glass-pane glass-edge glass-edge-amber bg-[var(--game-amber)]/5 p-4 text-foreground sm:p-5 lg:p-7"
 		>
 			<div
 				aria-hidden="true"
@@ -206,7 +206,7 @@ export default function Chronicle({
 						))}
 					</div>
 				) : (
-					<div className="surface-card bg-background/30 px-4 py-8 text-center">
+					<div className="pane-section rounded-lg border border-[var(--game-hairline)] bg-background/30 px-4 py-8 text-center">
 						<CircleDot
 							className="mx-auto size-5 text-[var(--game-amber)]"
 							aria-hidden="true"
@@ -280,7 +280,7 @@ function ChronicleEventRow({ event }: { event: ChronicleEvent }) {
 						: "absolute top-4 -left-[1.61rem] size-2 rounded-full bg-[var(--game-amber)] sm:-left-[1.8rem]"
 				}
 			/>
-			<article className={`surface-card p-3 ${accent}`}>
+			<article className={`pane-section rounded-lg ${accent}`}>
 				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
 					<div className="flex min-w-0 items-center gap-2">
 						{event.marker === "milestone" ? (
@@ -312,7 +312,7 @@ function DeathCertificate({
 	return (
 		<aside
 			aria-label="Death certificate"
-			className="surface-card bg-[var(--game-negative)]/8 p-4 ring-1 ring-[var(--game-negative)]/50 sm:p-5"
+			className="pane-section rounded-lg bg-[var(--game-negative)]/8 ring-1 ring-[var(--game-negative)]/50 sm:p-5"
 		>
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start">
 				<img

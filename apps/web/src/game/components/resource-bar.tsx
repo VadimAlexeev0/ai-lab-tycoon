@@ -84,7 +84,7 @@ export default function ResourceBar({ revision, state }: ResourceBarProps) {
 	return (
 		<section
 			aria-labelledby="resource-bar-heading"
-			className="surface-card"
+			className="glass-pane glass-edge"
 			data-next-objective={visibleState.nextObjective.kind}
 		>
 			<h2 id="resource-bar-heading" className="sr-only">

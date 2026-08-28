@@ -76,7 +76,7 @@ export default function AdvanceWeekButton({
 	return (
 		<section
 			aria-labelledby="time-controls-heading"
-			className="surface-card flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+			className="glass-pane flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
 		>
 			<h2 id="time-controls-heading" className="sr-only">
 				Time controls

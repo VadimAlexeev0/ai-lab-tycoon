@@ -48,7 +48,7 @@ export default function Pane({
 			open
 		>
 			<DialogContent
-				className="surface-card max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto bg-background/95 p-4 shadow-2xl sm:max-w-2xl sm:p-5"
+				className="glass-pane max-h-[min(90svh,48rem)] w-full max-w-2xl overflow-y-auto bg-background/95 p-4 sm:max-w-2xl sm:p-5"
 				showCloseButton={false}
 			>
 				<DialogHeader>

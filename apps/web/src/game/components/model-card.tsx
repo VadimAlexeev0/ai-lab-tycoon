@@ -38,7 +38,7 @@ export default function ModelCard({
 	const visibleModels = selectVisibleModels(state);
 	if (visibleModels.length === 0) {
 		return (
-			<section className="surface-card px-3 py-4">
+			<section className="glass-pane px-3 py-4">
 				<div className="flex items-center gap-2">
 					<FlaskConical className="size-4 text-primary" aria-hidden="true" />
 					<h3 className="font-semibold text-muted-foreground text-xs">
@@ -123,7 +123,7 @@ function ModelRegisterCard({
 			)
 		: undefined;
 	return (
-		<article className="surface-card p-3">
+		<article className="glass-pane p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<div className="flex items-center gap-2">
@@ -175,7 +175,10 @@ function ModelRegisterCard({
 						const band = visible.estimates?.[dimension];
 						if (band === undefined) return null;
 						return (
-							<div className="surface-card px-2 py-1.5" key={dimension}>
+							<div
+								className="border-border/70 border-t px-2 py-1.5"
+								key={dimension}
+							>
 								<p className="text-muted-foreground text-xs">{dimension}</p>
 								<p className="mt-1 font-semibold text-foreground text-xs">
 									{estimateLabel(band)}

@@ -215,7 +215,7 @@ function IncidentDecision({
 		);
 	return (
 		<article
-			className="surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
+			className="glass-pane bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 			id={`incident-card-${decision.id}`}
 		>
 			<div className="flex items-start gap-2">
@@ -275,7 +275,7 @@ function IncidentDecision({
 							const effect = info.responses[response];
 							return (
 								<div
-									className="surface-card bg-background/35 p-2"
+									className="rounded-lg border border-[var(--game-hairline)] bg-background/35 p-2"
 									key={response}
 								>
 									<p className="font-medium text-foreground text-xs">

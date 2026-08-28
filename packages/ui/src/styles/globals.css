@@ -551,6 +551,63 @@
 }
 
 @layer components {
+	/* One console surface per functional region; widgets stay unboxed inside. */
+	.glass-pane {
+		@apply rounded-xl;
+		background: color-mix(in srgb, var(--game-surface) 55%, transparent);
+		backdrop-filter: blur(14px) saturate(1.15);
+		border: 1px solid var(--game-hairline);
+		box-shadow:
+			inset 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent),
+			0 8px 32px color-mix(in srgb, var(--game-navy) 35%, transparent);
+	}
+
+	/* The monolith's top-light hairline. */
+	.glass-edge {
+		position: relative;
+	}
+
+	.glass-edge::before {
+		position: absolute;
+		inset-inline: 10%;
+		top: 0;
+		height: 1px;
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--game-cyan) 45%, transparent),
+			transparent
+		);
+		content: "";
+		pointer-events: none;
+	}
+
+	.glass-edge-amber::before,
+	.glass-edge.glass-edge-amber::before {
+		background: linear-gradient(
+			90deg,
+			transparent,
+			color-mix(in srgb, var(--game-amber) 55%, transparent),
+			transparent
+		);
+	}
+
+	.pane-section {
+		@apply px-4 py-3;
+	}
+
+	.pane-section + .pane-section {
+		border-top: 1px solid var(--game-hairline);
+	}
+
+	.glow-accent {
+		box-shadow: 0 0 24px color-mix(in srgb, var(--game-cyan) 12%, transparent);
+	}
+
+	.glow-amber {
+		box-shadow: 0 0 24px color-mix(in srgb, var(--game-amber) 14%, transparent);
+	}
+
 	.surface-card {
 		@apply rounded-xl border-0 bg-card/60 shadow-lg shadow-foreground/10 ring-1 ring-border/60;
 	}

@@ -41,7 +41,7 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Run result"
-				className="surface-card bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
+				className="glass-pane bg-[var(--game-negative)]/10 p-3 ring-1 ring-[var(--game-negative)]/60"
 			>
 				<ResultArtBackdrop src="/art-v2/amber-fracture.png" />
 				<div className="relative z-10 flex items-start gap-2">
@@ -77,7 +77,7 @@ export default function RunResult({
 					<ol className="mt-2 space-y-2">
 						{terminal.contributors.map((contributor, index) => (
 							<li
-								className="surface-card flex items-start justify-between gap-3 px-2.5 py-2"
+								className="rounded-lg border border-[var(--game-hairline)] bg-background/25 px-2.5 py-2"
 								key={`${contributor.kind}-${contributor.week}-${index}`}
 							>
 								<span className="min-w-0 break-words text-foreground text-xs">
@@ -109,7 +109,7 @@ export default function RunResult({
 		return (
 			<section
 				aria-label="Frontier milestone"
-				className="surface-card bg-primary/10 p-3 ring-1 ring-primary/50"
+				className="glass-pane bg-primary/10 p-3 ring-1 ring-primary/50"
 			>
 				<ResultArtBackdrop src="/art-v2/fog-monolith-alt.png" />
 				<div className="relative z-10 flex items-start gap-2">

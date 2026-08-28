@@ -120,7 +120,7 @@ export default function StartRunForm({
 	return (
 		<section
 			aria-labelledby="new-run-heading"
-			className="surface-card bg-primary/5 p-4 ring-1 ring-primary/40 sm:p-5"
+			className="pane-section rounded-lg bg-primary/5 ring-1 ring-primary/40 sm:p-5"
 		>
 			<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 				<div>
@@ -218,7 +218,7 @@ export default function StartRunForm({
 				</fieldset>
 
 				{hasExistingRun ? (
-					<p className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/50">
+					<p className="pane-section rounded-lg bg-[var(--game-amber)]/10 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/50">
 						A saved run already exists. Starting here will replace it after
 						confirmation.
 					</p>

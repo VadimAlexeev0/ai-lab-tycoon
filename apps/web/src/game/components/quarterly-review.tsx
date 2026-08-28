@@ -47,7 +47,7 @@ export default function QuarterlyReview({
 	return (
 		<article
 			aria-labelledby="quarterly-review-surface-heading"
-			className="surface-card bg-card/70 p-4 ring-1 ring-[var(--game-amber)]/55 sm:p-5 lg:p-6"
+			className="glass-pane glass-edge glass-edge-amber bg-card/70 p-4 sm:p-5 lg:p-6"
 		>
 			<header className="relative flex flex-col gap-4 border-[var(--game-amber)]/30 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
 				<div className="max-w-3xl space-y-2">
@@ -67,7 +67,7 @@ export default function QuarterlyReview({
 						review copy is clearly marked as a preview.
 					</p>
 				</div>
-				<div className="surface-card bg-[var(--game-amber)]/10 px-3 py-2 text-muted-foreground text-xs ring-1 ring-[var(--game-amber)]/35">
+				<div className="pane-section bg-[var(--game-amber)]/10 text-muted-foreground text-xs ring-1 ring-[var(--game-amber)]/35">
 					<p>Current checkpoint</p>
 					<p className="mt-1 font-semibold text-foreground">
 						Week {state.meta.week} · Era {state.meta.era}
@@ -224,7 +224,7 @@ function ExpectationMeter({ expectation }: { expectation: BoardExpectation }) {
 				? "On track"
 				: "Watch";
 	return (
-		<div className="surface-card bg-background/35 p-3">
+		<div className="pane-section rounded-lg border border-[var(--game-hairline)] bg-background/35">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
 					<p className="font-medium text-foreground text-sm">
@@ -262,7 +262,7 @@ function StrategicQuestionCard({ question }: { question: StrategicQuestion }) {
 	return (
 		<section
 			aria-labelledby="strategic-question-heading"
-			className="surface-card relative mt-5 bg-[var(--game-amber)]/5 p-4 ring-1 ring-[var(--game-amber)]/45 sm:p-5"
+			className="pane-section relative mt-5 rounded-lg bg-[var(--game-amber)]/5 ring-1 ring-[var(--game-amber)]/45 sm:p-5"
 		>
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 				<div>

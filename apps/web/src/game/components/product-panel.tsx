@@ -129,7 +129,7 @@ export default function ProductPanel({
 					))}
 				</ul>
 			) : (
-				<div className="surface-card px-3 py-4">
+				<div className="glass-pane px-3 py-4">
 					<div className="flex items-center gap-2">
 						<Boxes
 							className="size-4 text-muted-foreground"
@@ -160,7 +160,7 @@ export default function ProductPanel({
 					{CHANNELS.map((channel) => {
 						const forecast = CHANNEL_FORECASTS[channel];
 						return (
-							<li className="surface-card px-2.5 py-2" key={channel}>
+							<li className="glass-pane px-2.5 py-2" key={channel}>
 								<p className="font-medium text-foreground text-xs">
 									{forecast.label}
 								</p>
@@ -189,7 +189,7 @@ function ProductRecord({
 	product: ReturnType<typeof selectProducts>[number];
 }) {
 	return (
-		<article className="surface-card p-3">
+		<article className="glass-pane p-3">
 			<div className="flex items-start justify-between gap-3">
 				<div>
 					<p className="text-muted-foreground text-xs">{product.id}</p>
@@ -226,7 +226,7 @@ function ProductRecord({
 
 function Metric({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="surface-card px-2 py-1.5">
+		<div className="border-border/70 border-t px-2 py-1.5">
 			<p className="text-muted-foreground text-xs">{label}</p>
 			<p className="mt-1 font-semibold text-foreground text-xs">{value}</p>
 		</div>

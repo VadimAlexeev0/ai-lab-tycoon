@@ -192,7 +192,7 @@ export default function LabNotebook({
 						their first occurrence.
 					</p>
 				</div>
-				<div className="surface-card bg-[var(--game-amber)]/8 px-3 py-2 text-xs ring-1 ring-[var(--game-amber)]/45">
+				<div className="glass-pane bg-[var(--game-amber)]/8 px-3 py-2 text-xs ring-1 ring-[var(--game-amber)]/45">
 					<p className="text-[var(--game-amber)]">Notebook progress</p>
 					<p className="mt-1 font-semibold text-foreground">
 						{discoveredCount}/{NOTEBOOK_TILE_COUNT} discovered
@@ -201,7 +201,7 @@ export default function LabNotebook({
 			</header>
 
 			{forceShowAll ? (
-				<p className="surface-card bg-[var(--game-amber)]/5 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/35">
+				<p className="glass-pane bg-[var(--game-amber)]/5 px-3 py-2 text-[var(--game-amber)] text-xs leading-5 ring-1 ring-[var(--game-amber)]/35">
 					Debug preview: all cabinets are visible, but the progress counter
 					still counts only facts present in the report history.
 				</p>
@@ -236,7 +236,7 @@ function NotebookTileCard({
 		return (
 			<article
 				aria-label={`${tile.label}${previewOnly ? " preview" : " discovered"}`}
-				className="surface-card relative flex min-h-44 flex-col overflow-hidden bg-[var(--game-amber)]/8 p-3 shadow-[2px_3px_0_rgba(245,176,76,0.1)] ring-1 ring-[var(--game-amber)]/45"
+				className="glass-pane relative flex min-h-44 flex-col overflow-hidden bg-[var(--game-amber)]/8 p-3 shadow-[2px_3px_0_rgba(245,176,76,0.1)] ring-1 ring-[var(--game-amber)]/45"
 				data-discovered={tile.discovered}
 			>
 				<div className="flex items-start justify-between gap-2">
@@ -268,7 +268,7 @@ function NotebookTileCard({
 	return (
 		<article
 			aria-label={`${tile.label} undiscovered`}
-			className="surface-card relative flex min-h-44 flex-col items-center justify-center overflow-hidden bg-[var(--game-cyan)]/5 p-3 text-center ring-1 ring-[var(--game-cyan)]/25 grayscale"
+			className="glass-pane relative flex min-h-44 flex-col items-center justify-center overflow-hidden bg-[var(--game-cyan)]/5 p-3 text-center ring-1 ring-[var(--game-cyan)]/25 grayscale"
 			data-discovered="false"
 		>
 			<img

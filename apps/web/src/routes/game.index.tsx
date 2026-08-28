@@ -39,7 +39,7 @@ function DashboardRoute() {
 				<OverviewPanel state={state} />
 				<aside
 					aria-labelledby="your-lab-heading"
-					className="surface-card relative overflow-hidden p-3"
+					className="glass-pane relative overflow-hidden p-3"
 				>
 					<div className="relative z-10 flex items-start justify-between gap-3">
 						<div>
@@ -99,7 +99,7 @@ function DashboardRoute() {
 					/>
 					<section
 						aria-label="AGI program teaser"
-						className="surface-card relative z-10 mt-2 flex items-center gap-2 bg-[var(--game-amber)]/5 px-2 py-2 ring-1 ring-[var(--game-amber)]/40"
+						className="pane-section relative z-10 mt-2 flex items-center gap-2 rounded-lg bg-[var(--game-amber)]/5 px-2 py-2 ring-1 ring-[var(--game-amber)]/40"
 					>
 						<ArtFrame
 							alt=""

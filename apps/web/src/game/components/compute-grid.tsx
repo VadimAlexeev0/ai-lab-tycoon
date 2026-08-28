@@ -72,7 +72,7 @@ export default function ComputeGrid({ state }: { state: GameState }) {
 				<Cpu className="size-4 text-primary" aria-hidden="true" />
 			</div>
 
-			<div className="surface-card p-3">
+			<div className="glass-pane p-3">
 				<div className="flex items-center justify-between gap-3 text-xs">
 					<span className="inline-flex items-center gap-1.5 text-muted-foreground">
 						<Server className="size-3.5 text-primary" aria-hidden="true" />

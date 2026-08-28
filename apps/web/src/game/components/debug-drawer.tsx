@@ -70,7 +70,7 @@ export default function DebugDrawer({
 					aria-label={open ? "Close debug controls" : "Open debug controls"}
 					render={
 						<Button
-							className="surface-card bg-amber/10 px-3 py-2 text-amber shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-amber/60 hover:bg-amber/10"
+							className="glass-pane bg-amber/10 px-3 py-2 text-amber shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-amber/60 hover:bg-amber/10"
 							size="icon"
 							title="Open debug controls"
 							variant="outline"
