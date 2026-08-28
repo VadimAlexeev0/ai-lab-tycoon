@@ -1,5 +1,6 @@
 import {
 	type GameState,
+	hireTeam,
 	selectAvailableProjects,
 	selectTeams,
 } from "@ai-lab-tycoon/engine";
@@ -12,6 +13,11 @@ import {
 import { CheckCircle2, CircleDashed, OctagonAlert } from "lucide-react";
 
 import ProjectPicker from "@/game/components/project-picker";
+import { useRunState } from "@/game/game-state-context";
+
+const HIRE_TEAM_COST = 300;
+const FOUNDING_TEAM_SALARY = 50;
+const MAX_TEAM_COUNT = 3;
 
 export type TeamPanelProps = {
 	state: GameState;
@@ -27,11 +33,27 @@ export default function TeamPanel({
 	onAssign,
 	onCancel,
 }: TeamPanelProps) {
+	const { actionBusy, executeEngineCommand } = useRunState();
 	const teams = selectTeams(state);
 	const availableProjects = selectAvailableProjects(state);
+	const teamCount = teams.length;
+	const weeklySalary = teamCount * FOUNDING_TEAM_SALARY;
 	const completedProjects = state.projects.items.filter(
 		(project) => project.status === "completed",
 	);
+	const hireDisabled =
+		disabled ||
+		actionBusy ||
+		teamCount >= MAX_TEAM_COUNT ||
+		state.company.cash < HIRE_TEAM_COST;
+	const hireTitle =
+		actionBusy || disabled
+			? "Another command is in progress."
+			: teamCount >= MAX_TEAM_COUNT
+				? `The lab already has the maximum of ${MAX_TEAM_COUNT} teams.`
+				: state.company.cash < HIRE_TEAM_COST
+					? `Hiring a team requires $${HIRE_TEAM_COST}; current cash is $${state.company.cash}.`
+					: `Hire a team for $${HIRE_TEAM_COST}; weekly salary increases by $${FOUNDING_TEAM_SALARY}.`;
 
 	return (
 		<section aria-labelledby="teams-panel-heading" className="space-y-4">
@@ -51,6 +73,41 @@ export default function TeamPanel({
 					{availableProjects.length} ready action
 					{availableProjects.length === 1 ? "" : "s"}
 				</span>
+			</div>
+
+			<div className="flex flex-col gap-3 border-border/70 border-y py-3 sm:flex-row sm:items-center sm:justify-between">
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+						<p className="font-semibold text-foreground text-xs">
+							Staffing capacity
+						</p>
+						<p className="text-muted-foreground text-xs">
+							{teamCount} / {MAX_TEAM_COUNT} teams
+						</p>
+					</div>
+					<p className="mt-1 text-muted-foreground text-xs">
+						Weekly salary: ${weeklySalary}/wk
+					</p>
+					<p className="mt-1 text-muted-foreground text-xs">
+						Hire next team: +1 team · +${FOUNDING_TEAM_SALARY}/wk
+					</p>
+					<p className="mt-1 text-muted-foreground text-xs">
+						One-time hire cost: ${HIRE_TEAM_COST}
+					</p>
+				</div>
+				<Button
+					aria-label={`Hire team for $${HIRE_TEAM_COST}`}
+					disabled={hireDisabled}
+					onClick={() => {
+						void executeEngineCommand(hireTeam);
+					}}
+					size="sm"
+					title={hireTitle}
+					type="button"
+					variant="outline"
+				>
+					Hire team
+				</Button>
 			</div>
 
 			<div className="grid gap-3 xl:grid-cols-2">

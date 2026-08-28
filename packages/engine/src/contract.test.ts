@@ -788,6 +788,7 @@ describe("hardened component contract", () => {
 			"selectTerminalProjection",
 			"selectVisibleModels",
 			"selectVisibleState",
+			"setAssertionsEnabled",
 			"startRun",
 		]);
 	});

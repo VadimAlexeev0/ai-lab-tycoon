@@ -149,9 +149,13 @@ export function advanceWeek(
 		meta: { ...commandAllocation.state.meta, week: week + 1 },
 		commandLog: [...commandAllocation.state.commandLog, advanceCommand],
 	};
-	assertGameState(nextState, {
-		allowNegativeCash: nextState.company.cash < 0,
-	});
+	assertGameState(
+		nextState,
+		{
+			allowNegativeCash: nextState.company.cash < 0,
+		},
+		true,
+	);
 	return { state: nextState, facts, pending };
 }
 

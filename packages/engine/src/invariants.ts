@@ -98,10 +98,19 @@ export type GameStateValidationOptions = Readonly<{
 	allowNegativeCash?: boolean;
 }>;
 
+/** Toggle expensive invariant checks for trusted high-volume simulations. */
+export let assertionsEnabled = true;
+
+export function setAssertionsEnabled(enabled: boolean): void {
+	assertionsEnabled = enabled;
+}
+
 export function assertGameState(
 	value: unknown,
 	options: GameStateValidationOptions = {},
+	force = false,
 ): asserts value is GameState {
+	if (!assertionsEnabled && !force) return;
 	assertJsonCompatible(value);
 	assertSafePersistedNumbers(value);
 	assertExactObject(value, GAME_STATE_KEYS, "game state");
