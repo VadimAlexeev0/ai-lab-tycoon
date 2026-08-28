@@ -450,6 +450,42 @@
 		@apply font-sans;
 		color-scheme: dark;
 		overflow-x: clip;
+		/* Mobile: kill pull-to-refresh hijacking page scroll (it has its own controls). */
+		overscroll-behavior-y: none;
+		/* Mobile: prevent long-press text selection on game controls. */
+		-webkit-user-select: none;
+		user-select: none;
+		/* Mobile: suppress the grey/blue tap flash on controls. */
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	/* Text content stays selectable — only chrome is locked down. */
+	p,
+	h1,
+	h2,
+	h3,
+	h4,
+	pre,
+	code,
+	input,
+	textarea {
+		-webkit-user-select: text;
+		user-select: text;
+	}
+
+	/* Hover styles are desktop-only: without this guard, tapped controls on
+	   touch devices keep their hover state stuck after the tap completes. */
+	@media (hover: hover) and (pointer: fine) {
+		.game-shell
+			:is(button, [role="button"], a):hover:not(:disabled):not([disabled]) {
+			filter: brightness(1.08);
+		}
+	}
+
+	/* Horizontal gesture surfaces: horizontal panning must not fight vertical
+	   page scroll. */
+	.overflow-x-auto {
+		touch-action: pan-x;
 	}
 
 	html[data-mode="light"] {

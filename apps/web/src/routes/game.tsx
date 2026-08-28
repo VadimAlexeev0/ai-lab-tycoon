@@ -186,7 +186,7 @@ function GameLayout() {
 				>
 					{isActive ? liveAnnouncement : ""}
 				</div>
-				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-24 sm:px-6 sm:py-5 sm:pb-24 lg:px-8 lg:py-7 lg:pb-8">
+				<div className="ailt-scroll-content mx-auto flex min-h-full w-full max-w-[1600px] flex-col gap-6 px-4 py-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-5 sm:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-8 lg:py-7 lg:pb-8">
 					<header className="flex min-h-11 items-center justify-between gap-3 border-border/70 border-b pb-3">
 						<div className="min-w-0">
 							<p className="truncate font-display font-semibold text-foreground text-lg sm:text-xl">

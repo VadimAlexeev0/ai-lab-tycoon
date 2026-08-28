@@ -34,7 +34,17 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 			},
 			{
 				name: "viewport",
-				content: "width=device-width, initial-scale=1",
+				content: "width=device-width, initial-scale=1, viewport-fit=cover",
+			},
+			{
+				name: "theme-color",
+				content: "#0a0e1a",
+				media: "(prefers-color-scheme: dark)",
+			},
+			{
+				name: "theme-color",
+				content: "#f4f7fb",
+				media: "(prefers-color-scheme: light)",
 			},
 			{
 				title: "AI Startup Lab Tycoon",
