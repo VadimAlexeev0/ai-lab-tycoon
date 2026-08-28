@@ -73,3 +73,12 @@ describe("ComputePanel purchase action", () => {
 		expect(button.getAttribute("title")).toMatch(/busy|progress/i);
 	});
 });
+
+it("keeps UI cost constants in sync with engine balance", async () => {
+	const { BALANCE } = await import(
+		"../../../../../packages/engine/src/data/balance.js"
+	);
+	expect(300).toBe(BALANCE.computePurchaseCost);
+	expect(12).toBe(BALANCE.computePurchaseUnits);
+	expect(300).toBe(BALANCE.hireTeamCost);
+});

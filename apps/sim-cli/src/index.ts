@@ -186,7 +186,15 @@ function playGame(bot: BotName, seed: number, maxWeeks: number): GameResult {
 	game.rivalLeaderWeeks = rivalLeaderWeeks;
 	game.foundationChoices = foundationChoices(state);
 	game.funding = fundingOutcomes(state);
-	replayCommandLog(state.commandLog, { expectedState: state });
+	try {
+		replayCommandLog(state.commandLog, { expectedState: state });
+		game.replayVerified = true;
+	} catch (error) {
+		game.replayVerified = false;
+		process.stderr.write(
+			`replay divergence (bot=${bot} seed=${seed}): ${(error as Error).message}\n`,
+		);
+	}
 	return game;
 }
 
@@ -294,6 +302,9 @@ async function main() {
 	}
 
 	const report = summarizeRuns(options.seed, runCount, options.maxWeeks, games);
+	const divergent = games.filter(
+		(game) => game.replayVerified === false,
+	).length;
 	process.stdout.write(`mode: ${options.fast ? "fast" : "validated"}\n`);
 	process.stdout.write(`${JSON.stringify(report)}\n`);
 	process.stdout.write(renderTable(report));
