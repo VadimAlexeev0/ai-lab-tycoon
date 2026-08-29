@@ -8,6 +8,10 @@ import {
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import {
+	SidebarInset,
+	SidebarProvider,
+} from "@ai-lab-tycoon/ui/components/sidebar";
+import {
 	createFileRoute,
 	Link,
 	Outlet,
@@ -26,7 +30,7 @@ import {
 import { useEffect } from "react";
 
 import DebugDrawer from "@/game/components/debug-drawer";
-import GameRail from "@/game/components/game-rail";
+import GameSidebar from "@/game/components/game-sidebar";
 import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
@@ -150,12 +154,12 @@ function GameLayout() {
 	}
 
 	return (
-		<div className="lab-void relative grid h-dvh min-h-0 min-w-0 grid-cols-[4rem_minmax(0,1fr)] overflow-hidden lg:grid-cols-[14rem_minmax(0,1fr)]">
-			<GameRail />
-			<main
+		<SidebarProvider className="lab-void h-dvh min-h-0 overflow-hidden">
+			<GameSidebar />
+			<SidebarInset
 				id="main-content"
 				tabIndex={-1}
-				className="game-shell col-start-2 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
+				className="game-shell h-dvh min-h-0 min-w-0 overflow-y-auto overflow-x-clip bg-background"
 			>
 				<div
 					aria-atomic="true"
@@ -207,7 +211,7 @@ function GameLayout() {
 						<GameRouteState />
 					)}
 				</div>
-			</main>
+			</SidebarInset>
 			<NewsTicker
 				forceVisible={search.debug === "1" || search.pulse === "1"}
 				rivalProgressPct={search.rivalProgress}
@@ -321,7 +325,7 @@ function GameLayout() {
 					state={state}
 				/>
 			) : null}
-		</div>
+		</SidebarProvider>
 	);
 }
 
