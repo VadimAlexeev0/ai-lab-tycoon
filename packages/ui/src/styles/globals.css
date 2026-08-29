@@ -795,7 +795,8 @@
 
 	.lattice-status-completed {
 		border-color: color-mix(in srgb, var(--game-positive) 50%, var(--border));
-		box-shadow: 0 0 18px color-mix(in srgb, var(--game-positive) 16%, transparent);
+		box-shadow: 0 0 18px
+			color-mix(in srgb, var(--game-positive) 16%, transparent);
 	}
 
 	.lattice-status-available {
@@ -966,7 +967,8 @@
 		padding: 1rem;
 		background: color-mix(in srgb, var(--background) 78%, transparent);
 		backdrop-filter: blur(14px) saturate(1.15);
-		box-shadow: 0 16px 40px color-mix(in srgb, var(--game-navy) 35%, transparent);
+		box-shadow: 0 16px 40px
+			color-mix(in srgb, var(--game-navy) 35%, transparent);
 	}
 
 	@keyframes research-lattice-card-shimmer {
