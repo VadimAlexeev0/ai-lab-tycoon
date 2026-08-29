@@ -290,6 +290,14 @@ describe("incidents", () => {
 		const state = forcedState("outage");
 		state.compute.capacity = 12;
 		state.company.cash = 50;
+		// Serving pressure now throttles growth before incidents are rolled. Keep
+		// the current user base above the overload threshold so this fixture still
+		// exercises the unaffordable repair response rather than growth throttling.
+		const product = state.products.items[0];
+		if (product === undefined) throw new Error("Expected outage product");
+		product.users = 15;
+		product.servingDemand = 15;
+		state.compute = withRecomputedCompute(state);
 		const advanced = advanceWeek(state, { incidentRolls: [0] });
 		const decision = advanced.state.decisions.pending[0];
 		if (decision?.kind !== "incident")
@@ -308,14 +316,18 @@ describe("incidents", () => {
 
 	it("rejects malformed incident roll fixtures", () => {
 		const state = forcedState("outage");
+		// With serving throttling, this fixture can finish the weekly phases
+		// without an active incident. The advance command validator therefore
+		// owns the rejection (range or integer) instead of the incidents system.
+		const invalidRollMessage = /incident.?roll/i;
 		expect(() => advanceWeek(state, { incidentRoll: -1 })).toThrow(
-			/0 through 99/i,
+			invalidRollMessage,
 		);
 		expect(() => advanceWeek(state, { incidentRoll: 100 })).toThrow(
-			/0 through 99/i,
+			invalidRollMessage,
 		);
 		expect(() => advanceWeek(state, { incidentRoll: 1.5 })).toThrow(
-			/0 through 99/i,
+			invalidRollMessage,
 		);
 		expect(() => advanceWeek(state, { incidentRolls: [0, 50] })).not.toThrow();
 	});

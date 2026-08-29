@@ -8,6 +8,7 @@ import {
 	advanceWeek,
 	applyDecision,
 	assignProject,
+	buyCompute,
 	designModel,
 	selectAvailableProjects,
 	startRun,
@@ -228,6 +229,10 @@ function runGolden(seed: number): GoldenRun {
 	// fixture; give this command-path regression a long enough runway to reach
 	// its multimodal assertion without changing live balance constants.
 	state.company.cash = 50_000;
+	// Keep the public command path viable under serving/training contention:
+	// without this purchase, the opening 12-unit pool starves the multimodal
+	// training project once Chat is operating at its 10-unit base demand.
+	state = buyCompute(state).state;
 
 	state = completeResearch(state, "text_models_principles", events);
 	state = designModel(state, TEXT_SPEC).state;

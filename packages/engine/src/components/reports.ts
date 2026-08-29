@@ -27,6 +27,8 @@ const FACT_KINDS = [
 	"evaluation_completed",
 	"product_launched",
 	"revenue",
+	"serving_throttled",
+	"training_starved",
 	"rival_progressed",
 	"rival_milestone",
 	"funding_resolved",
@@ -102,7 +104,23 @@ export type Fact =
 			channel: ProductChannel;
 			amount: number;
 			effectiveQuality: number;
+			/** Integer percentage of current serving demand delivered (0..100). */
+			servedShare?: number;
 			week: number;
+	  }
+	| {
+			kind: "serving_throttled";
+			productId: string;
+			week: number;
+			unmetDemand: number;
+	  }
+	| {
+			kind: "training_starved";
+			week: number;
+			capacity: number;
+			servingDemand: number;
+			evaluationDemand: number;
+			trainingDemand: number;
 	  }
 	| {
 			kind: "rival_progressed";
@@ -324,7 +342,17 @@ export function assertFact(value: unknown): asserts value is Fact {
 		case "revenue":
 			assertExactObject(
 				value,
-				["kind", "productId", "channel", "amount", "effectiveQuality", "week"],
+				Object.hasOwn(value, "servedShare")
+					? [
+							"kind",
+							"productId",
+							"channel",
+							"amount",
+							"effectiveQuality",
+							"servedShare",
+							"week",
+						]
+					: ["kind", "productId", "channel", "amount", "effectiveQuality", "week"],
 				"revenue fact",
 			);
 			assertIdentifier(value.productId, "Revenue product id");
@@ -334,7 +362,51 @@ export function assertFact(value: unknown): asserts value is Fact {
 			if (value.effectiveQuality < 0 || value.effectiveQuality > 100) {
 				throw new Error("Revenue effective quality must be between 0 and 100");
 			}
+			if (Object.hasOwn(value, "servedShare")) {
+				assertNonNegativeInteger(value.servedShare, "Revenue served share");
+				if (value.servedShare > 100) {
+					throw new Error("Revenue served share must be between 0 and 100");
+				}
+			}
 			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "serving_throttled":
+			assertExactObject(
+				value,
+				["kind", "productId", "week", "unmetDemand"],
+				"serving throttled fact",
+			);
+			assertIdentifier(value.productId, "Serving throttle product id");
+			assertPositiveInteger(value.week, "Fact week");
+			assertNonNegativeInteger(value.unmetDemand, "Serving unmet demand");
+			return;
+		case "training_starved":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"week",
+					"capacity",
+					"servingDemand",
+					"evaluationDemand",
+					"trainingDemand",
+				],
+				"training starved fact",
+			);
+			assertPositiveInteger(value.week, "Fact week");
+			assertNonNegativeInteger(value.capacity, "Training starvation capacity");
+			assertNonNegativeInteger(
+				value.servingDemand,
+				"Training starvation serving demand",
+			);
+			assertNonNegativeInteger(
+				value.evaluationDemand,
+				"Training starvation evaluation demand",
+			);
+			assertNonNegativeInteger(
+				value.trainingDemand,
+				"Training starvation training demand",
+			);
 			return;
 		case "rival_progressed":
 			assertExactObject(

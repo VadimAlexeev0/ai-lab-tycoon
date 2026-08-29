@@ -24,17 +24,9 @@ export const productsSystem: GameSystem = (state, context) => {
 	let cash = state.company.cash;
 	let hype = state.company.hype;
 	let trust = state.company.trust;
-	let totalServingDemand = 0;
-	const nextProducts: Product[] = [];
-
-	for (const product of state.products.items) {
-		const nextProduct = cloneProduct(product);
-		if (product.status !== "operating") {
-			nextProduct.servingDemand = 0;
-			nextProduct.lastRevenue = 0;
-			nextProducts.push(nextProduct);
-			continue;
-		}
+	const evaluationDemand = computeReservations(state).evaluationDemand;
+	const projections = state.products.items.flatMap((product) => {
+		if (product.status !== "operating") return [];
 		const model = state.models.items.find(
 			(candidate) => candidate.id === product.modelId,
 		);
@@ -42,18 +34,114 @@ export const productsSystem: GameSystem = (state, context) => {
 			throw new Error(`Product ${product.id} references an unknown model`);
 		}
 		const tuning = BALANCE.productChannels[product.channel];
-		const users = (product.users ?? tuning.baseUsers) + tuning.usersPerWeek;
-		const quality = effectiveProductQuality(model, product.channel);
-		const servingDemand = users * tuning.servingComputePerUser;
-		const revenue = Math.trunc(
-			(tuning.weeklyRevenue * quality * users) / (100 * tuning.baseUsers),
+		const currentUsers = product.users ?? tuning.baseUsers;
+		const growthUsers = currentUsers + tuning.usersPerWeek;
+		return [
+			{
+				product,
+				model,
+				tuning,
+				currentUsers,
+				growthUsers,
+				growthDemand: growthUsers * tuning.servingComputePerUser,
+			},
+		];
+	});
+	const projectedServingDemand = projections.reduce(
+		(total, projection) => total + projection.growthDemand,
+		0,
+	);
+	const allocatedServing = Math.min(
+		state.compute.capacity,
+		projectedServingDemand,
+	);
+	const operatingProducts = projections.map((projection) => {
+		const allocatedProductServing = servingAllocation(
+			projection.growthDemand,
+			projectedServingDemand,
+			allocatedServing,
 		);
-		totalServingDemand += servingDemand;
-		nextProduct.users = users;
-		nextProduct.servingDemand = servingDemand;
-		nextProduct.effectiveQuality = quality;
-		nextProduct.lastRevenue = revenue;
-		nextProduct.cumulativeRevenue = (product.cumulativeRevenue ?? 0) + revenue;
+		const growthThrottled =
+			projection.growthUsers > projection.currentUsers &&
+			projection.growthDemand > allocatedProductServing;
+		const users = growthThrottled
+			? projection.currentUsers
+			: projection.growthUsers;
+		return {
+			...projection,
+			allocatedProductServing,
+			growthThrottled,
+			users,
+			servingDemand: users * projection.tuning.servingComputePerUser,
+			unmetDemand: Math.max(
+				0,
+				projection.growthDemand - allocatedProductServing,
+			),
+		};
+	});
+	const totalServingDemand = operatingProducts.reduce(
+		(total, product) => total + product.servingDemand,
+		0,
+	);
+	const availableServingCapacity = Math.max(
+		0,
+		state.compute.capacity - evaluationDemand,
+	);
+	const allocatedAvailableServing = Math.min(
+		availableServingCapacity,
+		totalServingDemand,
+	);
+	const servedShare =
+		totalServingDemand === 0
+			? 100
+			: Math.trunc((allocatedAvailableServing * 100) / totalServingDemand);
+	const productsById = new Map(
+		operatingProducts.map((product) => [product.product.id, product]),
+	);
+	const nextProducts: Product[] = [];
+
+	for (const product of state.products.items) {
+		const operating = productsById.get(product.id);
+		if (operating === undefined) {
+			const nextProduct = cloneProduct(product);
+			if (product.status !== "operating") {
+				nextProduct.servingDemand = 0;
+				nextProduct.lastRevenue = 0;
+			}
+			nextProducts.push(nextProduct);
+			continue;
+		}
+
+		const quality = effectiveProductQuality(operating.model, product.channel);
+		const baseRevenue = Math.trunc(
+			(operating.tuning.weeklyRevenue * quality * operating.users) /
+				(100 * operating.tuning.baseUsers),
+		);
+		const revenue =
+			totalServingDemand === 0
+				? 0
+				: Math.trunc(
+						(baseRevenue * allocatedAvailableServing) /
+							totalServingDemand,
+					);
+		const nextProduct: Product = {
+			...product,
+			users: operating.users,
+			servingDemand: operating.servingDemand,
+			effectiveQuality: quality,
+			lastRevenue: revenue,
+			cumulativeRevenue: (product.cumulativeRevenue ?? 0) + revenue,
+		};
+		nextProducts.push(nextProduct);
+
+		if (operating.growthThrottled && operating.unmetDemand > 0) {
+			facts.push({
+				kind: "serving_throttled",
+				productId: product.id,
+				week: context.week,
+				unmetDemand: operating.unmetDemand,
+			});
+		}
 		if (revenue > 0) {
 			cash += revenue;
 			facts.push(
@@ -63,6 +151,7 @@ export const productsSystem: GameSystem = (state, context) => {
 					channel: product.channel,
 					amount: revenue,
 					effectiveQuality: quality,
+					servedShare,
 					week: context.week,
 				},
 				{
@@ -73,17 +162,17 @@ export const productsSystem: GameSystem = (state, context) => {
 				},
 			);
 		}
-		if (tuning.hypePerWeek > 0) {
-			hype += tuning.hypePerWeek;
+		if (operating.tuning.hypePerWeek > 0) {
+			hype += operating.tuning.hypePerWeek;
 			facts.push({
 				kind: "resource_changed",
 				resource: "hype",
-				amount: tuning.hypePerWeek,
+				amount: operating.tuning.hypePerWeek,
 				week: context.week,
 			});
 		}
-		if (tuning.trustPerWeek > 0) {
-			const trustGain = Math.min(100 - trust, tuning.trustPerWeek);
+		if (operating.tuning.trustPerWeek > 0) {
+			const trustGain = Math.min(100 - trust, operating.tuning.trustPerWeek);
 			if (trustGain > 0) {
 				trust += trustGain;
 				facts.push({
@@ -94,7 +183,6 @@ export const productsSystem: GameSystem = (state, context) => {
 				});
 			}
 		}
-		nextProducts.push(nextProduct);
 	}
 
 	let nextState: GameState = {
@@ -249,6 +337,15 @@ function hasEvaluation(
 			project.evaluation === evaluation &&
 			project.status !== "cancelled",
 	);
+}
+
+function servingAllocation(
+	demand: number,
+	totalDemand: number,
+	allocated: number,
+): number {
+	if (demand === 0 || totalDemand === 0 || allocated === 0) return 0;
+	return Math.trunc((demand * allocated) / totalDemand);
 }
 
 function cloneProduct(product: Product): Product {

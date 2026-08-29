@@ -40,6 +40,20 @@ export const trainingSystem: GameSystem = (state, context) => {
 		reservations.servingDemand > 0 &&
 		reservations.servingDemand >=
 			Math.max(0, state.compute.capacity - reservations.evaluationDemand);
+	const trainingStarvedByPressure =
+		trainingProgressRate === 0 &&
+		trainingDemand > availableTrainingCapacity &&
+		(reservations.servingDemand > 0 || reservations.evaluationDemand > 0);
+	if (trainingStarvedByPressure) {
+		facts.push({
+			kind: "training_starved",
+			week: context.week,
+			capacity: state.compute.capacity,
+			servingDemand: reservations.servingDemand,
+			evaluationDemand: reservations.evaluationDemand,
+			trainingDemand,
+		});
+	}
 	let nextRng = state.rng;
 	const nextModels = state.models.items.map(cloneModel);
 	const nextProjects: Project[] = state.projects.items.map((project) => {

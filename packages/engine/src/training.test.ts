@@ -153,6 +153,74 @@ describe("training system", () => {
 		});
 	});
 
+	it("emits one training starvation fact for multiple starved projects", () => {
+		const designed = designModel(designableState(), SPEC).state;
+		const extraModelId = "model_extra";
+		designed.models.items.push({
+			id: extraModelId,
+			name: "Extra-1",
+			foundation: "fresh",
+			family: "text",
+			tier: "lean",
+			scoreCeiling: BALANCE.modelTiers.lean.scoreCeiling,
+			status: "training",
+			projectId: "project_extra",
+		});
+		designed.projects.items.push({
+			kind: "training",
+			id: "project_extra",
+			teamId: "team_extra",
+			modelId: extraModelId,
+			status: "active",
+			progress: 0,
+			duration: 2,
+		});
+		designed.teams.items.push({
+			id: "team_extra",
+			name: "Extra Team",
+			activeProjectId: "project_extra",
+		});
+		designed.models.items.push({
+			id: "model_live",
+			name: "Live-1",
+			foundation: "fresh",
+			family: "text",
+			tier: "lean",
+			scoreCeiling: BALANCE.modelTiers.lean.scoreCeiling,
+			status: "launched",
+			projectId: null,
+		});
+		designed.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_live",
+				status: "operating",
+				users: 15,
+				lastRevenue: 0,
+				cumulativeRevenue: 0,
+				servingDemand: 15,
+				effectiveQuality: 60,
+			},
+		];
+		designed.compute = withRecomputedCompute(designed);
+
+		const result = trainingSystem(designed, { phase: "training", week: 1 });
+
+		expect(
+			result.facts.filter((fact) => fact.kind === "training_starved"),
+		).toEqual([
+			{
+				kind: "training_starved",
+				week: 1,
+				capacity: 12,
+				servingDemand: 15,
+				evaluationDemand: 0,
+				trainingDemand: 8,
+			},
+		]);
+	});
+
 	it("progresses the active training project and leaves a designing model unfinished", () => {
 		const designed = designModel(designableState(), SPEC).state;
 		const result = trainingSystem(designed, { phase: "training", week: 1 });
