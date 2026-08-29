@@ -5,6 +5,7 @@ import { BALANCE } from "./data/balance.js";
 import {
 	applyDecision,
 	assignProject,
+	buyCompute,
 	designModel,
 	selectAvailableProjects,
 	startRun,
@@ -113,7 +114,10 @@ function reachLaunch(): GameState {
 const LONG_WEEKS = 50;
 
 function longRun(): { state: GameState; weekSnapshots: string[] } {
-	let state = reachLaunch();
+	// The new serving cap intentionally pauses growth at saturation. Purchase
+	// capacity through the public command so this invariant fixture remains a
+	// sustainable 50+ week replay rather than becoming a cash-loss test.
+	let state = buyCompute(reachLaunch()).state;
 	const weekSnapshots: string[] = [];
 	for (let week = 0; week < LONG_WEEKS; week += 1) {
 		if (state.terminal.status === "lost") break;

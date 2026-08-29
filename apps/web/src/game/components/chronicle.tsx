@@ -455,6 +455,10 @@ function titleForFact(fact: Fact): string {
 			return `Product ${fact.productId} launched`;
 		case "revenue":
 			return `Product ${fact.productId} recorded revenue`;
+		case "serving_throttled":
+			return `Product ${fact.productId} serving throttled`;
+		case "training_starved":
+			return "Training paused by compute pressure";
 		case "rival_progressed":
 			return `Rival ${fact.rivalId} progressed`;
 		case "rival_milestone":
@@ -490,6 +494,10 @@ function detailForFact(fact: Fact): string {
 			return `${fact.productId} entered the ${humanize(fact.channel)} channel.`;
 		case "revenue":
 			return `${fact.productId} returned ${fact.amount} in ${humanize(fact.channel)} revenue at quality ${fact.effectiveQuality}.`;
+		case "serving_throttled":
+			return `${fact.productId} left ${fact.unmetDemand} units of serving demand unmet.`;
+		case "training_starved":
+			return `Training paused at capacity ${fact.capacity}: serving ${fact.servingDemand}, evaluation ${fact.evaluationDemand}, training ${fact.trainingDemand}.`;
 		case "rival_progressed":
 			return `${fact.rivalId} moved by ${fact.amount} progress points.`;
 		case "rival_milestone":

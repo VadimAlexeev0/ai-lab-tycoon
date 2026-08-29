@@ -82,3 +82,15 @@ it("keeps UI cost constants in sync with engine balance", async () => {
 	expect(12).toBe(BALANCE.computePurchaseUnits);
 	expect(300).toBe(BALANCE.hireTeamCost);
 });
+
+it("shows when serving saturation pauses growth", () => {
+	const state = startRun({ companyName: "Acme Labs" }, 42);
+	state.compute.capacity = 12;
+	state.compute.servingDemand = 12;
+
+	render(<ComputePanel state={state} />);
+
+	expect(
+		screen.getByText("Serving demand 12 of 12 — growth paused"),
+	).toBeDefined();
+});

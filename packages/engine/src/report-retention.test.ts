@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	assertFact,
 	createReportsState,
 	type Fact,
 	type Report,
@@ -68,5 +69,48 @@ describe("report retention", () => {
 		expect(selectRecentReports(next)).toHaveLength(200);
 		expect(() => assertGameState(next)).not.toThrow();
 		expect(initial.reports.items).toHaveLength(200);
+	});
+
+	it("validates compute pressure facts and integer served-share percentages", () => {
+		expect(() =>
+			assertFact({
+				kind: "serving_throttled",
+				productId: "product_001",
+				week: 2,
+				unmetDemand: 3,
+			}),
+		).not.toThrow();
+		expect(() =>
+			assertFact({
+				kind: "training_starved",
+				week: 2,
+				capacity: 12,
+				servingDemand: 15,
+				evaluationDemand: 0,
+				trainingDemand: 3,
+			}),
+		).not.toThrow();
+		expect(() =>
+			assertFact({
+				kind: "revenue",
+				productId: "product_001",
+				channel: "chat",
+				amount: 25,
+				effectiveQuality: 50,
+				servedShare: 50,
+				week: 2,
+			}),
+		).not.toThrow();
+		expect(() =>
+			assertFact({
+				kind: "revenue",
+				productId: "product_001",
+				channel: "chat",
+				amount: 25,
+				effectiveQuality: 50,
+				servedShare: 0.5,
+				week: 2,
+			}),
+		).toThrow(/integer|served share/i);
 	});
 });

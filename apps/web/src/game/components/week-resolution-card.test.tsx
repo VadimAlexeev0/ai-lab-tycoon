@@ -75,6 +75,20 @@ describe("WeekResolutionCard", () => {
 			{ kind: "resource_changed", resource: "trust", amount: -4, week: 4 },
 			{ kind: "resource_changed", resource: "hype", amount: 3, week: 4 },
 			{
+				kind: "serving_throttled",
+				productId: "product_001",
+				week: 4,
+				unmetDemand: 3,
+			},
+			{
+				kind: "training_starved",
+				week: 4,
+				capacity: 12,
+				servingDemand: 15,
+				evaluationDemand: 2,
+				trainingDemand: 5,
+			},
+			{
 				kind: "product_launched",
 				productId: "product_001",
 				channel: "chat",
@@ -102,6 +116,10 @@ describe("WeekResolutionCard", () => {
 		).toBeTruthy();
 		expect(screen.getAllByText(/Atlas · Chat/).length).toBeGreaterThan(0);
 		expect(screen.getByText(/Training · Atlas completed/)).toBeTruthy();
+		expect(screen.getByText(/Atlas · Chat serving throttled/)).toBeTruthy();
+		expect(
+			screen.getByText(/Training paused by compute pressure/),
+		).toBeTruthy();
 		expect(container.textContent).not.toContain("product_001");
 		expect(container.textContent).not.toContain("model_001");
 		expect(container.textContent).not.toContain("project_001");

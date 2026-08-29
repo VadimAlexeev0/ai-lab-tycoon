@@ -54,6 +54,8 @@ export function useWeekDigest(
 					incidents: [],
 					fundingEvents: [],
 					projectCompletions: [],
+					servingThrottles: [],
+					trainingStarvations: [],
 				},
 				deltas: emptyResourceDeltas(),
 			};

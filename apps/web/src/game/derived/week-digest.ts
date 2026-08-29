@@ -19,6 +19,11 @@ export type ProjectCompletionFact = Extract<
 	Fact,
 	{ kind: "project_completed" }
 >;
+export type ServingThrottleFact = Extract<Fact, { kind: "serving_throttled" }>;
+export type TrainingStarvationFact = Extract<
+	Fact,
+	{ kind: "training_starved" }
+>;
 
 /**
  * The public, report-backed events that happened in a single engine week.
@@ -36,6 +41,8 @@ export type WeekDigest = {
 	incidents: IncidentFact[];
 	fundingEvents: FundingEventFact[];
 	projectCompletions: ProjectCompletionFact[];
+	servingThrottles: ServingThrottleFact[];
+	trainingStarvations: TrainingStarvationFact[];
 };
 
 export type ResourceDeltas = {
@@ -80,6 +87,8 @@ export function deriveWeekDigest(
 		),
 		fundingEvents: factsOfKind(facts, "funding_resolved"),
 		projectCompletions: factsOfKind(facts, "project_completed"),
+		servingThrottles: factsOfKind(facts, "serving_throttled"),
+		trainingStarvations: factsOfKind(facts, "training_starved"),
 	};
 }
 

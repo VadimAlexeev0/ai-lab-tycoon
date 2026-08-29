@@ -73,7 +73,11 @@ describe("products", () => {
 
 	it("uses estimate quality, never hidden true scores, for exact weekly revenue", () => {
 		const launched = launchProduct(readyState(), "model_001", "chat").state;
-		const result = productsSystem(launched, { phase: "products", week: 1 });
+		launched.compute.capacity = 15;
+		const result = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
 		const expectedQuality = Math.trunc((40 + 60) / 2);
 		const expectedRevenue = Math.trunc(
 			(BALANCE.productChannels.chat.weeklyRevenue * expectedQuality * 15) /
@@ -93,6 +97,7 @@ describe("products", () => {
 			channel: "chat",
 			amount: expectedRevenue,
 			effectiveQuality: expectedQuality,
+			servedShare: 100,
 			week: 1,
 		});
 	});
@@ -102,7 +107,11 @@ describe("products", () => {
 		const product = launched.products.items[0];
 		if (product === undefined) throw new Error("Expected chat product");
 		product.users = 15;
-		const result = productsSystem(launched, { phase: "products", week: 1 });
+		launched.compute.capacity = 20;
+		const result = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
 		expect(result.state.products.items[0]?.users).toBe(20);
 		expect(result.state.products.items[0]?.lastRevenue).toBe(100);
 	});
@@ -300,7 +309,11 @@ describe("products", () => {
 		const launched = launchProduct(state, "model_001", "chat").state;
 
 		// 100 * 57 * 15 / 1000 = 85.5, which must truncate to 85.
-		const result = productsSystem(launched, { phase: "products", week: 1 });
+		launched.compute.capacity = 15;
+		const result = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
 		expect(result.state.products.items[0]?.users).toBe(15);
 		expect(result.state.products.items[0]?.lastRevenue).toBe(85);
 		expect(result.state.products.items[0]?.cumulativeRevenue).toBe(85);
@@ -309,7 +322,11 @@ describe("products", () => {
 
 	it("accumulates exact weekly revenue into cash and cumulative revenue", () => {
 		const launched = launchProduct(readyState(), "model_001", "chat").state;
-		const first = productsSystem(launched, { phase: "products", week: 1 });
+		launched.compute.capacity = 30;
+		const first = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
 		expect(first.state.products.items[0]?.users).toBe(15);
 		expect(first.state.products.items[0]?.lastRevenue).toBe(75);
 		expect(first.state.products.items[0]?.cumulativeRevenue).toBe(75);
@@ -322,5 +339,106 @@ describe("products", () => {
 		expect(second.state.products.items[0]?.lastRevenue).toBe(100);
 		expect(second.state.products.items[0]?.cumulativeRevenue).toBe(175);
 		expect(second.state.company.cash).toBe(launched.company.cash + 75 + 100);
+	});
+
+	it("pauses user growth when serving is saturated and resumes after capacity frees", () => {
+		const launched = launchProduct(readyState(), "model_001", "chat").state;
+		launched.compute.capacity = 12;
+		const throttled = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
+
+		expect(throttled.state.products.items[0]).toMatchObject({
+			users: 10,
+			servingDemand: 10,
+			lastRevenue: 50,
+		});
+		expect(throttled.facts).toContainEqual({
+			kind: "serving_throttled",
+			productId: "product_001",
+			week: 1,
+			unmetDemand: 3,
+		});
+		expect(throttled.facts).toContainEqual(
+			expect.objectContaining({
+				kind: "revenue",
+				amount: 50,
+				servedShare: 100,
+			}),
+		);
+
+		const expanded = {
+			...throttled.state,
+			compute: { ...throttled.state.compute, capacity: 15 },
+		};
+		const resumed = productsSystem(syncCompute(expanded), {
+			phase: "products",
+			week: 2,
+		});
+
+		expect(resumed.state.products.items[0]).toMatchObject({
+			users: 15,
+			servingDemand: 15,
+		});
+		expect(
+			resumed.facts.some((fact) => fact.kind === "serving_throttled"),
+		).toBe(false);
+	});
+
+	it("scales revenue by the served share, including a no-share edge", () => {
+		const runAtCapacity = (capacity: number) => {
+			const launched = launchProduct(readyState(), "model_001", "chat").state;
+			const product = launched.products.items[0];
+			if (product === undefined) throw new Error("Expected chat product");
+			product.users = 10;
+			product.servingDemand = 10;
+			launched.compute.capacity = capacity;
+			return productsSystem(syncCompute(launched), {
+				phase: "products",
+				week: 1,
+			});
+		};
+
+		const full = runAtCapacity(15);
+		expect(full.state.products.items[0]?.lastRevenue).toBe(75);
+		expect(full.facts).toContainEqual(
+			expect.objectContaining({ kind: "revenue", servedShare: 100 }),
+		);
+
+		const partial = runAtCapacity(5);
+		expect(partial.state.products.items[0]).toMatchObject({
+			users: 10,
+			lastRevenue: 25,
+		});
+		expect(partial.facts).toContainEqual(
+			expect.objectContaining({
+				kind: "revenue",
+				amount: 25,
+				servedShare: 50,
+			}),
+		);
+
+		const none = runAtCapacity(0);
+		expect(none.state.products.items[0]?.lastRevenue).toBe(0);
+		expect(none.facts.some((fact) => fact.kind === "revenue")).toBe(false);
+	});
+
+	it("emits serving throttles only when an operating product would grow", () => {
+		const launched = launchProduct(readyState(), "model_001", "chat").state;
+		const product = launched.products.items[0];
+		if (product === undefined) throw new Error("Expected chat product");
+		product.status = "paused";
+		product.servingDemand = 10;
+		launched.compute.capacity = 0;
+
+		const result = productsSystem(syncCompute(launched), {
+			phase: "products",
+			week: 1,
+		});
+
+		expect(result.facts.some((fact) => fact.kind === "serving_throttled")).toBe(
+			false,
+		);
 	});
 });

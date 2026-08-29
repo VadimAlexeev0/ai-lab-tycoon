@@ -72,6 +72,15 @@ export default function ComputePanel({ state }: ComputePanelProps) {
 				<Metric label="Serving" value={`${servingDemand}`} />
 			</div>
 
+			{servingDemand > 0 && servingDemand >= capacity ? (
+				<p
+					className="border-[var(--game-negative)]/40 border-y py-2 text-[var(--game-negative)] text-xs"
+					role="status"
+				>
+					Serving demand {servingDemand} of {capacity} — growth paused
+				</p>
+			) : null}
+
 			<div className="flex flex-col gap-3 border-border/70 border-y py-3 sm:flex-row sm:items-center sm:justify-between">
 				<div className="min-w-0">
 					<p className="font-semibold text-foreground text-xs">

@@ -435,6 +435,18 @@ function resolutionEvent(
 				label: `${labels.productId ?? humanizeId(fact.productId)} generated ${formatNumber(fact.amount)} revenue.`,
 				tone: "positive",
 			};
+		case "serving_throttled":
+			return {
+				id: `serving-throttled-${fact.productId}-${index}`,
+				label: `${resolveEntityLabel(state, "product", fact.productId)} serving throttled: ${formatNumber(fact.unmetDemand)} demand unmet.`,
+				tone: "negative",
+			};
+		case "training_starved":
+			return {
+				id: `training-starved-${index}`,
+				label: `Training paused by compute pressure: capacity ${formatNumber(fact.capacity)}, serving demand ${formatNumber(fact.servingDemand)}, evaluation demand ${formatNumber(fact.evaluationDemand)}, training demand ${formatNumber(fact.trainingDemand)}.`,
+				tone: "negative",
+			};
 		case "rival_progressed":
 			return {
 				id: `rival-progress-${fact.rivalId}-${index}`,
