@@ -5,6 +5,8 @@ import {
 	selectResourceBar,
 } from "@ai-lab-tycoon/engine";
 
+import { type FactEntityField, resolveFactLabels } from "./labels";
+
 export type LaunchFact = Extract<Fact, { kind: "product_launched" }>;
 export type TrainingCompletionFact = Extract<Fact, { kind: "model_trained" }>;
 export type EvaluationFact = Extract<Fact, { kind: "evaluation_completed" }>;
@@ -27,6 +29,7 @@ export type ProjectCompletionFact = Extract<
  */
 export type WeekDigest = {
 	week: number;
+	facts: Fact[];
 	launches: LaunchFact[];
 	trainingCompletions: TrainingCompletionFact[];
 	evaluations: EvaluationFact[];
@@ -67,6 +70,7 @@ export function deriveWeekDigest(
 
 	return {
 		week,
+		facts,
 		launches: factsOfKind(facts, "product_launched"),
 		trainingCompletions: factsOfKind(facts, "model_trained"),
 		evaluations: factsOfKind(facts, "evaluation_completed"),
@@ -109,21 +113,30 @@ export function emptyResourceDeltas(): ResourceDeltas {
 export function summarizeWeekDigest(
 	digest: WeekDigest,
 	deltas: ResourceDeltas = emptyResourceDeltas(),
+	state?: GameState,
 ): string {
 	const eventLabels = [
-		...digest.launches.map((fact) => `${fact.productId} launched`),
+		...digest.launches.map(
+			(fact) => `${factLabel(state, fact, "productId")} launched`,
+		),
 		...digest.incidents.map((fact) =>
 			fact.kind === "incident_resolved"
 				? `${humanize(fact.incident)} contained`
 				: `${humanize(fact.incident)} incident reported`,
 		),
-		...digest.trainingCompletions.map((fact) => `${fact.modelId} trained`),
-		...digest.evaluations.map((fact) => `${fact.modelId} evaluated`),
+		...digest.trainingCompletions.map(
+			(fact) => `${factLabel(state, fact, "modelId")} trained`,
+		),
+		...digest.evaluations.map(
+			(fact) => `${factLabel(state, fact, "modelId")} evaluated`,
+		),
 		...digest.fundingEvents.map(
 			(fact) =>
 				`${fact.round === "series_a" ? "Series A" : "Seed"} funding ${fact.outcome}`,
 		),
-		...digest.projectCompletions.map((fact) => `${fact.projectId} completed`),
+		...digest.projectCompletions.map(
+			(fact) => `${factLabel(state, fact, "projectId")} completed`,
+		),
 	];
 	const visibleEvents = eventLabels.slice(0, 3);
 	if (eventLabels.length > visibleEvents.length) {
@@ -144,6 +157,19 @@ export function summarizeWeekDigest(
 	return parts.length === 0
 		? `Week ${digest.week}: No new activity recorded.`
 		: `Week ${digest.week}: ${parts.join(" · ")}`;
+}
+
+function factLabel(
+	state: GameState | undefined,
+	fact: Fact,
+	field: FactEntityField,
+): string {
+	if (state !== undefined) {
+		const resolved = resolveFactLabels(state, fact)[field];
+		if (resolved !== undefined) return resolved;
+	}
+	const value = (fact as Partial<Record<FactEntityField, string>>)[field];
+	return typeof value === "string" ? humanize(value) : "Unknown";
 }
 
 function factsOfKind<K extends Fact["kind"]>(

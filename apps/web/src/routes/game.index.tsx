@@ -13,7 +13,11 @@ import GamePage from "@/game/components/game-page";
 import MarketPulse from "@/game/components/market-pulse";
 import OverviewHero from "@/game/components/overview-hero";
 import ResourceBar from "@/game/components/resource-bar";
-import WeekDigestCard from "@/game/components/week-digest-card";
+import RunwayWarningStrip, {
+	RunwayWarningList,
+} from "@/game/components/runway-warning-strip";
+import WeekResolutionCard from "@/game/components/week-resolution-card";
+import { deriveRunwayWarnings } from "@/game/derived/runway";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { useRunState } from "@/game/game-state-context";
 
@@ -42,6 +46,7 @@ function DashboardRoute() {
 	const navigate = useNavigate();
 	if (state === null) return null;
 	const { digest, deltas } = useWeekDigest(state, game.revision);
+	const runwayWarnings = deriveRunwayWarnings(state);
 
 	function advanceFromHero() {
 		void game.executeEngineCommand((current) => advanceWeek(current));
@@ -68,7 +73,8 @@ function DashboardRoute() {
 						state={state}
 					/>
 					<ResourceBar revision={game.revision} state={state} />
-					<WeekDigestCard
+					<RunwayWarningStrip warnings={runwayWarnings} />
+					<WeekResolutionCard
 						advanceControl={
 							<AdvanceWeekButton
 								className="px-0 py-0"
@@ -87,11 +93,12 @@ function DashboardRoute() {
 								state={state}
 							/>
 						}
+						state={state}
 					/>
 				</div>
 				<div className="min-w-0 space-y-4">
 					<LabRail state={state} />
-					<DashboardStatusCards state={state} />
+					<DashboardStatusCards runwayWarnings={runwayWarnings} state={state} />
 				</div>
 			</div>
 		</GamePage>
@@ -172,7 +179,13 @@ function RivalLeaderSummary({ state }: { state: GameState }) {
 	);
 }
 
-function DashboardStatusCards({ state }: { state: GameState }) {
+function DashboardStatusCards({
+	runwayWarnings,
+	state,
+}: {
+	runwayWarnings: ReturnType<typeof deriveRunwayWarnings>;
+	state: GameState;
+}) {
 	const models = selectVisibleModels(state);
 	const teams = selectTeams(state);
 	const latestModel = models[0];
@@ -185,26 +198,7 @@ function DashboardStatusCards({ state }: { state: GameState }) {
 
 	return (
 		<>
-			{state.warnings.length > 0 ? (
-				<section
-					aria-label="Run warnings"
-					className="glass-pane border-[var(--game-negative)]/45 bg-[var(--game-negative)]/8 px-3 py-3"
-					role="status"
-				>
-					<p className="meta-label text-[var(--game-negative)]">Run warning</p>
-					<ul className="mt-2 space-y-1 text-muted-foreground text-xs">
-						{state.warnings.map((warning) => (
-							<li className="flex items-center gap-2" key={warning.code}>
-								<span
-									aria-hidden="true"
-									className="size-1.5 shrink-0 rounded-full bg-[var(--game-negative)]"
-								/>
-								{humanizeWarning(warning.code)} · {warning.severity}
-							</li>
-						))}
-					</ul>
-				</section>
-			) : null}
+			<RunwayWarningList warnings={runwayWarnings} />
 			<section
 				aria-label="Lab status"
 				className="glass-pane glass-edge overflow-hidden"
@@ -271,10 +265,4 @@ function PanelLoadingState({ label }: { label: string }) {
 			{label}
 		</div>
 	);
-}
-
-function humanizeWarning(value: string): string {
-	return value
-		.replaceAll("_", " ")
-		.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
