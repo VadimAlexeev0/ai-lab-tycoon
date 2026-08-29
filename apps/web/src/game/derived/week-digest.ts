@@ -5,7 +5,7 @@ import {
 	selectResourceBar,
 } from "@ai-lab-tycoon/engine";
 
-import { type FactEntityField, humanizeId, resolveFactLabels } from "./labels";
+import { type FactEntityField, resolveFactLabels } from "./labels";
 
 export type LaunchFact = Extract<Fact, { kind: "product_launched" }>;
 export type TrainingCompletionFact = Extract<Fact, { kind: "model_trained" }>;
