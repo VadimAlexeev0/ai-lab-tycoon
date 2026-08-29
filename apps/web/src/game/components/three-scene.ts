@@ -12,6 +12,7 @@ export type ThreeModule = {
 	Color: ThreeConstructor<THREE.Color>;
 	Group: ThreeConstructor<THREE.Group>;
 	IcosahedronGeometry: ThreeConstructor<THREE.IcosahedronGeometry>;
+	InstancedMesh: ThreeConstructor<THREE.InstancedMesh>;
 	LineBasicMaterial: ThreeConstructor<THREE.LineBasicMaterial>;
 	LineLoop: ThreeConstructor<THREE.LineLoop>;
 	LineSegments: ThreeConstructor<THREE.LineSegments>;
@@ -19,6 +20,7 @@ export type ThreeModule = {
 		clamp(value: number, min: number, max: number): number;
 		randFloatSpread(range: number): number;
 	};
+	Matrix4: ThreeConstructor<THREE.Matrix4>;
 	Mesh: ThreeConstructor<THREE.Mesh>;
 	MeshBasicMaterial: ThreeConstructor<THREE.MeshBasicMaterial>;
 	PerspectiveCamera: ThreeConstructor<THREE.PerspectiveCamera>;

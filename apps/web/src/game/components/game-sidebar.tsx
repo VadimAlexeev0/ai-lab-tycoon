@@ -35,6 +35,7 @@ import {
 	Newspaper,
 	PanelTop,
 	Play,
+	Server,
 	Sparkles,
 } from "lucide-react";
 
@@ -61,6 +62,11 @@ export const DESTINATIONS = [
 		to: "/game/teams",
 		label: "Teams",
 		icon: BriefcaseBusiness,
+	},
+	{
+		to: "/game/compute",
+		label: "Compute",
+		icon: Server,
 	},
 	{
 		to: "/game/research",

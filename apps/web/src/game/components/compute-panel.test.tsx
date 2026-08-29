@@ -1,36 +1,17 @@
 /** @vitest-environment jsdom */
 
-import { buyCompute, startRun } from "@ai-lab-tycoon/engine";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => ({
-	executeEngineCommand: vi.fn(),
-	useRunState: vi.fn(),
-}));
-
-vi.mock("@/game/game-state-context", () => ({
-	useRunState: mocks.useRunState,
-}));
+import { startRun } from "@ai-lab-tycoon/engine";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
 import ComputePanel from "./compute-panel";
 
-describe("ComputePanel purchase action", () => {
-	beforeEach(() => {
-		mocks.executeEngineCommand.mockReset();
-		mocks.executeEngineCommand.mockResolvedValue(true);
-		mocks.useRunState.mockReset();
-		mocks.useRunState.mockReturnValue({
-			actionBusy: false,
-			executeEngineCommand: mocks.executeEngineCommand,
-		});
-	});
+afterEach(() => {
+	cleanup();
+});
 
-	afterEach(() => {
-		cleanup();
-	});
-
-	it("shows the current demand and invokes the compute command", () => {
+describe("ComputePanel", () => {
+	it("shows current demand and links procurement to the Compute grid", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		state.compute.allocated = 4;
 		state.compute.trainingDemand = 3;
@@ -38,59 +19,32 @@ describe("ComputePanel purchase action", () => {
 
 		render(<ComputePanel state={state} />);
 
-		expect(screen.getByText("Capacity after purchase: 24 (+12)")).toBeDefined();
 		expect(screen.getByText("Training + serving demand: 5")).toBeDefined();
-		const button = screen.getByRole("button", { name: /Purchase compute/i });
-		expect((button as HTMLButtonElement).disabled).toBe(false);
-
-		fireEvent.click(button);
-
-		expect(mocks.executeEngineCommand).toHaveBeenCalledWith(buyCompute);
+		expect(
+			screen
+				.getByRole("link", { name: "Manage on Compute grid" })
+				.getAttribute("href"),
+		).toBe("/game/compute");
 	});
 
-	it("disables compute purchase when cash is insufficient with an explanation", () => {
+	it("shows when serving saturation pauses growth", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
-		state.company.cash = 299;
+		state.compute.capacity = 12;
+		state.compute.servingDemand = 12;
 
 		render(<ComputePanel state={state} />);
 
-		const button = screen.getByRole("button", { name: /Purchase compute/i });
-		expect((button as HTMLButtonElement).disabled).toBe(true);
-		expect(button.getAttribute("title")).toMatch(/300/);
-	});
-
-	it("disables compute purchase while another action is busy", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
-		mocks.useRunState.mockReturnValue({
-			actionBusy: true,
-			executeEngineCommand: mocks.executeEngineCommand,
-		});
-
-		render(<ComputePanel state={state} />);
-
-		const button = screen.getByRole("button", { name: /Purchase compute/i });
-		expect((button as HTMLButtonElement).disabled).toBe(true);
-		expect(button.getAttribute("title")).toMatch(/busy|progress/i);
+		expect(
+			screen.getByText("Serving demand 12 of 12 — growth paused"),
+		).toBeDefined();
 	});
 });
 
-it("keeps UI cost constants in sync with engine balance", async () => {
+it("keeps compute balance values aligned with the engine", async () => {
 	const { BALANCE } = await import(
 		"../../../../../packages/engine/src/data/balance.js"
 	);
 	expect(300).toBe(BALANCE.computePurchaseCost);
 	expect(12).toBe(BALANCE.computePurchaseUnits);
 	expect(300).toBe(BALANCE.hireTeamCost);
-});
-
-it("shows when serving saturation pauses growth", () => {
-	const state = startRun({ companyName: "Acme Labs" }, 42);
-	state.compute.capacity = 12;
-	state.compute.servingDemand = 12;
-
-	render(<ComputePanel state={state} />);
-
-	expect(
-		screen.getByText("Serving demand 12 of 12 — growth paused"),
-	).toBeDefined();
 });

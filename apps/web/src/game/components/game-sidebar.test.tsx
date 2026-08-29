@@ -86,6 +86,7 @@ describe("GameSidebar", () => {
 			"Overview",
 			"Calendar",
 			"Teams",
+			"Compute",
 			"Research",
 			"Models",
 			"Products",
