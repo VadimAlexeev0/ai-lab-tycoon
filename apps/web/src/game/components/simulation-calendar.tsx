@@ -23,8 +23,8 @@ import {
 	Radar,
 	ShieldAlert,
 } from "lucide-react";
-import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import Pane from "@/game/components/pane";
 
@@ -219,7 +219,7 @@ export default function SimulationCalendar({
 					</div>
 					<div className="shrink-0 border border-primary/35 bg-primary/5 px-3 py-2 text-xs">
 						<p className="text-muted-foreground">Current simulation week</p>
-						<p className="mt-1 font-semibold text-foreground text-base">
+						<p className="mt-1 font-semibold text-base text-foreground">
 							Week {state.meta.week}
 						</p>
 					</div>
@@ -331,16 +331,16 @@ function CalendarWeekColumn({
 						Week {week}
 					</p>
 					{isCurrent ? (
-						<span className="border border-primary/35 px-1.5 py-0.5 text-primary text-[10px]">
+						<span className="border border-primary/35 px-1.5 py-0.5 text-[10px] text-primary">
 							Now
 						</span>
 					) : isPast ? (
-						<span className="text-muted-foreground text-[10px]">Past</span>
+						<span className="text-[10px] text-muted-foreground">Past</span>
 					) : (
-						<span className="text-muted-foreground text-[10px]">Ahead</span>
+						<span className="text-[10px] text-muted-foreground">Ahead</span>
 					)}
 				</div>
-				<p className="mt-1 text-muted-foreground text-[10px]">
+				<p className="mt-1 text-[10px] text-muted-foreground">
 					{weekEvents.length === 0
 						? "No recorded events"
 						: `${weekEvents.length} scheduled span${weekEvents.length === 1 ? "" : "s"}`}
@@ -354,8 +354,8 @@ function CalendarWeekColumn({
 							className="relative flex min-h-0 items-start border-border/55 border-t px-2 py-2 first:border-t-0"
 							key={day}
 						>
-							<span className="text-muted-foreground text-[10px]">{day}</span>
-							<span className="ml-auto text-muted-foreground/55 text-[10px]">
+							<span className="text-[10px] text-muted-foreground">{day}</span>
+							<span className="ml-auto text-[10px] text-muted-foreground/55">
 								{week}.{index + 1}
 							</span>
 						</div>
@@ -396,8 +396,9 @@ function CalendarWeekColumn({
 								)}
 								{segment.event.endWeek === week ? (
 									<span
+										role="img"
 										aria-label={`${segment.event.title} completion day marker`}
-										className="absolute right-1 bottom-1 text-[var(--game-amber)] text-[10px]"
+										className="absolute right-1 bottom-1 text-[10px] text-[var(--game-amber)]"
 										title="Completion day marker"
 									>
 										<Flag className="size-3" aria-hidden="true" />
@@ -441,7 +442,7 @@ function CalendarEventButton({
 				<span className="line-clamp-3 min-w-0">{event.title}</span>
 			</span>
 			{event.progress !== undefined ? (
-				<span className="mt-1 block text-muted-foreground text-[9px]">
+				<span className="mt-1 block text-[9px] text-muted-foreground">
 					{event.progress}% · {event.status === "completed" ? "done" : "moving"}
 				</span>
 			) : null}
@@ -521,7 +522,7 @@ function CalendarEventDetail({
 					>
 						Source state objects
 					</h3>
-					<span className="text-muted-foreground text-[10px]">
+					<span className="text-[10px] text-muted-foreground">
 						{event.sources.length} linked
 					</span>
 				</div>
@@ -850,6 +851,8 @@ function reportToCalendarEvent(
 				summary: `The run ended in week ${fact.week}; the terminal report lists ${fact.contributors.length} contributors.`,
 				destination: "/game/products",
 			};
+		default:
+			return null;
 	}
 }
 

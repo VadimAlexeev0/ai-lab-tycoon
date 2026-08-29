@@ -69,6 +69,20 @@ describe("deriveWeekDigest", () => {
 				projectId: "project_001",
 				week: 4,
 			}),
+			report("throttle", {
+				kind: "serving_throttled",
+				productId: "product_001",
+				week: 4,
+				unmetDemand: 3,
+			}),
+			report("starved", {
+				kind: "training_starved",
+				week: 4,
+				capacity: 12,
+				servingDemand: 15,
+				evaluationDemand: 0,
+				trainingDemand: 5,
+			}),
 		];
 
 		const digest = deriveWeekDigest(previous, current);
@@ -80,6 +94,8 @@ describe("deriveWeekDigest", () => {
 		expect(digest.incidents).toHaveLength(1);
 		expect(digest.fundingEvents).toHaveLength(1);
 		expect(digest.projectCompletions).toHaveLength(1);
+		expect(digest.servingThrottles).toHaveLength(1);
+		expect(digest.trainingStarvations).toHaveLength(1);
 		expect(digest.launches[0]?.productId).toBe("product_001");
 	});
 

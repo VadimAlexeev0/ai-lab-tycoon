@@ -142,7 +142,10 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 			return "research";
 		case "product_launched":
 		case "revenue":
+		case "serving_throttled":
 			return "product";
+		case "training_starved":
+			return "training";
 		case "rival_progressed":
 		case "rival_milestone":
 			return "rival";
@@ -178,6 +181,10 @@ function factSummary(fact: Fact): string {
 			return `Product ${fact.productId} launched on ${fact.channel}.`;
 		case "revenue":
 			return `Product ${fact.productId} generated ${fact.amount} revenue at quality ${fact.effectiveQuality}.`;
+		case "serving_throttled":
+			return `Product ${fact.productId} serving throttled; ${fact.unmetDemand} demand unmet.`;
+		case "training_starved":
+			return `Training paused by compute pressure: capacity ${fact.capacity}, serving ${fact.servingDemand}, evaluation ${fact.evaluationDemand}, training ${fact.trainingDemand}.`;
 		case "rival_progressed":
 			return `Rival ${fact.rivalId} progressed by ${fact.amount}.`;
 		case "rival_milestone":
