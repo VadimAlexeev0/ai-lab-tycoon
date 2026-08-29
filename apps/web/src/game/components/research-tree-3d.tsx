@@ -1,8 +1,4 @@
-import {
-	type GameState,
-	selectResearchNodes,
-	selectTeams,
-} from "@ai-lab-tycoon/engine";
+import { type GameState, selectTeams } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import {
@@ -17,14 +13,19 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import EraBadge, { ERA_LABELS, ERA_ORDER } from "@/game/components/era-badge";
-
+import EraBadge, { ERA_LABELS } from "@/game/components/era-badge";
 import {
 	createResearchLayout,
 	type PositionedNode,
-	type PositionedNodeStatus,
 	type ResearchLayoutState,
 } from "../derived/research-layout";
+import {
+	findChoiceFrontiers,
+	getResearchStatusVisual,
+	projectResearchNodeViews,
+	type ResearchNodeView,
+} from "./research-lattice-data";
+import ResearchList from "./research-list";
 
 export type ResearchTree3DProps = {
 	state: GameState;
@@ -38,72 +39,11 @@ export type ResearchTree3DProps = {
 /** Kept as a named alias for callers migrating from the v1 tree. */
 export type ResearchTreeProps = ResearchTree3DProps;
 
-type ResearchProject = Extract<
-	GameState["projects"]["items"][number],
-	{ kind: "research" }
->;
-
-type ResearchNodeView = PositionedNode & {
-	label: string;
-	description: string;
-	prerequisites: string[];
-	insightCost: number;
-	project: ResearchProject | undefined;
-	progress: number;
-};
-
-type StatusVisual = {
-	className: string;
-	icon: string;
-	label: string;
-	announcement: string;
-};
-
-/** Single source of truth for card, list, connector, and dialog status labels. */
-export const RESEARCH_STATUS_VISUALS: Readonly<
-	Record<PositionedNodeStatus, StatusVisual>
-> = {
-	available: {
-		announcement: "Available — assign a team to begin.",
-		className: "lattice-status-available",
-		icon: "◌",
-		label: "Available",
-	},
-	completed: {
-		announcement: "Completed — this unlock is active.",
-		className: "lattice-status-completed",
-		icon: "✓",
-		label: "Completed",
-	},
-	"in-progress": {
-		announcement: "In progress — a team is researching this node.",
-		className: "lattice-status-in-progress",
-		icon: "●",
-		label: "In progress",
-	},
-	locked: {
-		announcement: "Locked — complete its prerequisites first.",
-		className: "lattice-status-locked",
-		icon: "▣",
-		label: "Locked",
-	},
-	"locked-out": {
-		announcement: "Path not taken — another exclusive path was chosen.",
-		className: "lattice-status-locked-out",
-		icon: "×",
-		label: "Path not taken",
-	},
-};
-
-export function getResearchStatusVisual(
-	status: PositionedNodeStatus,
-): StatusVisual {
-	return RESEARCH_STATUS_VISUALS[status];
-}
-
-export function getResearchStatusClass(status: PositionedNodeStatus): string {
-	return getResearchStatusVisual(status).className;
-}
+export {
+	getResearchStatusClass,
+	getResearchStatusVisual,
+	RESEARCH_STATUS_VISUALS,
+} from "./research-lattice-data";
 
 /** Feature gate shared by the component and jsdom tests. */
 export function supportsResearchLattice(): boolean {
@@ -130,7 +70,7 @@ export default function ResearchTree3D({
 	const focusReturnRef = useRef<HTMLElement | null>(null);
 	const layout = useMemo(() => createResearchLayout(state), [state]);
 	const nodeViews = useMemo(
-		() => projectNodeViews(state, layout),
+		() => projectResearchNodeViews(state, layout),
 		[layout, state],
 	);
 	const selectedNode = nodeViews.find((node) => node.id === selectedNodeId);
@@ -155,10 +95,10 @@ export default function ResearchTree3D({
 		return () => mediaQuery.removeEventListener("change", onChange);
 	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset scene availability when motion preference changes
 	useEffect(() => {
 		setSceneUnavailable(false);
 	}, [reducedMotion]);
-
 	const handleSelect = useCallback(
 		(nodeId: string, trigger?: HTMLElement) => {
 			if (trigger !== undefined) {
@@ -208,7 +148,7 @@ export default function ResearchTree3D({
 			</p>
 
 			{showFallback ? (
-				<ResearchFallbackList
+				<ResearchList
 					nodes={nodeViews}
 					onSelect={handleSelect}
 					reason={fallbackReason}
@@ -251,122 +191,6 @@ export default function ResearchTree3D({
 				/>
 			) : null}
 		</section>
-	);
-}
-
-function ResearchFallbackList({
-	choiceFrontiers,
-	nodes,
-	onSelect,
-	reason,
-	selectedNodeId,
-}: {
-	choiceFrontiers: string[];
-	nodes: ResearchNodeView[];
-	onSelect: (nodeId: string, trigger?: HTMLElement) => void;
-	reason: string | undefined;
-	selectedNodeId: string | undefined;
-}) {
-	const choiceSet = new Set(choiceFrontiers);
-	return (
-		<div className="research-lattice-fallback" data-research-fallback="true">
-			{reason ? (
-				<p className="research-lattice-fallback__notice" role="status">
-					{reason}
-				</p>
-			) : null}
-			<ul
-				aria-label="Research fallback list"
-				className="research-lattice-fallback__eras"
-			>
-				{ERA_ORDER.map((era) => {
-					const eraNodes = nodes.filter((node) => node.era === era);
-					return (
-						<li className="research-lattice-fallback__era" key={era}>
-							<h3 className="research-lattice-fallback__era-title">
-								{ERA_LABELS[era]}
-							</h3>
-							<ul aria-label={`${ERA_LABELS[era]} research nodes`}>
-								{eraNodes.map((node) => {
-									const isChoice =
-										node.exclusiveGroup !== undefined &&
-										choiceSet.has(node.exclusiveGroup) &&
-										node.status === "available";
-									return (
-										<li key={node.id}>
-											<FallbackNodeButton
-												isChoice={isChoice}
-												node={node}
-												onSelect={onSelect}
-												selected={selectedNodeId === node.id}
-											/>
-										</li>
-									);
-								})}
-							</ul>
-						</li>
-					);
-				})}
-			</ul>
-			{choiceFrontiers.length > 0 ? (
-				<p className="research-lattice-choice-hint" role="note">
-					<GitFork className="size-3.5 shrink-0" aria-hidden="true" />
-					Choose one path — locks the other.
-				</p>
-			) : null}
-		</div>
-	);
-}
-
-function FallbackNodeButton({
-	isChoice,
-	node,
-	onSelect,
-	selected,
-}: {
-	isChoice: boolean;
-	node: ResearchNodeView;
-	onSelect: (nodeId: string, trigger?: HTMLElement) => void;
-	selected: boolean;
-}) {
-	const visual = getResearchStatusVisual(node.status);
-	const prerequisiteLabel = node.prerequisites.map(humanize).join(", ");
-	return (
-		<button
-			aria-label={`${node.label}; ${node.insightCost} Insight; ${visual.label}`}
-			aria-pressed={selected}
-			className={cn(
-				"research-lattice-fallback__node",
-				visual.className,
-				isChoice && "research-lattice-fallback__node--choice",
-				selected && "research-lattice-fallback__node--selected",
-			)}
-			data-research-card="true"
-			data-research-status={node.status}
-			onClick={(event) => onSelect(node.id, event.currentTarget)}
-			type="button"
-		>
-			<span className="min-w-0 text-left">
-				<span className="block truncate font-medium text-foreground text-xs">
-					{node.label}
-				</span>
-				<span className="mt-1 block text-muted-foreground text-xs">
-					{visual.announcement}
-				</span>
-				<span className="mt-1 block text-muted-foreground text-xs">
-					Prerequisites: {prerequisiteLabel || "None"}
-				</span>
-			</span>
-			<span className="flex shrink-0 flex-col items-end gap-1 text-xs">
-				<span className="text-[var(--game-amber)]">
-					{node.insightCost} Insight
-				</span>
-				<span aria-hidden="true" className="text-base leading-none">
-					{visual.icon}
-				</span>
-				{isChoice ? <span className="lattice-choice-chip">Choice</span> : null}
-			</span>
-		</button>
 	);
 }
 
@@ -1029,76 +853,13 @@ function createResearchCard(
 		progress.setAttribute("aria-valuemax", "100");
 		progress.setAttribute("aria-valuenow", String(node.progress));
 		const fill = document.createElement("span");
+		fill.className = "research-lattice-card__progress__fill";
 		fill.style.width = `${node.progress}%`;
 		progress.appendChild(fill);
 		card.appendChild(progress);
 	}
 	card.addEventListener("click", () => onSelect(node.id));
 	return card;
-}
-
-function projectNodeViews(
-	state: GameState,
-	layout: ReturnType<typeof createResearchLayout>,
-): ResearchNodeView[] {
-	const visibleById = new Map(
-		selectResearchNodes(state).map((node) => [node.id, node]),
-	);
-	const sourceById = new Map(
-		state.research.nodes.map((node) => [node.id, node]),
-	);
-	const projectByNodeId = new Map(
-		state.projects.items
-			.filter(
-				(project): project is ResearchProject => project.kind === "research",
-			)
-			.map((project) => [project.nodeId, project]),
-	);
-	return layout.nodes.map((positioned) => {
-		const visible = visibleById.get(positioned.id);
-		const source = sourceById.get(positioned.id);
-		const project = projectByNodeId.get(positioned.id);
-		const activeProject = project?.status === "active" ? project : undefined;
-		return {
-			...positioned,
-			description: visible?.description ?? "Research description unavailable.",
-			insightCost: source?.insightCost ?? visible?.insightCost ?? 0,
-			label: visible?.label ?? humanize(positioned.id),
-			prerequisites: [...(source?.prerequisites ?? visible?.prereqs ?? [])],
-			progress:
-				activeProject === undefined || activeProject.duration <= 0
-					? 0
-					: Math.max(
-							0,
-							Math.min(
-								100,
-								Math.round(
-									(activeProject.progress / activeProject.duration) * 100,
-								),
-							),
-						),
-			project,
-		};
-	});
-}
-
-function findChoiceFrontiers(nodes: readonly PositionedNode[]): string[] {
-	const groups = new Map<string, PositionedNode[]>();
-	for (const node of nodes) {
-		if (node.exclusiveGroup === undefined) continue;
-		const members = groups.get(node.exclusiveGroup) ?? [];
-		members.push(node);
-		groups.set(node.exclusiveGroup, members);
-	}
-	return [...groups]
-		.filter(([, members]) => {
-			const committed = members.some(
-				(node) => node.status === "completed" || node.status === "in-progress",
-			);
-			return !committed && members.some((node) => node.status === "available");
-		})
-		.map(([groupId]) => groupId)
-		.sort();
 }
 
 function layoutCenter(

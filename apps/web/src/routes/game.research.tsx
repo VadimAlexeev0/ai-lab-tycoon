@@ -1,16 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 
 import ArtFrame from "@/game/components/art-frame";
 import GamePage from "@/game/components/game-page";
 import ResearchConstellation from "@/game/components/research-constellation";
+import ResearchTabs from "@/game/components/research-tabs";
 import ResearchTimeline from "@/game/components/research-timeline";
 import { useRunState } from "@/game/game-state-context";
 import { Route as GameRoute } from "@/routes/game";
-
-const LazyResearchTree = lazy(
-	() => import("@/game/components/research-tree-3d"),
-);
 
 export const Route = createFileRoute("/game/research")({
 	head: () => ({
@@ -74,18 +71,14 @@ function ResearchRoute() {
 					<ResearchConstellation state={game.state} />
 				</Suspense>
 			</section>
-			<Suspense
-				fallback={<PanelLoadingState label="Loading research frontier map…" />}
-			>
-				<LazyResearchTree
-					disabled={game.actionBusy}
-					onAssignProject={game.assignProject}
-					onCloseDetail={closeDetail}
-					onSelectNode={selectNode}
-					selectedNodeId={search.node}
-					state={game.state}
-				/>
-			</Suspense>
+			<ResearchTabs
+				disabled={game.actionBusy}
+				onAssignProject={game.assignProject}
+				onCloseDetail={closeDetail}
+				onSelectNode={selectNode}
+				selectedNodeId={search.node}
+				state={game.state}
+			/>
 		</GamePage>
 	);
 }
