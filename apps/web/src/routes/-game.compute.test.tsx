@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-	executeEngineCommand: vi.fn(),
+	executeCommand: vi.fn(),
 	useRunState: vi.fn(),
 }));
 
@@ -13,17 +13,15 @@ vi.mock("@/game/game-state-context", () => ({
 	useRunState: mocks.useRunState,
 }));
 
-import { buyCompute } from "@ai-lab-tycoon/engine";
-
 import ComputeRoute from "@/game/components/compute-route";
 
 function configureRun(state: ReturnType<typeof startRun>, actionBusy = false) {
-	mocks.executeEngineCommand.mockReset();
-	mocks.executeEngineCommand.mockResolvedValue(true);
+	mocks.executeCommand.mockReset();
+	mocks.executeCommand.mockResolvedValue(true);
 	mocks.useRunState.mockReset();
 	mocks.useRunState.mockReturnValue({
 		actionBusy,
-		executeEngineCommand: mocks.executeEngineCommand,
+		executeCommand: mocks.executeCommand,
 		state,
 	});
 }
@@ -95,7 +93,9 @@ describe("ComputeRoute", () => {
 		});
 		expect((purchase as HTMLButtonElement).disabled).toBe(false);
 		fireEvent.click(purchase);
-		expect(mocks.executeEngineCommand).toHaveBeenCalledWith(buyCompute);
+		expect(mocks.executeCommand).toHaveBeenCalledWith({
+			kind: "buy_compute",
+		});
 
 		cleanup();
 		state.company.cash = 299;

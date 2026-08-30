@@ -100,6 +100,7 @@ function StartScreen() {
 				/>
 			) : game.screen === "new" || forceNewRun ? (
 				<StartRunForm
+					existingRevision={game.savedRun?.revision}
 					hasExistingRun={game.savedRun !== null}
 					onStarted={handleStarted}
 				/>

@@ -1,11 +1,11 @@
 /** @vitest-environment jsdom */
 
-import { hireTeam, startRun } from "@ai-lab-tycoon/engine";
+import { startRun } from "@ai-lab-tycoon/engine";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-	executeEngineCommand: vi.fn(),
+	executeCommand: vi.fn(),
 	useRunState: vi.fn(),
 }));
 
@@ -17,12 +17,12 @@ import TeamPanel from "./team-panel";
 
 describe("TeamPanel hiring action", () => {
 	beforeEach(() => {
-		mocks.executeEngineCommand.mockReset();
-		mocks.executeEngineCommand.mockResolvedValue(true);
+		mocks.executeCommand.mockReset();
+		mocks.executeCommand.mockResolvedValue(true);
 		mocks.useRunState.mockReset();
 		mocks.useRunState.mockReturnValue({
 			actionBusy: false,
-			executeEngineCommand: mocks.executeEngineCommand,
+			executeCommand: mocks.executeCommand,
 		});
 	});
 
@@ -49,7 +49,9 @@ describe("TeamPanel hiring action", () => {
 
 		fireEvent.click(button);
 
-		expect(mocks.executeEngineCommand).toHaveBeenCalledWith(hireTeam);
+		expect(mocks.executeCommand).toHaveBeenCalledWith({
+			kind: "hire_team",
+		});
 	});
 
 	it("disables hiring when cash is insufficient with an explanation", () => {
@@ -73,7 +75,7 @@ describe("TeamPanel hiring action", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		mocks.useRunState.mockReturnValue({
 			actionBusy: true,
-			executeEngineCommand: mocks.executeEngineCommand,
+			executeCommand: mocks.executeCommand,
 		});
 
 		render(

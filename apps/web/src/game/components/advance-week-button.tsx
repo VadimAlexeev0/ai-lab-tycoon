@@ -1,5 +1,4 @@
 import {
-	advanceWeek,
 	type GameState,
 	selectNextObjective,
 	selectPendingDecisions,
@@ -10,23 +9,16 @@ import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
-
 export type AdvanceWeekButtonProps = {
 	className?: string;
 	state: GameState;
-	revision?: number;
-	onAdvanced: (result: {
-		state: GameState;
-		record: ActiveRunRecord;
-	}) => void | Promise<void>;
+	onAdvance: () => Promise<boolean>;
 };
 
 export default function AdvanceWeekButton({
 	className,
+	onAdvance,
 	state,
-	revision,
-	onAdvanced,
 }: AdvanceWeekButtonProps) {
 	const [isAdvancing, setIsAdvancing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -55,9 +47,10 @@ export default function AdvanceWeekButton({
 		setError(null);
 		setIsAdvancing(true);
 		try {
-			const result = advanceWeek(state);
-			const record = await persistActiveRun(result.state, revision);
-			await onAdvanced({ state: result.state, record });
+			const succeeded = await onAdvance();
+			if (!succeeded) {
+				setError("The week could not be advanced.");
+			}
 		} catch (cause: unknown) {
 			setError(
 				cause instanceof Error && cause.message.length > 0

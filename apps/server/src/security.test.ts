@@ -11,7 +11,7 @@ import {
 const CORS_ORIGIN = "https://lab.example";
 
 function request(method: string, headers?: Record<string, string>): Request {
-	return new Request("https://api.example/rpc/gameSave/upsertActiveRun", {
+	return new Request("https://api.example/rpc/gameSave/applyCommand", {
 		method,
 		headers,
 	});

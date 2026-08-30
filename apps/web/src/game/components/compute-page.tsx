@@ -1,8 +1,4 @@
-import {
-	buyCompute,
-	type GameState,
-	selectResourceBar,
-} from "@ai-lab-tycoon/engine";
+import { type GameState, selectResourceBar } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { AlertTriangle, Check, Cpu, Server } from "lucide-react";
@@ -123,7 +119,7 @@ export function supportsComputeYard(): boolean {
 }
 
 export default function ComputePage({ state }: { state: GameState }) {
-	const { actionBusy, executeEngineCommand } = useRunState();
+	const { actionBusy, executeCommand } = useRunState();
 	const signals = getComputePageSignals(state);
 	const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
 	const [webglAvailable] = useState(supportsComputeYard);
@@ -223,7 +219,7 @@ export default function ComputePage({ state }: { state: GameState }) {
 			<ComputeActions
 				actionBusy={actionBusy}
 				onPurchase={() => {
-					void executeEngineCommand(buyCompute);
+					void executeCommand({ kind: "buy_compute" });
 				}}
 				purchaseDisabled={purchaseDisabled}
 				purchaseTitle={purchaseTitle}

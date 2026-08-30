@@ -1,5 +1,6 @@
+import type { ApplyCommand } from "@ai-lab-tycoon/api/routers/game-save-command";
 import type { AppRouter } from "@ai-lab-tycoon/api/routers/index";
-import type { GameState } from "@ai-lab-tycoon/engine";
+import { assertGameState, type GameState } from "@ai-lab-tycoon/engine";
 import { env } from "@ai-lab-tycoon/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -81,7 +82,6 @@ export const client: RouterClient<AppRouter> = getORPCClient();
 
 export const orpc = createTanstackQueryUtils(client);
 
-// Convenience save helpers built on the real authenticated AppRouter.
 export type ActiveRunRecord = {
 	id: string;
 	seed: number;
@@ -92,54 +92,81 @@ export type ActiveRunRecord = {
 	revision: number;
 };
 
-export function toUpsertActiveRunInput(
-	state: GameState,
-	revision?: number,
-	replace = false,
-): {
-	seed: number;
-	state: string;
-	currentWeek: number;
-	status: "active" | "terminal";
-	schemaVersion: number;
-	revision?: number;
-	replace: boolean;
-} {
-	const status: "active" | "terminal" =
-		state.terminal.status === "lost" ? "terminal" : "active";
-	return {
-		seed: state.rng.seed,
-		state: JSON.stringify(state),
-		currentWeek: state.meta.week,
-		status,
-		schemaVersion: state.meta.schemaVersion,
-		replace,
-		...(revision === undefined ? {} : { revision }),
-	};
+/** One opaque key per user action; callers retain it when retrying. */
+export function createRequestId(): string {
+	return crypto.randomUUID();
 }
 
-export async function persistActiveRun(
-	state: GameState,
-	revision?: number,
-	replace = false,
+/** Apply a typed command and install only the server-returned snapshot. */
+export async function applyServerCommand(
+	command: ApplyCommand,
+	expectedRevision: number,
+	requestId: string,
 ): Promise<ActiveRunRecord> {
-	const input = toUpsertActiveRunInput(state, revision, replace);
 	try {
-		const run = await client.gameSave.upsertActiveRun(input);
-		return run as unknown as ActiveRunRecord;
+		const response = await client.gameSave.applyCommand({
+			requestId,
+			expectedRevision,
+			command,
+		});
+		const record = normalizeActiveRun(response);
+		if (record === null) {
+			throw new Error("The command response did not include a run.");
+		}
+		return record;
 	} catch (cause: unknown) {
-		// Optimistic-concurrency loss: another tab saved this run first. Fetch
-		// the stored winner so the UI can adopt it instead of losing the
-		// session to a generic failure.
+		// Optimistic-concurrency loss: fetch the stored winner so the UI can
+		// adopt it instead of losing the session to a generic failure.
 		if (!isORPCConflict(cause)) throw cause;
 		const stored = await client.gameSave.getActiveRun();
 		throw new SaveConflictError(
-			stored === null ? null : (normalizeStoredRun(stored) as ActiveRunRecord),
+			stored === null ? null : normalizeActiveRun(stored),
 		);
 	}
 }
 
-/** True when the failure is the save API's optimistic-concurrency 409. */
+/** Normalize either a raw RPC response or the existing getActiveRun row. */
+export function normalizeActiveRun(value: unknown): ActiveRunRecord | null {
+	const record = unwrapRecord(value);
+	if (record === null) return null;
+
+	const rawState = record.state;
+	const state = typeof rawState === "string" ? parseState(rawState) : rawState;
+	if (state === null || state === undefined) {
+		throw new Error("The saved run did not include an engine state.");
+	}
+
+	try {
+		assertGameState(state);
+	} catch (cause: unknown) {
+		throw new Error(
+			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
+		);
+	}
+
+	const id = asNonEmptyString(record.id) ?? state.meta.runId;
+	const seed = asInteger(record.seed) ?? state.rng.seed;
+	const schemaVersion =
+		asInteger(record.schemaVersion) ?? state.meta.schemaVersion;
+	const currentWeek = asInteger(record.currentWeek) ?? state.meta.week;
+	const revision = asInteger(record.revision) ?? 0;
+	const status =
+		record.status === "terminal" || state.terminal.status === "lost"
+			? "terminal"
+			: "active";
+
+	return {
+		id,
+		seed,
+		schemaVersion,
+		state,
+		currentWeek,
+		status,
+		revision,
+	};
+}
+
+/** True when the failure is the command API's optimistic-concurrency 409. */
 function isORPCConflict(cause: unknown): boolean {
 	return (
 		typeof cause === "object" &&
@@ -149,9 +176,8 @@ function isORPCConflict(cause: unknown): boolean {
 }
 
 /**
- * Raised when a save lost an optimistic-concurrency race. `storedRun` is the
- * winning record fetched from the server (or null when it vanished); callers
- * should offer to reload it rather than keep local state.
+ * Raised when a command lost an optimistic-concurrency race. `storedRun` is
+ * the winning record fetched from the server; callers should offer to adopt it.
  */
 export class SaveConflictError extends Error {
 	readonly storedRun: ActiveRunRecord | null;
@@ -167,11 +193,52 @@ export class SaveConflictError extends Error {
 
 type UnknownRecord = Record<string, unknown>;
 
-function normalizeStoredRun(value: unknown): UnknownRecord {
-	return typeof value === "object" && value !== null
-		? (value as UnknownRecord)
-		: {};
+function unwrapRecord(value: unknown): UnknownRecord | null {
+	if (value === null || value === undefined) return null;
+	let record = asRecord(value);
+	if (record === null) return null;
+
+	if (Object.hasOwn(record, "data")) {
+		const data = record.data;
+		if (data === null || data === undefined) return null;
+		const nested = asRecord(data);
+		if (nested !== null) record = nested;
+	}
+	if (Object.hasOwn(record, "run")) {
+		const nested = record.run;
+		if (nested === null || nested === undefined) return null;
+		const nestedRecord = asRecord(nested);
+		if (nestedRecord !== null) record = nestedRecord;
+	}
+	return record;
 }
 
-/* Fetched on conflict; still passes through the same shape-guarded loader
-   used by Resume, via the route's normalizeActiveRun. */
+function parseState(rawState: string): GameState {
+	try {
+		return JSON.parse(rawState) as GameState;
+	} catch {
+		throw new Error("The saved run contains malformed engine JSON.");
+	}
+}
+
+function asRecord(value: unknown): UnknownRecord | null {
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? (value as UnknownRecord)
+		: null;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+	return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function asInteger(value: unknown): number | null {
+	return typeof value === "number" && Number.isSafeInteger(value)
+		? value
+		: null;
+}
+
+function toErrorMessage(cause: unknown, fallback: string): string {
+	return cause instanceof Error && cause.message.length > 0
+		? cause.message
+		: fallback;
+}
