@@ -148,21 +148,64 @@ export const runs = sqliteTable(
 );
 
 /**
- * Append-only log of engine facts per run — the source material for the
- * Company Chronicle and reports (facts-as-the-only-narrative-output).
+ * Append-only command audit row for a run. The snapshot remains the fast
+ * resume representation; this table records the bounded command that caused
+ * each revision without duplicating the full state.
  */
-export const runEvents = sqliteTable("run_events", {
-	id: text("id").primaryKey(),
-	runId: text("run_id")
-		.notNull()
-		.references(() => runs.id, { onDelete: "cascade" }),
-	week: integer("week").notNull(),
-	type: text("type").notNull(),
-	payload: text("payload").notNull(),
-	createdAt: integer("created_at", { mode: "timestamp" })
-		.notNull()
-		.$defaultFn(() => new Date()),
-});
+export const runEvents = sqliteTable(
+	"run_events",
+	{
+		id: text("id").primaryKey(),
+		runId: text("run_id")
+			.notNull()
+			.references(() => runs.id, { onDelete: "cascade" }),
+		revision: integer("revision").notNull(),
+		requestId: text("request_id").notNull(),
+		commandKind: text("command_kind").notNull(),
+		commandJson: text("command_json").notNull(),
+		createdAt: integer("created_at", { mode: "timestamp" })
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(table) => [
+		uniqueIndex("run_events_run_revision_unique").on(
+			table.runId,
+			table.revision,
+		),
+		index("run_events_run_revision_idx").on(table.runId, table.revision),
+	],
+);
+
+/**
+ * Durable request ledger. A pending row is reserved before engine execution;
+ * a completed row contains the exact response returned to the caller.
+ */
+export const commandRequests = sqliteTable(
+	"command_requests",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		requestId: text("request_id").notNull(),
+		status: text("status", { enum: ["pending", "completed"] })
+			.notNull()
+			.default("pending"),
+		responseJson: text("response_json"),
+		revision: integer("revision"),
+		createdAt: integer("created_at", { mode: "timestamp" })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		completedAt: integer("completed_at", { mode: "timestamp" }),
+	},
+	(table) => [
+		uniqueIndex("command_requests_user_request_unique").on(
+			table.userId,
+			table.requestId,
+		),
+		index("command_requests_user_idx").on(table.userId),
+	],
+);
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
@@ -171,3 +214,5 @@ export type Verification = typeof verification.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type NewRun = typeof runs.$inferInsert;
 export type RunEvent = typeof runEvents.$inferSelect;
+export type CommandRequest = typeof commandRequests.$inferSelect;
+export type NewCommandRequest = typeof commandRequests.$inferInsert;
