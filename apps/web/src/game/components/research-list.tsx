@@ -36,34 +36,36 @@ export function ResearchList({
 				aria-label="Research fallback list"
 				className="research-lattice-fallback__eras"
 			>
-				{ERA_ORDER.map((era) => {
-					const eraNodes = nodes.filter((node) => node.era === era);
-					return (
-						<li className="research-lattice-fallback__era" key={era}>
-							<h3 className="research-lattice-fallback__era-title">
-								{ERA_LABELS[era]}
-							</h3>
-							<ul aria-label={`${ERA_LABELS[era]} research nodes`}>
-								{eraNodes.map((node) => {
-									const isChoice =
-										node.exclusiveGroup !== undefined &&
-										choiceSet.has(node.exclusiveGroup) &&
-										node.status === "available";
-									return (
-										<li key={node.id}>
-											<FallbackNodeButton
-												isChoice={isChoice}
-												node={node}
-												onSelect={onSelect}
-												selected={selectedNodeId === node.id}
-											/>
-										</li>
-									);
-								})}
-							</ul>
-						</li>
-					);
-				})}
+				{ERA_ORDER.filter((era) => nodes.some((node) => node.era === era)).map(
+					(era) => {
+						const eraNodes = nodes.filter((node) => node.era === era);
+						return (
+							<li className="research-lattice-fallback__era" key={era}>
+								<h3 className="research-lattice-fallback__era-title">
+									{ERA_LABELS[era]}
+								</h3>
+								<ul aria-label={`${ERA_LABELS[era]} research nodes`}>
+									{eraNodes.map((node) => {
+										const isChoice =
+											node.exclusiveGroup !== undefined &&
+											choiceSet.has(node.exclusiveGroup) &&
+											node.status === "available";
+										return (
+											<li key={node.id}>
+												<FallbackNodeButton
+													isChoice={isChoice}
+													node={node}
+													onSelect={onSelect}
+													selected={selectedNodeId === node.id}
+												/>
+											</li>
+										);
+									})}
+								</ul>
+							</li>
+						);
+					},
+				)}
 			</ul>
 			{choiceFrontiers.length > 0 ? (
 				<p className="research-lattice-choice-hint" role="note">
@@ -96,6 +98,7 @@ function FallbackNodeButton({
 				"research-lattice-fallback__node",
 				visual.className,
 				isChoice && "research-lattice-fallback__node--choice",
+				node.isContext && "research-lattice-fallback__node--context",
 				selected && "research-lattice-fallback__node--selected",
 			)}
 			data-research-card="true"

@@ -17,11 +17,14 @@ import EraBadge, { ERA_LABELS } from "@/game/components/era-badge";
 import {
 	createResearchLayout,
 	type PositionedNode,
+	type ResearchEra,
 	type ResearchLayoutState,
 } from "../derived/research-layout";
 import {
+	filterResearchNodesForEra,
 	findChoiceFrontiers,
 	getResearchStatusVisual,
+	isResearchEraUnlocked,
 	projectResearchNodeViews,
 	type ResearchNodeView,
 } from "./research-lattice-data";
@@ -67,8 +70,28 @@ export default function ResearchTree3D({
 	const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
 	const [webglAvailable] = useState(supportsResearchLattice);
 	const [sceneUnavailable, setSceneUnavailable] = useState(false);
+	const [selectedEra, setSelectedEra] = useState<ResearchEra>(
+		state.research.currentEra,
+	);
 	const focusReturnRef = useRef<HTMLElement | null>(null);
-	const layout = useMemo(() => createResearchLayout(state), [state]);
+	const focusedNodes = useMemo(
+		() => filterResearchNodesForEra(state.research.nodes, selectedEra),
+		[state.research.nodes, selectedEra],
+	);
+	const layoutState = useMemo<ResearchLayoutState>(
+		() => ({
+			projects: state.projects,
+			research: {
+				currentEra: state.research.currentEra,
+				nodes: focusedNodes,
+			},
+		}),
+		[focusedNodes, state.projects, state.research.currentEra],
+	);
+	const layout = useMemo(
+		() => createResearchLayout(layoutState),
+		[layoutState],
+	);
 	const nodeViews = useMemo(
 		() => projectResearchNodeViews(state, layout),
 		[layout, state],
@@ -94,6 +117,10 @@ export default function ResearchTree3D({
 		mediaQuery.addEventListener("change", onChange);
 		return () => mediaQuery.removeEventListener("change", onChange);
 	}, []);
+
+	useEffect(() => {
+		setSelectedEra(state.research.currentEra);
+	}, [state.research.currentEra]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: reset scene availability when motion preference changes
 	useEffect(() => {
@@ -139,12 +166,20 @@ export default function ResearchTree3D({
 						The Lattice
 					</h2>
 				</div>
-				<EraBadge era={state.research.currentEra} size="compact" />
+				<div className="flex flex-wrap items-center justify-end gap-2">
+					<ResearchEraSwitcher
+						currentEra={state.research.currentEra}
+						onChange={setSelectedEra}
+						selectedEra={selectedEra}
+						state={state}
+					/>
+					<EraBadge era={state.research.currentEra} size="compact" />
+				</div>
 			</div>
 			<p className="max-w-3xl text-muted-foreground text-xs leading-5">
-				A living research web: trace prerequisite paths left-to-right through
-				three eras, then select a card to inspect its economics and assign a
-				team.
+				A living research web: focus one era at a time, with dimmed prerequisite
+				anchors from earlier eras. Select a card to inspect its economics and
+				assign a team.
 			</p>
 
 			{showFallback ? (
@@ -158,6 +193,7 @@ export default function ResearchTree3D({
 			) : (
 				<ResearchLatticeScene
 					choiceFrontiers={choiceFrontiers}
+					layout={layout}
 					nodes={nodeViews}
 					onSelect={handleSelect}
 					onUnavailable={handleSceneUnavailable}
@@ -196,12 +232,14 @@ export default function ResearchTree3D({
 
 function ResearchLatticeScene({
 	choiceFrontiers,
+	layout,
 	nodes,
 	onSelect,
 	onUnavailable,
 	selectedNodeId,
 }: {
 	choiceFrontiers: string[];
+	layout: ReturnType<typeof createResearchLayout>;
 	nodes: ResearchNodeView[];
 	onSelect: (nodeId: string, trigger?: HTMLElement) => void;
 	onUnavailable: () => void;
@@ -210,9 +248,7 @@ function ResearchLatticeScene({
 	const hostRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const cssHostRef = useRef<HTMLDivElement>(null);
-	const nodeRef = useRef(nodes);
 	const onSelectRef = useRef(onSelect);
-	nodeRef.current = nodes;
 	onSelectRef.current = onSelect;
 
 	useEffect(() => {
@@ -235,8 +271,8 @@ function ResearchLatticeScene({
 						CSS3DObject: css.CSS3DObject,
 						CSS3DRenderer: css.CSS3DRenderer,
 						host,
-						layout: createResearchLayoutFromViews(nodeRef.current),
-						nodes: nodeRef.current,
+						layout,
+						nodes,
 						onSelect: (nodeId) => onSelectRef.current(nodeId),
 						THREE,
 					});
@@ -252,7 +288,7 @@ function ResearchLatticeScene({
 			disposed = true;
 			runtime?.dispose();
 		};
-	}, [onUnavailable]);
+	}, [layout, nodes, onUnavailable]);
 
 	return (
 		<div
@@ -267,7 +303,7 @@ function ResearchLatticeScene({
 				tabIndex={-1}
 			/>
 			<div
-				aria-label="Interactive research lattice. Drag blank space to pan, hold Shift while dragging to orbit, and scroll to zoom."
+				aria-label="Interactive research lattice. Drag blank space to pan and scroll to zoom."
 				className="research-lattice-css"
 				ref={cssHostRef}
 				role="application"
@@ -279,7 +315,7 @@ function ResearchLatticeScene({
 				</div>
 			) : null}
 			<p className="research-lattice-controls" aria-hidden="true">
-				Drag to pan · Shift-drag to orbit · Scroll to zoom
+				Drag to pan · Scroll to zoom
 			</p>
 			<div className="sr-only" aria-live="polite">
 				{nodes.length} research nodes rendered as selectable DOM cards.
@@ -294,27 +330,49 @@ function ResearchLatticeScene({
 	);
 }
 
-function createResearchLayoutFromViews(
-	nodes: readonly ResearchNodeView[],
-): ReturnType<typeof createResearchLayout> {
-	const sourceNodes: ResearchLayoutState["research"]["nodes"] = nodes.map(
-		(node) => ({
-			branch: node.lane,
-			era: node.era,
-			id: node.id,
-			insightCost: node.insightCost,
-			prerequisites: node.prerequisites,
-			status:
-				node.status === "in-progress" || node.status === "locked-out"
-					? "locked"
-					: node.status,
-			exclusiveGroup: node.exclusiveGroup,
-			isKeystone: node.isKeystone,
-		}),
+export function ResearchEraSwitcher({
+	currentEra,
+	onChange,
+	selectedEra,
+	state,
+}: {
+	currentEra: ResearchEra;
+	onChange: (era: ResearchEra) => void;
+	selectedEra: ResearchEra;
+	state: Pick<GameState, "research">;
+}) {
+	const currentEraIndex = eraIndexFor(currentEra);
+	return (
+		<fieldset aria-label="Research era focus" className="research-era-switcher">
+			<legend className="sr-only">Research era focus</legend>
+			{(["text", "assistant", "multimodal"] as const).map((era) => {
+				const eraIndex = eraIndexFor(era);
+				const unlocked = isResearchEraUnlocked(state, era);
+				const label = ERA_LABELS[era].replace(" era", "");
+				const title = !unlocked
+					? `Unlock the ${label} keystone to view this era.`
+					: eraIndex === currentEraIndex
+						? "Current era"
+						: `View the ${label} era`;
+				return (
+					<button
+						aria-pressed={selectedEra === era}
+						className="research-era-switcher__button"
+						disabled={!unlocked}
+						onClick={() => onChange(era)}
+						title={title}
+						type="button"
+					>
+						{label}
+					</button>
+				);
+			})}
+		</fieldset>
 	);
-	return createResearchLayout({
-		research: { currentEra: nodes[0]?.era ?? "text", nodes: sourceNodes },
-	});
+}
+
+function eraIndexFor(era: ResearchEra): number {
+	return ["text", "assistant", "multimodal"].indexOf(era);
 }
 
 type LatticeRuntime = {
@@ -351,6 +409,13 @@ type DecisionRing = {
 	material: import("three").MeshBasicMaterial;
 };
 
+const ORTHOGRAPHIC_CAMERA_DISTANCE = 1_000;
+const ORTHOGRAPHIC_MIN_ZOOM = 0.45;
+const ORTHOGRAPHIC_MAX_ZOOM = 3.5;
+const LATTICE_FRAME_MARGIN = 96;
+const LATTICE_CARD_HALF_WIDTH = 112;
+const LATTICE_CARD_HALF_HEIGHT = 48;
+
 function createLatticeRuntime({
 	CSS3DObject,
 	CSS3DRenderer,
@@ -381,29 +446,24 @@ function createLatticeRuntime({
 	const cssScene = new THREE.Scene();
 	const root = new THREE.Group();
 	scene.add(root);
-	const camera = new THREE.PerspectiveCamera(36, 1, 1, 20_000);
+	const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 20_000);
 	const center = layoutCenter(layout.nodes, THREE);
-	const cameraTarget = center.clone();
-	const initialRadius = Math.max(2_100, (layout.nodes.length / 48) * 2_800);
 	const cameraState: CameraState = {
-		azimuth: 0,
-		currentAzimuth: 0,
-		currentElevation: 0,
-		currentRadius: initialRadius,
 		currentTargetX: center.x,
 		currentTargetY: center.y,
-		elevation: 0,
+		currentZoom: 1,
 		dragging: false,
 		lastX: 0,
 		lastY: 0,
-		mode: "pan",
 		pointerId: null,
-		radius: initialRadius,
 		targetX: center.x,
 		targetY: center.y,
+		viewHeight: 1,
+		viewWidth: 1,
+		zoom: 1,
 	};
-	camera.position.set(center.x, center.y, initialRadius);
-	camera.lookAt(cameraTarget);
+	camera.position.set(center.x, center.y, ORTHOGRAPHIC_CAMERA_DISTANCE);
+	camera.lookAt(center.x, center.y, 0);
 
 	const nodePositions = new Map<string, import("three").Vector3>();
 	for (const node of layout.nodes) {
@@ -556,7 +616,6 @@ function createLatticeRuntime({
 	function renderScene(now: number, deltaSeconds: number) {
 		if (disposed || !visible || !intersecting) return;
 		drawLatticeFrame(
-			THREE,
 			camera,
 			cameraState,
 			connectors,
@@ -602,8 +661,7 @@ function createLatticeRuntime({
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 		renderer.setSize(width, height, false);
 		cssRenderer.setSize(width, height);
-		camera.aspect = width / height;
-		camera.updateProjectionMatrix();
+		updateOrthographicFrustum(camera, layout.nodes, width, height, cameraState);
 		renderScene(performance.now(), 0);
 	}
 	function onPointerDown(event: PointerEvent) {
@@ -613,7 +671,6 @@ function createLatticeRuntime({
 		cameraState.pointerId = event.pointerId;
 		cameraState.lastX = event.clientX;
 		cameraState.lastY = event.clientY;
-		cameraState.mode = event.shiftKey ? "orbit" : "pan";
 		cssHost.style.cursor = "grabbing";
 		cssHost.setPointerCapture(event.pointerId);
 	}
@@ -624,18 +681,10 @@ function createLatticeRuntime({
 		const deltaY = event.clientY - cameraState.lastY;
 		cameraState.lastX = event.clientX;
 		cameraState.lastY = event.clientY;
-		if (cameraState.mode === "orbit") {
-			cameraState.azimuth -= deltaX * 0.004;
-			cameraState.elevation = THREE.MathUtils.clamp(
-				cameraState.elevation + deltaY * 0.003,
-				-0.78,
-				0.78,
-			);
-		} else {
-			const panScale = cameraState.radius / 1_250;
-			cameraState.targetX -= deltaX * panScale;
-			cameraState.targetY += deltaY * panScale;
-		}
+		const hostWidth = Math.max(1, host.getBoundingClientRect().width);
+		const panScale = cameraState.viewWidth / hostWidth / cameraState.zoom;
+		cameraState.targetX -= deltaX * panScale;
+		cameraState.targetY += deltaY * panScale;
 		renderScene(performance.now(), 0);
 	}
 	function onPointerUp(event: PointerEvent) {
@@ -649,10 +698,10 @@ function createLatticeRuntime({
 	}
 	function onWheel(event: WheelEvent) {
 		event.preventDefault();
-		cameraState.radius = THREE.MathUtils.clamp(
-			cameraState.radius * Math.exp(event.deltaY * 0.001),
-			1_050,
-			7_000,
+		cameraState.zoom = THREE.MathUtils.clamp(
+			cameraState.zoom * Math.exp(-event.deltaY * 0.001),
+			ORTHOGRAPHIC_MIN_ZOOM,
+			ORTHOGRAPHIC_MAX_ZOOM,
 		);
 		renderScene(performance.now(), 0);
 		syncFrameLoop();
@@ -721,26 +770,22 @@ function createLatticeRuntime({
 }
 
 type CameraState = {
-	azimuth: number;
-	currentAzimuth: number;
-	currentElevation: number;
-	currentRadius: number;
 	currentTargetX: number;
 	currentTargetY: number;
-	elevation: number;
+	currentZoom: number;
 	dragging: boolean;
 	lastX: number;
 	lastY: number;
-	mode: "pan" | "orbit";
 	pointerId: number | null;
-	radius: number;
 	targetX: number;
 	targetY: number;
+	viewHeight: number;
+	viewWidth: number;
+	zoom: number;
 };
 
 function drawLatticeFrame(
-	THREE: typeof import("three"),
-	camera: import("three").PerspectiveCamera,
+	camera: import("three").OrthographicCamera,
 	cameraState: CameraState,
 	connectors: readonly ConnectorVisual[],
 	decisionRings: readonly DecisionRing[],
@@ -752,24 +797,16 @@ function drawLatticeFrame(
 		(cameraState.targetX - cameraState.currentTargetX) * damping;
 	cameraState.currentTargetY +=
 		(cameraState.targetY - cameraState.currentTargetY) * damping;
-	cameraState.currentRadius +=
-		(cameraState.radius - cameraState.currentRadius) * damping;
-	cameraState.currentAzimuth +=
-		(cameraState.azimuth - cameraState.currentAzimuth) * damping;
-	cameraState.currentElevation +=
-		(cameraState.elevation - cameraState.currentElevation) * damping;
-	const horizontalRadius =
-		cameraState.currentRadius * Math.cos(cameraState.currentElevation);
+	cameraState.currentZoom +=
+		(cameraState.zoom - cameraState.currentZoom) * damping;
 	camera.position.set(
-		cameraState.currentTargetX +
-			Math.sin(cameraState.currentAzimuth) * horizontalRadius,
-		cameraState.currentTargetY +
-			Math.sin(cameraState.currentElevation) * cameraState.currentRadius,
-		cameraState.currentRadius *
-			Math.cos(cameraState.currentElevation) *
-			Math.cos(cameraState.currentAzimuth),
+		cameraState.currentTargetX,
+		cameraState.currentTargetY,
+		ORTHOGRAPHIC_CAMERA_DISTANCE,
 	);
+	camera.zoom = cameraState.currentZoom;
 	camera.lookAt(cameraState.currentTargetX, cameraState.currentTargetY, 0);
+	camera.updateProjectionMatrix();
 	for (const connector of connectors) {
 		if (!connector.dynamic) continue;
 		const material = connector.material;
@@ -784,7 +821,6 @@ function drawLatticeFrame(
 		ring.mesh.scale.setScalar(pulse);
 		ring.material.opacity = 0.68 + (pulse - 0.84) * 0.8;
 	}
-	void THREE;
 }
 
 function createResearchCard(
@@ -799,6 +835,7 @@ function createResearchCard(
 		"research-lattice-card",
 		visual.className,
 		node.isKeystone && "research-lattice-card--keystone",
+		node.isContext && "research-lattice-card--context",
 		isChoice && node.status === "available" && "research-lattice-card--choice",
 	);
 	card.dataset.researchCard = "true";
@@ -860,6 +897,58 @@ function createResearchCard(
 	}
 	card.addEventListener("click", () => onSelect(node.id));
 	return card;
+}
+
+function updateOrthographicFrustum(
+	camera: import("three").OrthographicCamera,
+	nodes: readonly PositionedNode[],
+	width: number,
+	height: number,
+	cameraState: CameraState,
+): void {
+	const bounds = latticeBounds(nodes);
+	const contentWidth =
+		bounds.maxX -
+		bounds.minX +
+		LATTICE_CARD_HALF_WIDTH * 2 +
+		LATTICE_FRAME_MARGIN * 2;
+	const contentHeight =
+		bounds.maxY -
+		bounds.minY +
+		LATTICE_CARD_HALF_HEIGHT * 2 +
+		LATTICE_FRAME_MARGIN * 2;
+	const aspect = width / height;
+	const viewHeight = Math.max(1, contentHeight, contentWidth / aspect);
+	const viewWidth = viewHeight * aspect;
+	camera.left = -viewWidth / 2;
+	camera.right = viewWidth / 2;
+	camera.top = viewHeight / 2;
+	camera.bottom = -viewHeight / 2;
+	camera.zoom = cameraState.currentZoom;
+	cameraState.viewWidth = viewWidth;
+	cameraState.viewHeight = viewHeight;
+	camera.updateProjectionMatrix();
+}
+
+type LatticeBounds = {
+	maxX: number;
+	maxY: number;
+	minX: number;
+	minY: number;
+};
+
+function latticeBounds(nodes: readonly PositionedNode[]): LatticeBounds {
+	if (nodes.length === 0) {
+		return { maxX: 0, maxY: 0, minX: 0, minY: 0 };
+	}
+	const xValues = nodes.map((node) => node.x);
+	const yValues = nodes.map((node) => -node.y);
+	return {
+		maxX: maximum(xValues),
+		maxY: maximum(yValues),
+		minX: minimum(xValues),
+		minY: minimum(yValues),
+	};
 }
 
 function layoutCenter(

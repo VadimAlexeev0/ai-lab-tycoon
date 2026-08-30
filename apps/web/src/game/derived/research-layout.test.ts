@@ -1,3 +1,4 @@
+import { startRun } from "@ai-lab-tycoon/engine";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -60,7 +61,7 @@ describe("research lattice layout", () => {
 		expect(first).toEqual(second);
 		expect(byId.get("root")).toMatchObject({
 			x: 0,
-			y: -20,
+			y: -336,
 			z: 0,
 			lane: "models",
 		});
@@ -70,17 +71,48 @@ describe("research lattice layout", () => {
 			z: 0,
 			lane: "infrastructure",
 		});
-		expect(byId.get("child")).toMatchObject({ x: 0, y: -20, z: 10 });
+		expect(byId.get("child")).toMatchObject({ x: 0, y: -224, z: 10 });
 		expect(byId.get("future")).toMatchObject({
 			era: "assistant",
 			x: 100,
-			y: 20,
+			y: 224,
 			z: 0,
 		});
 		expect(first.edges).toEqual([
 			{ from: "root", to: "child", isDivergence: false, isExclusive: false },
 			{ from: "child", to: "future", isDivergence: false, isExclusive: false },
 		]);
+	});
+
+	it("keeps flat x/y coordinates unique for same-era nodes", () => {
+		const fixture = state([
+			node("root_a"),
+			node("root_b"),
+			node("child_a", { prerequisites: ["root_a"] }),
+			node("child_b", { prerequisites: ["root_b"] }),
+		]);
+
+		const layout = createResearchLayout(fixture, {
+			depthStep: 10,
+			laneStep: 20,
+		});
+		const coordinates = layout.nodes.map(
+			(positioned) => `${positioned.x}:${positioned.y}`,
+		);
+
+		expect(new Set(coordinates).size).toBe(layout.nodes.length);
+	});
+
+	it("keeps the shipped research catalog unique in a flat projection", () => {
+		const layout = createResearchLayout(
+			startRun({ companyName: "Acme Labs" }, 42),
+		);
+		const coordinates = layout.nodes.map(
+			(positioned) => `${positioned.x}:${positioned.y}`,
+		);
+
+		expect(layout.nodes.length).toBeGreaterThan(0);
+		expect(new Set(coordinates).size).toBe(layout.nodes.length);
 	});
 
 	it("uses a Kahn topological pass and rejects cycles instead of memoizing through them", () => {

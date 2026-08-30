@@ -31,6 +31,8 @@ export type ResearchLayoutNode = {
 	alternativeGroup?: string;
 	exclusive?: boolean | string;
 	isKeystone?: boolean;
+	/** Context prerequisites are dimmed in the focused lattice view. */
+	isContext?: boolean;
 };
 
 export type ResearchLayoutProject = {
@@ -63,6 +65,8 @@ export type PositionedNode = {
 	status: PositionedNodeStatus;
 	isKeystone: boolean;
 	exclusiveGroup?: string;
+	/** True when this node is shown only to anchor a focused era's edges. */
+	isContext?: boolean;
 };
 
 export type Edge = {
@@ -105,7 +109,9 @@ const DEFAULT_OPTIONS: Required<
 		| "deriveStructuralExclusivity"
 	>
 > = {
-	depthStep: 150,
+	// Keep the retained z-depth shallow; the flat projection also uses this
+	// spacing on y so same-lane chains never collapse into one card.
+	depthStep: 96,
 	deriveStructuralExclusivity: true,
 	eraStep: 360,
 	laneStep: 190,
@@ -113,6 +119,10 @@ const DEFAULT_OPTIONS: Required<
 	originY: 0,
 	originZ: 0,
 };
+
+// The CSS cards are roughly 96px tall at their largest. Keep a full card's
+// worth of breathing room in the flat projection, not only unique points.
+const FLAT_NODE_GAP = 112;
 
 const KEYSTONE_IDS = new Set([
 	"text_models_keystone",
@@ -184,14 +194,21 @@ export function createResearchLayout(
 	}
 	applyLockedOutStatuses(exclusiveGroups, nodeById, statusById);
 
+	const flatPositioning = createFlatPositioning(topoOrder, branchDepth, opts);
 	const positionedNodes = topoOrder.map((current) => {
 		const eraIndex = eraIndexFor(current.era);
 		const laneIndex = RESEARCH_BRANCHES.indexOf(current.branch);
 		const exclusiveGroup = groupByNodeId.get(current.id);
+		const x = opts.originX + eraIndex * opts.eraStep;
+		const y =
+			opts.originY +
+			(laneIndex - 1) *
+				(flatPositioning.laneStepByEra.get(current.era) ?? opts.laneStep) +
+			(flatPositioning.yOffsetByNodeId.get(current.id) ?? 0);
 		const node: PositionedNode = {
 			id: current.id,
-			x: opts.originX + eraIndex * opts.eraStep,
-			y: opts.originY + (laneIndex - 1) * opts.laneStep,
+			x,
+			y,
 			z: opts.originZ + (branchDepth.get(current.id) ?? 0) * opts.depthStep,
 			lane: current.branch,
 			era: current.era,
@@ -199,6 +216,7 @@ export function createResearchLayout(
 			isKeystone: isResearchKeystone(current),
 		};
 		if (exclusiveGroup !== undefined) node.exclusiveGroup = exclusiveGroup;
+		if (current.isContext === true) node.isContext = true;
 		return node;
 	});
 
@@ -488,6 +506,80 @@ function sortGroups(groups: Iterable<ExclusiveGroup>): ExclusiveGroup[] {
 
 function sortIds(ids: Iterable<string>): string[] {
 	return [...new Set(ids)].sort();
+}
+
+type FlatPositioning = {
+	laneStepByEra: ReadonlyMap<ResearchEra, number>;
+	yOffsetByNodeId: ReadonlyMap<string, number>;
+};
+
+/**
+ * Pack each era's branch bands independently for the orthographic projection.
+ * Nodes at the same topological depth use adjacent slots, and each depth level
+ * advances far enough to clear the tallest card in that level. Branch bands
+ * then receive a full-card gap, so the z collapse cannot create occlusion.
+ */
+function createFlatPositioning(
+	topoOrder: readonly ResearchLayoutNode[],
+	branchDepth: ReadonlyMap<string, number>,
+	options: Required<
+		Pick<
+			ResearchLayoutOptions,
+			| "eraStep"
+			| "laneStep"
+			| "depthStep"
+			| "originX"
+			| "originY"
+			| "originZ"
+			| "deriveStructuralExclusivity"
+		>
+	>,
+): FlatPositioning {
+	const levelsByEraAndBranch = new Map<
+		ResearchEra,
+		Map<ResearchBranch, Map<number, ResearchLayoutNode[]>>
+	>();
+	for (const node of topoOrder) {
+		const branches = levelsByEraAndBranch.get(node.era) ?? new Map();
+		const levels = branches.get(node.branch) ?? new Map();
+		const depth = branchDepth.get(node.id) ?? 0;
+		const nodesAtDepth = levels.get(depth) ?? [];
+		nodesAtDepth.push(node);
+		levels.set(depth, nodesAtDepth);
+		branches.set(node.branch, levels);
+		levelsByEraAndBranch.set(node.era, branches);
+	}
+
+	const yOffsetByNodeId = new Map<string, number>();
+	const laneStepByEra = new Map<ResearchEra, number>();
+	const depthStep = Math.abs(options.depthStep);
+	const laneStep = Math.abs(options.laneStep);
+	for (const [era, branches] of levelsByEraAndBranch) {
+		let maximumBranchSpan = 0;
+		for (const levels of branches.values()) {
+			let cursor = 0;
+			for (const nodesAtDepth of [...levels].sort(
+				([leftDepth], [rightDepth]) => leftDepth - rightDepth,
+			)) {
+				const nodesAtLevel = nodesAtDepth[1];
+				if (nodesAtLevel === undefined) continue;
+				for (let index = 0; index < nodesAtLevel.length; index += 1) {
+					const node = nodesAtLevel[index];
+					if (node !== undefined) {
+						yOffsetByNodeId.set(node.id, cursor + index * FLAT_NODE_GAP);
+					}
+				}
+				cursor += Math.max(depthStep, nodesAtLevel.length * FLAT_NODE_GAP, 1);
+			}
+			maximumBranchSpan = Math.max(maximumBranchSpan, cursor);
+		}
+		laneStepByEra.set(
+			era,
+			Math.max(laneStep, maximumBranchSpan + FLAT_NODE_GAP, 1),
+		);
+	}
+
+	return { laneStepByEra, yOffsetByNodeId };
 }
 
 function isActiveResearchProject(
