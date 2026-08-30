@@ -34,6 +34,10 @@ export const server = Cloudflare.Worker("server", {
 		// Config.redacted is emitted as a Cloudflare secret_text binding. Set
 		// BETTER_AUTH_SECRET in the environment used by `alchemy deploy`.
 		BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
+		// API docs are opt-in; leave this unset (or false) in production.
+		API_DOCS_ENABLED: Config.string("API_DOCS_ENABLED").pipe(
+			Config.withDefault("false"),
+		),
 		CORS_ORIGIN: Config.string("CORS_ORIGIN"),
 		RPC_RATE_LIMITER: rpcRateLimiter,
 	},

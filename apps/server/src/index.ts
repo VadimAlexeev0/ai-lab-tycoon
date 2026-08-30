@@ -13,22 +13,28 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { auth } from "./auth";
-import { sessionMiddleware } from "./session-middleware";
 import {
+	API_SECURITY_HEADERS,
 	getRpcRateLimitKey,
 	InMemoryTokenBucket,
+	isApiDocsEnabled,
 	isRpcRequestAllowed,
 	MAX_RPC_BODY_BYTES,
 	RPC_RATE_LIMIT_CAPACITY,
 	RPC_RATE_LIMIT_REFILL_PER_SECOND,
 } from "./security";
+import {
+	type SessionMiddlewareEnv,
+	sessionMiddleware,
+} from "./session-middleware";
 
-const app = new Hono();
+const app = new Hono<SessionMiddlewareEnv>();
 const db = createDb();
 const localRpcRateLimiter = new InMemoryTokenBucket({
 	capacity: RPC_RATE_LIMIT_CAPACITY,
 	refillPerSecond: RPC_RATE_LIMIT_REFILL_PER_SECOND,
 });
+const apiDocsEnabled = isApiDocsEnabled(env.API_DOCS_ENABLED);
 
 type CloudflareRateLimitBinding = {
 	limit: (options: { key: string }) => Promise<{ success: boolean }>;
@@ -43,6 +49,12 @@ function getCloudflareRateLimiter(): CloudflareRateLimitBinding | undefined {
 		: undefined;
 }
 
+app.use("/*", (c, next) => {
+	for (const [name, value] of Object.entries(API_SECURITY_HEADERS)) {
+		c.header(name, value);
+	}
+	return next();
+});
 app.use(logger());
 app.use(
 	"/*",
@@ -105,20 +117,24 @@ app.use("/rpc/*", async (c, next) => {
 	}
 	return next();
 });
-app.use("/api-reference/*", sessionMiddleware);
+if (apiDocsEnabled) {
+	app.use("/api-reference/*", sessionMiddleware);
+}
 
-export const apiHandler = new OpenAPIHandler(appRouter, {
-	plugins: [
-		new OpenAPIReferencePlugin({
-			schemaConverters: [new ZodToJsonSchemaConverter()],
-		}),
-	],
-	interceptors: [
-		onError((error) => {
-			console.error(error);
-		}),
-	],
-});
+export const apiHandler = apiDocsEnabled
+	? new OpenAPIHandler(appRouter, {
+			plugins: [
+				new OpenAPIReferencePlugin({
+					schemaConverters: [new ZodToJsonSchemaConverter()],
+				}),
+			],
+			interceptors: [
+				onError((error) => {
+					console.error(error);
+				}),
+			],
+		})
+	: null;
 
 export const rpcHandler = new RPCHandler(appRouter, {
 	interceptors: [
@@ -144,13 +160,15 @@ app.use("/*", async (c, next) => {
 		return c.newResponse(rpcResult.response.body, rpcResult.response);
 	}
 
-	const apiResult = await apiHandler.handle(c.req.raw, {
-		prefix: "/api-reference",
-		context: context,
-	});
+	if (apiHandler !== null) {
+		const apiResult = await apiHandler.handle(c.req.raw, {
+			prefix: "/api-reference",
+			context: context,
+		});
 
-	if (apiResult.matched) {
-		return c.newResponse(apiResult.response.body, apiResult.response);
+		if (apiResult.matched) {
+			return c.newResponse(apiResult.response.body, apiResult.response);
+		}
 	}
 
 	await next();

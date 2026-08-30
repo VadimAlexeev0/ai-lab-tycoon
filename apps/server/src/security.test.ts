@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	API_SECURITY_HEADERS,
 	getRpcRateLimitKey,
 	InMemoryTokenBucket,
+	isApiDocsEnabled,
 	isRpcRequestAllowed,
 } from "./security";
 
@@ -101,5 +103,22 @@ describe("RPC rate limiting", () => {
 		expect(limiter.consume("key", 0)).toBe(true);
 		expect(limiter.consume("key", 0)).toBe(false);
 		expect(limiter.consume("key", 1_000)).toBe(true);
+	});
+});
+
+describe("API documentation and response headers", () => {
+	it("keeps API docs disabled unless explicitly enabled", () => {
+		expect(isApiDocsEnabled(undefined)).toBe(false);
+		expect(isApiDocsEnabled("false")).toBe(false);
+		expect(isApiDocsEnabled("true")).toBe(true);
+	});
+
+	it("publishes the required API security header policy", () => {
+		expect(API_SECURITY_HEADERS).toEqual({
+			"Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+			"Referrer-Policy": "strict-origin-when-cross-origin",
+			"X-Content-Type-Options": "nosniff",
+			"X-Frame-Options": "DENY",
+		});
 	});
 });

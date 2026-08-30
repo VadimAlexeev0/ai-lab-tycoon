@@ -4,6 +4,18 @@ export const MAX_RPC_BODY_BYTES = 2_500_000;
 export const RPC_RATE_LIMIT_CAPACITY = 60;
 export const RPC_RATE_LIMIT_REFILL_PER_SECOND = 1;
 
+export const API_SECURITY_HEADERS = {
+	"Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+	"Referrer-Policy": "strict-origin-when-cross-origin",
+	"X-Content-Type-Options": "nosniff",
+	"X-Frame-Options": "DENY",
+} as const;
+
+/** API docs are opt-in, including in production. */
+export function isApiDocsEnabled(value: unknown): boolean {
+	return value === "true";
+}
+
 type TokenBucket = {
 	tokens: number;
 	lastRefillMs: number;
