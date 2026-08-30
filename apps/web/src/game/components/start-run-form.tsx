@@ -76,13 +76,13 @@ export default function StartRunForm({
 	} | null>(null);
 	const [confirmNewRunOpen, setConfirmNewRunOpen] = useState(false);
 
-	async function startRunNow(setup: RunSetup, seed: number) {
+	async function startRunNow(setup: RunSetup, seed: number, replace = false) {
 		setIsStarting(true);
 		try {
 			// Calling the engine command here keeps web validation identical to the
 			// persisted command semantics instead of maintaining a second schema.
 			const state = startRun(setup, seed);
-			const record = await persistActiveRun(state);
+			const record = await persistActiveRun(state, undefined, replace);
 			await onStarted({ state, record });
 		} catch (cause: unknown) {
 			setError(toErrorMessage(cause, "The new run could not be saved."));
@@ -94,7 +94,7 @@ export default function StartRunForm({
 	async function confirmNewRun() {
 		if (pendingStart === null) return;
 		setConfirmNewRunOpen(false);
-		await startRunNow(pendingStart.setup, pendingStart.seed);
+		await startRunNow(pendingStart.setup, pendingStart.seed, true);
 	}
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

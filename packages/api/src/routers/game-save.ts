@@ -16,6 +16,15 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { authedProcedure } from "../authed-procedure";
+import {
+	assertCommandLogLimit,
+	assertCurrentWeekMatchesState,
+	assertExistingRunUpdateAllowed,
+	assertJsonNestingDepth,
+	assertWeekWithinLimit,
+	isUniqueConstraintError,
+	sanitizePublicSaveError,
+} from "./game-save-validation";
 
 const activeRunInput = z.object({
 	seed: z.number().int().nonnegative(),
@@ -25,6 +34,8 @@ const activeRunInput = z.object({
 	schemaVersion: z.number().int().positive().default(GAME_STATE_SCHEMA_VERSION),
 	/** Expected current revision for optimistic concurrency; omit on create. */
 	revision: z.number().int().nonnegative().optional(),
+	/** Replace an existing run atomically instead of using revision CAS. */
+	replace: z.boolean().default(false),
 });
 
 /**
@@ -70,8 +81,12 @@ export const gameSaveRouter = {
 			}
 
 			try {
+				assertJsonNestingDepth(input.state);
 				const state: unknown = JSON.parse(input.state);
 				assertGameState(state);
+				assertCommandLogLimit(state.commandLog);
+				assertCurrentWeekMatchesState(input.currentWeek, state.meta.week);
+				assertWeekWithinLimit(input.currentWeek);
 				if (state.meta.schemaVersion !== input.schemaVersion) {
 					throw new Error(
 						`Game state schema version ${state.meta.schemaVersion} does not match the save envelope version ${input.schemaVersion}`,
@@ -97,10 +112,7 @@ export const gameSaveRouter = {
 				}
 			} catch (cause: unknown) {
 				throw new ORPCError("UNPROCESSABLE_CONTENT", {
-					message:
-						cause instanceof Error
-							? `Invalid game state: ${cause.message}`
-							: "Invalid game state",
+					message: sanitizePublicSaveError(cause, "Invalid game state"),
 				});
 			}
 
@@ -112,27 +124,81 @@ export const gameSaveRouter = {
 				.limit(1);
 			const row = existing[0];
 
-			if (row === undefined) {
-				const inserted: NewRun = {
-					id: crypto.randomUUID(),
-					userId,
-					seed: input.seed,
-					state: input.state,
-					currentWeek: input.currentWeek,
-					status: input.status,
-					schemaVersion: input.schemaVersion,
-					revision: 1,
-					createdAt: now,
-					updatedAt: now,
-				};
-				const result = await db.insert(runs).values(inserted).returning();
-				const created = result[0];
-				if (created === undefined) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Failed to create run",
+			if (row !== undefined && !input.replace) {
+				try {
+					assertExistingRunUpdateAllowed(row, input);
+				} catch (cause: unknown) {
+					throw new ORPCError("UNPROCESSABLE_CONTENT", {
+						message: sanitizePublicSaveError(
+							cause,
+							"The existing run cannot be updated",
+						),
 					});
 				}
-				return created;
+			}
+
+			const newRun: NewRun = {
+				id: crypto.randomUUID(),
+				userId,
+				seed: input.seed,
+				state: input.state,
+				currentWeek: input.currentWeek,
+				status: input.status,
+				schemaVersion: input.schemaVersion,
+				revision: 1,
+				createdAt: now,
+				updatedAt: now,
+			};
+
+			if (row !== undefined && input.replace) {
+				try {
+					await db.batch([
+						db
+							.delete(runs)
+							.where(and(eq(runs.id, row.id), eq(runs.userId, userId))),
+						db.insert(runs).values(newRun),
+					]);
+				} catch (cause: unknown) {
+					if (isUniqueConstraintError(cause)) {
+						throw new ORPCError("CONFLICT", {
+							message: "An active run already exists for this user.",
+						});
+					}
+					throw cause;
+				}
+				const replacedRows = await db
+					.select()
+					.from(runs)
+					.where(eq(runs.userId, userId))
+					.limit(1);
+				const replaced = replacedRows[0];
+				if (replaced === undefined) {
+					throw new ORPCError("INTERNAL_SERVER_ERROR", {
+						message: "Failed to replace run",
+					});
+				}
+				return replaced;
+			}
+
+			if (row === undefined) {
+				try {
+					const result = await db.insert(runs).values(newRun).returning();
+					const created = result[0];
+					if (created === undefined) {
+						throw new ORPCError("INTERNAL_SERVER_ERROR", {
+							message: "Failed to create run",
+						});
+					}
+					return created;
+				} catch (cause: unknown) {
+					if (cause instanceof ORPCError) throw cause;
+					if (isUniqueConstraintError(cause)) {
+						throw new ORPCError("CONFLICT", {
+							message: "An active run already exists for this user.",
+						});
+					}
+					throw cause;
+				}
 			}
 
 			// Atomic compare-and-swap: the revision is checked and incremented in

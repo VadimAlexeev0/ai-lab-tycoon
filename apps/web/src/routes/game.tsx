@@ -39,6 +39,8 @@ import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { summarizeWeekDigest } from "@/game/derived/week-digest";
 import { GameStateProvider, useRunState } from "@/game/game-state-context";
 
+const DEBUG_CONTROLS_ENABLED = import.meta.env.DEV;
+
 export type GameSearch = {
 	decision?: string;
 	node?: string;
@@ -213,14 +215,19 @@ function GameLayout() {
 				</div>
 			</SidebarInset>
 			<NewsTicker
-				forceVisible={search.debug === "1" || search.pulse === "1"}
-				rivalProgressPct={search.rivalProgress}
+				forceVisible={
+					DEBUG_CONTROLS_ENABLED &&
+					(search.debug === "1" || search.pulse === "1")
+				}
+				rivalProgressPct={
+					DEBUG_CONTROLS_ENABLED ? search.rivalProgress : undefined
+				}
 				state={state}
 			/>
 			<DebugDrawer
-				debugForced={search.debug === "1"}
-				quarter={search.quarter ?? 1}
-				rivalProgress={search.rivalProgress ?? 0}
+				debugForced={DEBUG_CONTROLS_ENABLED && search.debug === "1"}
+				quarter={DEBUG_CONTROLS_ENABLED ? (search.quarter ?? 1) : 1}
+				rivalProgress={DEBUG_CONTROLS_ENABLED ? (search.rivalProgress ?? 0) : 0}
 				onForceIndustryPulse={() => {
 					void navigate({
 						to: "/game/pulse",
@@ -281,7 +288,7 @@ function GameLayout() {
 						}),
 					});
 				}}
-				agiOverride={search.agiOverride ?? 0}
+				agiOverride={DEBUG_CONTROLS_ENABLED ? (search.agiOverride ?? 0) : 0}
 				onAgiOverrideChange={(agiOverride) => {
 					void navigate({
 						to: "/game/agiprogram",
@@ -700,18 +707,34 @@ function decisionTitle(
 }
 
 function validateGameSearch(search: Record<string, unknown>): GameSearch {
+	const debugSearch: Pick<
+		GameSearch,
+		| "debug"
+		| "quarter"
+		| "rivalProgress"
+		| "quarterly"
+		| "pulse"
+		| "chronicle"
+		| "lineage"
+		| "notebook"
+		| "agiOverride"
+	> = DEBUG_CONTROLS_ENABLED
+		? {
+				debug: search.debug === "1" ? "1" : undefined,
+				quarter: parseBoundedInteger(search.quarter, 1, 6),
+				rivalProgress: parseBoundedInteger(search.rivalProgress, 0, 100),
+				quarterly: search.quarterly === "1" ? "1" : undefined,
+				pulse: search.pulse === "1" ? "1" : undefined,
+				chronicle: search.chronicle === "1" ? "1" : undefined,
+				lineage: search.lineage === "1" ? "1" : undefined,
+				notebook: search.notebook === "1" ? "1" : undefined,
+				agiOverride: parseBoundedInteger(search.agiOverride, 0, 6),
+			}
+		: {};
 	return {
 		decision: typeof search.decision === "string" ? search.decision : undefined,
 		node: typeof search.node === "string" ? search.node : undefined,
-		debug: search.debug === "1" ? "1" : undefined,
-		quarter: parseBoundedInteger(search.quarter, 1, 6),
-		rivalProgress: parseBoundedInteger(search.rivalProgress, 0, 100),
-		quarterly: search.quarterly === "1" ? "1" : undefined,
-		pulse: search.pulse === "1" ? "1" : undefined,
-		chronicle: search.chronicle === "1" ? "1" : undefined,
-		lineage: search.lineage === "1" ? "1" : undefined,
-		notebook: search.notebook === "1" ? "1" : undefined,
-		agiOverride: parseBoundedInteger(search.agiOverride, 0, 6),
+		...debugSearch,
 	};
 }
 

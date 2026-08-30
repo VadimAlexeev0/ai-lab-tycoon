@@ -95,6 +95,7 @@ export type ActiveRunRecord = {
 export function toUpsertActiveRunInput(
 	state: GameState,
 	revision?: number,
+	replace = false,
 ): {
 	seed: number;
 	state: string;
@@ -102,6 +103,7 @@ export function toUpsertActiveRunInput(
 	status: "active" | "terminal";
 	schemaVersion: number;
 	revision?: number;
+	replace: boolean;
 } {
 	const status: "active" | "terminal" =
 		state.terminal.status === "lost" ? "terminal" : "active";
@@ -111,6 +113,7 @@ export function toUpsertActiveRunInput(
 		currentWeek: state.meta.week,
 		status,
 		schemaVersion: state.meta.schemaVersion,
+		replace,
 		...(revision === undefined ? {} : { revision }),
 	};
 }
@@ -118,8 +121,9 @@ export function toUpsertActiveRunInput(
 export async function persistActiveRun(
 	state: GameState,
 	revision?: number,
+	replace = false,
 ): Promise<ActiveRunRecord> {
-	const input = toUpsertActiveRunInput(state, revision);
+	const input = toUpsertActiveRunInput(state, revision, replace);
 	try {
 		const run = await client.gameSave.upsertActiveRun(input);
 		return run as unknown as ActiveRunRecord;
