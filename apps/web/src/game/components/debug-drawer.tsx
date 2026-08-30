@@ -11,6 +11,8 @@ import { Separator } from "@ai-lab-tycoon/ui/components/separator";
 import { Settings2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+const DEBUG_CONTROLS_ENABLED = import.meta.env.DEV;
+
 export type DebugDrawerProps = {
 	debugForced: boolean;
 	quarter: number;
@@ -47,6 +49,7 @@ export default function DebugDrawer({
 	const [open, setOpen] = useState(false);
 
 	useEffect(() => {
+		if (!DEBUG_CONTROLS_ENABLED) return;
 		try {
 			setStoredDebug(window.localStorage.getItem("ailt-debug") === "1");
 		} catch {
@@ -54,7 +57,7 @@ export default function DebugDrawer({
 		}
 	}, []);
 
-	const visible = debugForced || storedDebug;
+	const visible = DEBUG_CONTROLS_ENABLED && (debugForced || storedDebug);
 	useEffect(() => {
 		if (!visible) setOpen(false);
 	}, [visible]);
