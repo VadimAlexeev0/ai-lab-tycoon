@@ -13,6 +13,7 @@ import { logger } from "hono/logger";
 
 import { auth } from "./auth";
 import { sessionMiddleware } from "./session-middleware";
+import { isRpcRequestAllowed } from "./security";
 
 const app = new Hono();
 const db = createDb();
@@ -30,6 +31,16 @@ app.use(
 
 // Better Auth must mount before the oRPC catch-all. It owns /api/auth/*.
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+// Cookie-authenticated RPC mutations must not be callable cross-site. CORS is
+// deliberately not the only control: it governs reads, while this middleware
+// rejects the state-changing request itself.
+app.use("/rpc/*", async (c, next) => {
+	if (!isRpcRequestAllowed(c.req.raw, env.CORS_ORIGIN)) {
+		return c.text("Forbidden", 403);
+	}
+	return next();
+});
 
 // Resolve the authenticated session once per request for the oRPC/API routes.
 app.use("/rpc/*", sessionMiddleware);
