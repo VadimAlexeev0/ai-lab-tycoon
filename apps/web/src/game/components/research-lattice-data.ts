@@ -4,7 +4,14 @@ import type {
 	createResearchLayout,
 	PositionedNode,
 	PositionedNodeStatus,
+	ResearchEra,
+	ResearchLayoutNode,
 } from "../derived/research-layout";
+
+const ERA_GATE_IDS: Readonly<Partial<Record<ResearchEra, string>>> = {
+	assistant: "text_models_keystone",
+	multimodal: "assistant_models_keystone",
+};
 
 export type ResearchProject = Extract<
 	GameState["projects"]["items"][number],
@@ -71,6 +78,66 @@ export function getResearchStatusVisual(
 
 export function getResearchStatusClass(status: PositionedNodeStatus): string {
 	return getResearchStatusVisual(status).className;
+}
+
+/**
+ * Return one era's nodes plus the direct prior-era prerequisites that anchor
+ * its incoming edges. Context nodes have their own ancestors trimmed so a
+ * focused layout never expands back into the entire historical tree.
+ */
+export function filterResearchNodesForEra(
+	nodes: readonly ResearchLayoutNode[],
+	era: ResearchEra,
+): ResearchLayoutNode[] {
+	const focusedIds = new Set(
+		nodes.filter((node) => node.era === era).map((node) => node.id),
+	);
+	const contextIds = new Set<string>();
+	const selectedEraIndex = eraIndexFor(era);
+	const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+	for (const node of nodes) {
+		if (!focusedIds.has(node.id)) continue;
+		for (const prerequisiteId of node.prerequisites) {
+			const prerequisite = nodeById.get(prerequisiteId);
+			if (
+				prerequisite !== undefined &&
+				eraIndexFor(prerequisite.era) < selectedEraIndex
+			) {
+				contextIds.add(prerequisite.id);
+			}
+		}
+	}
+
+	const includedIds = new Set([...focusedIds, ...contextIds]);
+	return nodes
+		.filter((node) => includedIds.has(node.id))
+		.map((node) => {
+			const prerequisites = node.prerequisites.filter((id) =>
+				includedIds.has(id),
+			);
+			if (!contextIds.has(node.id)) {
+				return { ...node, prerequisites };
+			}
+			return { ...node, isContext: true, prerequisites };
+		});
+}
+
+/** A future era is selectable only after its entry keystone is completed. */
+export function isResearchEraUnlocked(
+	state: Pick<GameState, "research">,
+	era: ResearchEra,
+): boolean {
+	const currentEraIndex = eraIndexFor(state.research.currentEra);
+	const requestedEraIndex = eraIndexFor(era);
+	if (requestedEraIndex <= currentEraIndex) return true;
+	const gateId = ERA_GATE_IDS[era];
+	return (
+		gateId !== undefined &&
+		state.research.nodes.some(
+			(node) => node.id === gateId && node.status === "completed",
+		)
+	);
 }
 
 export function projectResearchNodeViews(
@@ -143,4 +210,8 @@ function humanize(value: string): string {
 	return value
 		.replaceAll("_", " ")
 		.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+}
+
+function eraIndexFor(era: ResearchEra): number {
+	return ["text", "assistant", "multimodal"].indexOf(era);
 }

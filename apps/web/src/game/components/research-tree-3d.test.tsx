@@ -52,12 +52,10 @@ describe("research lattice fallback", () => {
 			screen.getByRole("list", { name: "Research fallback list" }),
 		).not.toBeNull();
 		expect(screen.getByRole("heading", { name: "Text era" })).not.toBeNull();
+		expect(screen.queryByRole("heading", { name: "Assistant era" })).toBeNull();
 		expect(
-			screen.getByRole("heading", { name: "Assistant era" }),
-		).not.toBeNull();
-		expect(
-			screen.getByRole("heading", { name: "Multimodal era" }),
-		).not.toBeNull();
+			screen.queryByRole("heading", { name: "Multimodal era" }),
+		).toBeNull();
 		expect(screen.getByText("Word vectors")).not.toBeNull();
 		expect(screen.getAllByText("1 Insight").length).toBeGreaterThan(0);
 		expect(screen.getAllByText(/Prerequisites:/).length).toBeGreaterThan(0);
@@ -81,6 +79,54 @@ describe("research lattice fallback", () => {
 			expect(screen.queryByRole("dialog", { name: "Word vectors" })).toBeNull();
 		});
 		expect(document.activeElement).toBe(card);
+	});
+
+	it("defaults to the current era and disables locked future eras", () => {
+		renderFallback();
+
+		expect(
+			screen.getByRole("button", { name: "Text" }).getAttribute("aria-pressed"),
+		).toBe("true");
+		expect(
+			screen
+				.getByRole("button", { name: "Assistant" })
+				.hasAttribute("disabled"),
+		).toBe(true);
+		expect(
+			screen
+				.getByRole("button", { name: "Multimodal" })
+				.hasAttribute("disabled"),
+		).toBe(true);
+	});
+
+	it("switches to an unlocked era and keeps its prior-era gate as context", async () => {
+		const sourceState = startRun({ companyName: "Acme Labs" }, 42);
+		const unlockedState = {
+			...sourceState,
+			research: {
+				...sourceState.research,
+				nodes: sourceState.research.nodes.map((node) =>
+					node.id === "text_models_keystone"
+						? { ...node, status: "completed" as const }
+						: node,
+				),
+			},
+		};
+		renderFallback({ state: unlockedState });
+
+		const assistantButton = screen.getByRole("button", { name: "Assistant" });
+		expect(assistantButton.hasAttribute("disabled")).toBe(false);
+		fireEvent.click(assistantButton);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("heading", { name: "Assistant era" }),
+			).not.toBeNull();
+		});
+		expect(
+			screen.getByRole("button", { name: /Transformer architecture/i })
+				.className,
+		).toContain("research-lattice-fallback__node--context");
 	});
 });
 
