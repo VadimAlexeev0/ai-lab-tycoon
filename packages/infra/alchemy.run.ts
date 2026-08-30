@@ -17,6 +17,13 @@ export const db = Cloudflare.D1.Database("database", {
 	migrationsDir: "../../packages/db/src/migrations",
 });
 
+// Cloudflare's native binding keeps the RPC quota coherent across Worker
+// isolates; the server still has an in-memory fallback for local/degraded runs.
+export const rpcRateLimiter = Cloudflare.RateLimit("rpc-rate-limiter", {
+	namespaceId: "ai-lab-tycoon-rpc",
+	simple: { limit: 60, period: 60 },
+});
+
 export const server = Cloudflare.Worker("server", {
 	main: "../../apps/server/src/index.ts",
 	compatibility: {
@@ -28,6 +35,7 @@ export const server = Cloudflare.Worker("server", {
 		// BETTER_AUTH_SECRET in the environment used by `alchemy deploy`.
 		BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
 		CORS_ORIGIN: Config.string("CORS_ORIGIN"),
+		RPC_RATE_LIMITER: rpcRateLimiter,
 	},
 	dev: {
 		port: 3000,

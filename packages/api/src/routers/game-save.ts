@@ -16,6 +16,10 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 
 import { authedProcedure } from "../authed-procedure";
+import {
+	assertCommandLogLimit,
+	assertJsonNestingDepth,
+} from "./game-save-validation";
 
 const activeRunInput = z.object({
 	seed: z.number().int().nonnegative(),
@@ -70,8 +74,10 @@ export const gameSaveRouter = {
 			}
 
 			try {
+				assertJsonNestingDepth(input.state);
 				const state: unknown = JSON.parse(input.state);
 				assertGameState(state);
+				assertCommandLogLimit(state.commandLog);
 				if (state.meta.schemaVersion !== input.schemaVersion) {
 					throw new Error(
 						`Game state schema version ${state.meta.schemaVersion} does not match the save envelope version ${input.schemaVersion}`,
