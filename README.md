@@ -14,8 +14,8 @@ Monorepo (pnpm + Turborepo):
   headless; every transition is command-logged and replayable.
 - **`packages/db`** — Cloudflare D1 schema (auth tables + one active run per
   user) with Drizzle.
-- **`packages/api`** — oRPC routers, including the authenticated game-save
-  procedures (`getActiveRun` / `upsertActiveRun` / `deleteActiveRun`).
+- **`packages/api`** — oRPC routers, including authenticated `applyCommand`
+  gameplay plus `getActiveRun` / `deleteActiveRun`.
 - **`apps/server`** — Hono worker hosting Better Auth (anonymous sessions) and
   the oRPC/OpenAPI handlers.
 - **`apps/web`** — TanStack Start dashboard (desktop grid + mobile tabs).
