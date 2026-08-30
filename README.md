@@ -77,7 +77,11 @@ pnpm run destroy
 ```
 
 After the first deploy set `CORS_ORIGIN` in `apps/server/.env` to the exact
-deployed web origin and redeploy the server.
+_deployed web origin_ and redeploy the server. `BETTER_AUTH_SECRET` is
+required for every server deployment: set it to a random value of at least 32
+characters in the environment used by `alchemy deploy` (for example, in
+`apps/server/.env` or your deployment secret manager). The server fails closed
+if the binding is absent or too short.
 
 ## V1 scope
 

@@ -24,6 +24,9 @@ export const server = Cloudflare.Worker("server", {
 	},
 	env: {
 		DB: db,
+		// Config.redacted is emitted as a Cloudflare secret_text binding. Set
+		// BETTER_AUTH_SECRET in the environment used by `alchemy deploy`.
+		BETTER_AUTH_SECRET: Config.redacted("BETTER_AUTH_SECRET"),
 		CORS_ORIGIN: Config.string("CORS_ORIGIN"),
 	},
 	dev: {
