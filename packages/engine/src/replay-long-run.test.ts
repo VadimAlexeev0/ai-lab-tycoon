@@ -311,6 +311,16 @@ describe("long-run command-log replay", () => {
 	}, () => {
 		const live = efficiencyFirstRun(43, 30);
 		assertGameState(live, {}, true);
+		const resumeReports = live.reports.items.filter(
+			(report) => report.fact.kind === "product_resumed",
+		);
+		expect(resumeReports.length).toBeGreaterThan(0);
+		expect(
+			resumeReports.every((report) => report.priority === "important"),
+		).toBe(true);
+		expect(live.queue.reportIds).toEqual(
+			expect.arrayContaining(resumeReports.map((report) => report.id)),
+		);
 		const resumeIndex = live.commandLog.findIndex(
 			(entry) => entry.kind === "product_resume",
 		);
