@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 vi.mock("cloudflare:workers", () => ({ env: {} }));
 
-import { runEvents, runs } from "@ai-lab-tycoon/db";
+import { commandRequests, runEvents, runs } from "@ai-lab-tycoon/db";
 import { createClient } from "@libsql/client";
 import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
@@ -84,6 +84,15 @@ const startInput = (requestId: string, expectedRevision = 0) => ({
 	},
 });
 
+const replaceInput = (requestId: string, expectedRevision: number) => ({
+	requestId,
+	expectedRevision,
+	command: {
+		kind: "replace_run" as const,
+		setup: { companyName: "Replacement Lab" },
+	},
+});
+
 describe("game save router", () => {
 	it("executes a server-authoritative start command and persists one event", async () => {
 		const db = await createTestDatabase();
@@ -146,6 +155,15 @@ describe("game save router", () => {
 		expect(JSON.parse(events[1]?.commandJson ?? "{}")).toEqual({
 			kind: "buy_compute",
 		});
+		const requests = await db
+			.select()
+			.from(commandRequests)
+			.where(eq(commandRequests.requestId, "compute-1"));
+		expect(requests).toHaveLength(1);
+		expect(requests[0]).toMatchObject({
+			status: "completed",
+			revision: 2,
+		});
 	});
 
 	it("rejects forged state fields at the procedure boundary without persisting them", async () => {
@@ -195,6 +213,35 @@ describe("game save router", () => {
 		expect(
 			await db.select().from(runEvents).where(eq(runEvents.runId, first.id)),
 		).toHaveLength(2);
+	});
+
+	it("recovers a stale pending request reservation", async () => {
+		const db = await createTestDatabase();
+		await db.insert(commandRequests).values({
+			id: "stale-reservation-row",
+			userId: "user-1",
+			requestId: "stale-reservation",
+			status: "pending",
+			createdAt: new Date(Date.now() - 6 * 60 * 1000),
+		});
+
+		const result = await apply(db, "user-1", startInput("stale-reservation"));
+
+		expect(result.revision).toBe(1);
+		expect(
+			await db
+				.select()
+				.from(commandRequests)
+				.where(eq(commandRequests.requestId, "stale-reservation")),
+		).toHaveLength(1);
+		expect(
+			(
+				await db
+					.select()
+					.from(commandRequests)
+					.where(eq(commandRequests.requestId, "stale-reservation"))
+			)[0]?.status,
+		).toBe("completed");
 	});
 
 	it("rejects a stale revision and leaves the stored state unchanged", async () => {
@@ -254,6 +301,116 @@ describe("game save router", () => {
 				command: { kind: "buy_compute" },
 			}),
 		).rejects.toMatchObject({ code: "UNPROCESSABLE_CONTENT" });
+	});
+
+	it("rejects a plain start when an active run already exists", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("plain-existing"));
+
+		await expect(
+			apply(db, "user-1", startInput("plain-existing-retry", started.revision)),
+		).rejects.toMatchObject({ code: "CONFLICT" });
+
+		expect(
+			await db.select().from(runs).where(eq(runs.userId, "user-1")),
+		).toEqual(await db.select().from(runs).where(eq(runs.id, started.id)));
+	});
+
+	it("rejects a plain start when the existing run is terminal", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("plain-terminal"));
+		const terminalState = JSON.parse(started.state);
+		terminalState.company.cash = 0;
+		terminalState.terminal = {
+			...terminalState.terminal,
+			status: "lost",
+			reason: "cash_depleted",
+			contributors: [
+				{ kind: "resource_changed", impact: 0, week: 1, index: 0 },
+				{ kind: "resource_changed", impact: 0, week: 1, index: 1 },
+				{ kind: "resource_changed", impact: 0, week: 1, index: 2 },
+			],
+		};
+		await db
+			.update(runs)
+			.set({ status: "terminal", state: JSON.stringify(terminalState) })
+			.where(and(eq(runs.userId, "user-1"), eq(runs.revision, 1)));
+
+		await expect(
+			apply(db, "user-1", startInput("plain-terminal-retry", started.revision)),
+		).rejects.toMatchObject({ code: "CONFLICT" });
+	});
+
+	it("allows explicit replacement of a terminal run with its current revision", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("replace-terminal"));
+		const terminalState = JSON.parse(started.state);
+		terminalState.company.cash = 0;
+		terminalState.terminal = {
+			...terminalState.terminal,
+			status: "lost",
+			reason: "cash_depleted",
+			contributors: [
+				{ kind: "resource_changed", impact: 0, week: 1, index: 0 },
+				{ kind: "resource_changed", impact: 0, week: 1, index: 1 },
+				{ kind: "resource_changed", impact: 0, week: 1, index: 2 },
+			],
+		};
+		await db
+			.update(runs)
+			.set({ status: "terminal", state: JSON.stringify(terminalState) })
+			.where(and(eq(runs.userId, "user-1"), eq(runs.revision, 1)));
+
+		const replaced = await apply(
+			db,
+			"user-1",
+			replaceInput("replace-terminal-confirmed", started.revision),
+		);
+
+		expect(replaced.id).toBe(started.id);
+		expect(replaced.revision).toBe(2);
+		expect(JSON.parse(replaced.state).company.name).toBe("Replacement Lab");
+		expect(
+			await db.select().from(runs).where(eq(runs.userId, "user-1")),
+		).toHaveLength(1);
+		const events = await db
+			.select()
+			.from(runEvents)
+			.where(eq(runEvents.runId, replaced.id));
+		expect(events).toHaveLength(2);
+		expect(events).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					revision: 2,
+					requestId: "replace-terminal-confirmed",
+					commandKind: "replace_run",
+				}),
+			]),
+		);
+	});
+
+	it("rejects an explicit replacement with a stale revision", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(
+			db,
+			"user-1",
+			startInput("replace-stale-start"),
+		);
+		const advanced = await apply(db, "user-1", {
+			requestId: "replace-stale-advance",
+			expectedRevision: started.revision,
+			command: { kind: "buy_compute" },
+		});
+
+		await expect(
+			apply(db, "user-1", replaceInput("replace-stale", started.revision)),
+		).rejects.toMatchObject({ code: "CONFLICT" });
+		const stored = await db
+			.select()
+			.from(runs)
+			.where(eq(runs.userId, "user-1"));
+		expect(stored[0]?.id).toBe(advanced.id);
+		expect(stored[0]?.revision).toBe(advanced.revision);
 	});
 });
 

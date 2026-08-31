@@ -84,9 +84,17 @@ export default function StartRunForm({
 	const [confirmNewRunOpen, setConfirmNewRunOpen] = useState(false);
 
 	async function startRunNow(setup: RunSetup, replace = false) {
+		const expectedRevision = replace ? existingRevision : 0;
+		if (expectedRevision === undefined) {
+			setError("The saved run revision is unavailable; reload and try again.");
+			return;
+		}
+
 		setIsStarting(true);
-		const expectedRevision = replace ? (existingRevision ?? 0) : 0;
-		const key = JSON.stringify([expectedRevision, setup]);
+		const command = replace
+			? ({ kind: "replace_run", setup } as const)
+			: ({ kind: "start_run", setup } as const);
+		const key = JSON.stringify([expectedRevision, command]);
 		const pending = pendingRequestRef.current;
 		const requestId =
 			pending?.key === key ? pending.requestId : createRequestId();
@@ -95,7 +103,7 @@ export default function StartRunForm({
 		}
 		try {
 			const record = await applyServerCommand(
-				{ kind: "start_run", setup },
+				command,
 				expectedRevision,
 				requestId,
 			);

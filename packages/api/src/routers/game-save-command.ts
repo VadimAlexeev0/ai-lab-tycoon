@@ -94,6 +94,16 @@ export const commandPayloadInput = z.discriminatedUnion("kind", [
 		.strict(),
 	z
 		.object({
+			kind: z.literal("replace_run"),
+			setup: z
+				.object({
+					companyName: commandName,
+				})
+				.strict(),
+		})
+		.strict(),
+	z
+		.object({
 			kind: z.literal("advance_week"),
 		})
 		.strict(),

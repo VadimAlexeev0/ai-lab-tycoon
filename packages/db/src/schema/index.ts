@@ -178,7 +178,8 @@ export const runEvents = sqliteTable(
 
 /**
  * Durable request ledger. A pending row is reserved before engine execution;
- * a completed row contains the exact response returned to the caller.
+ * it is reclaimable after the bounded lease expires, while a completed row
+ * contains the exact response returned to the caller.
  */
 export const commandRequests = sqliteTable(
 	"command_requests",

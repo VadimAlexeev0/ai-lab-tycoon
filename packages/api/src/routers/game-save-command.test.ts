@@ -20,6 +20,24 @@ describe("applyCommand input contract", () => {
 		expect(applyCommandInput.parse(validStart)).toEqual(validStart);
 	});
 
+	it("accepts an explicit replacement command but not an implicit start flag", () => {
+		const replacement = {
+			requestId: "replace-1",
+			expectedRevision: 3,
+			command: {
+				kind: "replace_run" as const,
+				setup: { companyName: "Replacement Lab" },
+			},
+		};
+		expect(applyCommandInput.parse(replacement)).toEqual(replacement);
+		expect(() =>
+			applyCommandInput.parse({
+				...validStart,
+				command: { ...validStart.command, replace: true },
+			}),
+		).toThrow();
+	});
+
 	it("rejects a full-state or forged-resource payload", () => {
 		expect(() =>
 			applyCommandInput.parse({

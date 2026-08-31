@@ -50,13 +50,14 @@ import {
 
 const MAX_PERSISTED_STATE_LENGTH = 2_000_000;
 const MAX_SEED = 4_294_967_295;
+const PENDING_RESERVATION_TTL_MS = 5 * 60 * 1000;
 
 type AuthoritativeRunStatus = "active" | "terminal";
 
-// ponytail: D1's Drizzle adapter gives us batch as the strongest atomic
-// primitive for the final snapshot/event/ledger writes, but reservation and
-// engine execution happen before that batch. A Worker dying in that gap leaves
-// a pending request row; it is intentionally not described as transactional.
+// D1's Drizzle adapter gives us batch as the strongest atomic primitive for
+// the final snapshot/event/ledger writes. Reservation and engine execution
+// happen before that batch; a Worker dying in that gap leaves a pending request
+// row, which reserveRequest can reclaim after its bounded lease expires.
 
 /** The serializable run envelope returned by applyCommand and its retries. */
 export type AuthoritativeRunResponse = {
@@ -123,7 +124,15 @@ export const gameSaveRouter = {
 			const existing = existingRows[0];
 
 			try {
-				if (input.command.kind !== "start_run" && existing === undefined) {
+				const isStartCommand = input.command.kind === "start_run";
+				const isReplaceCommand = input.command.kind === "replace_run";
+				if (isStartCommand && existing !== undefined) {
+					throw new ORPCError("CONFLICT", {
+						message:
+							"A run already exists; use the explicit replace_run command to replace it.",
+					});
+				}
+				if (!isStartCommand && existing === undefined) {
 					throw new ORPCError("NOT_FOUND", {
 						message: "No active run exists for this user.",
 					});
@@ -131,10 +140,11 @@ export const gameSaveRouter = {
 				assertExpectedRevision(
 					existing,
 					input.expectedRevision,
-					input.command.kind === "start_run",
+					isStartCommand,
 				);
 				if (
-					input.command.kind !== "start_run" &&
+					!isStartCommand &&
+					!isReplaceCommand &&
 					existing?.status === "terminal"
 				) {
 					throw new ORPCError("UNPROCESSABLE_CONTENT", {
@@ -152,7 +162,10 @@ export const gameSaveRouter = {
 				});
 			}
 
-			if (input.command.kind === "start_run") {
+			if (
+				input.command.kind === "start_run" ||
+				input.command.kind === "replace_run"
+			) {
 				return applyStartCommand(
 					db,
 					userId,
@@ -227,13 +240,42 @@ async function applyStartCommand(
 	userId: string,
 	reservation: CommandRequest,
 	existing: Run | undefined,
-	command: Extract<ApplyCommand, { kind: "start_run" }>,
+	command: Extract<ApplyCommand, { kind: "start_run" | "replace_run" }>,
 ): Promise<AuthoritativeRunResponse> {
 	const seed = createServerSeed();
 	const state = startRun(command.setup, seed);
-	const now = new Date();
-	const runId = crypto.randomUUID();
 	const stateJson = serializeAuthoritativeState(state);
+
+	if (command.kind === "replace_run") {
+		if (existing === undefined) {
+			await releaseReservation(db, reservation.id);
+			throw new ORPCError("NOT_FOUND", {
+				message: "No active run exists for this user.",
+			});
+		}
+		return persistReplacementCommand({
+			db,
+			userId,
+			reservation,
+			existing,
+			seed,
+			state,
+			stateJson,
+			command,
+		});
+	}
+
+	if (existing !== undefined) {
+		await releaseReservation(db, reservation.id);
+		throw new ORPCError("CONFLICT", {
+			message:
+				"A run already exists; use the explicit replace_run command to replace it.",
+		});
+	}
+
+	const now = new Date();
+	const timestamp = toSqliteTimestamp(now);
+	const runId = crypto.randomUUID();
 	const response = createResponse(runId, seed, state, 1, stateJson);
 	const newRun: NewRun = {
 		id: runId,
@@ -247,42 +289,187 @@ async function applyStartCommand(
 		createdAt: now,
 		updatedAt: now,
 	};
-	const event = {
-		id: crypto.randomUUID(),
-		runId,
-		revision: 1,
-		requestId: reservation.requestId,
-		commandKind: command.kind,
-		commandJson: serializeCommand(command),
-		createdAt: now,
-	};
+	const eventId = crypto.randomUUID();
+	const commandJson = serializeCommand(command);
+	const reservationCutoff = reservationCutoffSeconds();
+	const runInsert = db
+		.insert(runs)
+		.select(((queryBuilder: QueryBuilder) =>
+			queryBuilder
+				.select({
+					id: sql<string>`${newRun.id}`,
+					userId: sql<string>`${newRun.userId}`,
+					seed: sql<number>`${newRun.seed}`,
+					schemaVersion: sql<number>`${newRun.schemaVersion}`,
+					state: sql<string>`${newRun.state}`,
+					currentWeek: sql<number>`${newRun.currentWeek}`,
+					status: sql<string>`${newRun.status}`,
+					revision: sql<number>`${newRun.revision}`,
+					createdAt: sql<number>`${timestamp}`,
+					updatedAt: sql<number>`${timestamp}`,
+				})
+				.from(commandRequests)
+				.where(
+					reservationIsLive(reservation.id, userId, reservationCutoff),
+				)) as never)
+		.returning();
+	const eventInsert = db
+		.insert(runEvents)
+		.select(((queryBuilder: QueryBuilder) =>
+			queryBuilder
+				.select({
+					id: sql<string>`${eventId}`,
+					runId: sql<string>`${runId}`,
+					revision: sql<number>`1`,
+					requestId: sql<string>`${reservation.requestId}`,
+					commandKind: sql<string>`${command.kind}`,
+					commandJson: sql<string>`${commandJson}`,
+					createdAt: sql<number>`${timestamp}`,
+				})
+				.from(runs)
+				.where(
+					and(
+						eq(runs.id, runId),
+						eq(runs.userId, userId),
+						eq(runs.revision, 1),
+						reservationIsLive(reservation.id, userId, reservationCutoff),
+					),
+				)) as never)
+		.returning();
 	try {
-		const queries = existing
-			? [
-					db
-						.delete(runs)
-						.where(
-							and(
-								eq(runs.id, existing.id),
-								eq(runs.userId, userId),
-								eq(runs.revision, existing.revision),
-							),
-						),
-					db.insert(runs).values(newRun).returning(),
-					db.insert(runEvents).values(event),
-					completeReservation(db, reservation.id, event.id, response, 1),
-				]
-			: [
-					db.insert(runs).values(newRun).returning(),
-					db.insert(runEvents).values(event),
-					completeReservation(db, reservation.id, event.id, response, 1),
-				];
-		await db.batch(queries as never);
+		const results = (await db.batch([
+			runInsert,
+			eventInsert,
+			completeReservation(
+				db,
+				reservation.id,
+				userId,
+				reservation.requestId,
+				eventId,
+				response,
+				1,
+				reservationCutoff,
+			),
+		] as never)) as unknown[];
+		if (!hasExactlyOneReturnedRow(results[0])) {
+			await releaseReservation(db, reservation.id);
+			throw new ORPCError("CONFLICT", {
+				message: "The run changed before the start command was committed.",
+			});
+		}
+		assertExactlyOneReturnedRow(results[1], "run event insert");
+		assertExactlyOneReturnedRow(results[2], "command completion");
 	} catch (cause: unknown) {
+		if (cause instanceof ORPCError) throw cause;
 		if (isUniqueConstraintError(cause)) {
 			await releaseReservation(db, reservation.id);
 			throw new ORPCError("CONFLICT", {
 				message: "The run changed before the start command was committed.",
+			});
+		}
+		throw cause;
+	}
+	return readCommittedResponse(db, userId, reservation.id, response);
+}
+
+async function persistReplacementCommand(options: {
+	db: AppDatabase;
+	userId: string;
+	reservation: CommandRequest;
+	existing: Run;
+	seed: number;
+	state: GameState;
+	stateJson: string;
+	command: Extract<ApplyCommand, { kind: "replace_run" }>;
+}): Promise<AuthoritativeRunResponse> {
+	const { db, userId, reservation, existing, seed, state, stateJson, command } =
+		options;
+	const nextRevision = existing.revision + 1;
+	const response = createResponse(
+		existing.id,
+		seed,
+		state,
+		nextRevision,
+		stateJson,
+	);
+	const now = new Date();
+	const timestamp = toSqliteTimestamp(now);
+	const eventId = crypto.randomUUID();
+	const commandJson = serializeCommand(command);
+	const reservationCutoff = reservationCutoffSeconds();
+	const runUpdate = db
+		.update(runs)
+		.set({
+			seed,
+			state: stateJson,
+			currentWeek: state.meta.week,
+			status: response.status,
+			schemaVersion: state.meta.schemaVersion,
+			updatedAt: now,
+			revision: nextRevision,
+		})
+		.where(
+			and(
+				eq(runs.id, existing.id),
+				eq(runs.userId, userId),
+				eq(runs.revision, existing.revision),
+				reservationIsLive(reservation.id, userId, reservationCutoff),
+			),
+		)
+		.returning();
+	const eventInsert = db
+		.insert(runEvents)
+		.select(((queryBuilder: QueryBuilder) =>
+			queryBuilder
+				.select({
+					id: sql<string>`${eventId}`,
+					runId: sql<string>`${existing.id}`,
+					revision: sql<number>`${nextRevision}`,
+					requestId: sql<string>`${reservation.requestId}`,
+					commandKind: sql<string>`${command.kind}`,
+					commandJson: sql<string>`${commandJson}`,
+					createdAt: sql<number>`${timestamp}`,
+				})
+				.from(runs)
+				.where(
+					and(
+						eq(runs.id, existing.id),
+						eq(runs.userId, userId),
+						eq(runs.revision, nextRevision),
+						reservationIsLive(reservation.id, userId, reservationCutoff),
+					),
+				)) as never)
+		.returning();
+	try {
+		const results = (await db.batch([
+			runUpdate,
+			eventInsert,
+			completeReservation(
+				db,
+				reservation.id,
+				userId,
+				reservation.requestId,
+				eventId,
+				response,
+				nextRevision,
+				reservationCutoff,
+			),
+		] as never)) as unknown[];
+		if (!hasExactlyOneReturnedRow(results[0])) {
+			await releaseReservation(db, reservation.id);
+			throw new ORPCError("CONFLICT", {
+				message: "Command conflict: the run revision is no longer current.",
+				data: { storedRevision: await readRevision(db, userId) },
+			});
+		}
+		assertExactlyOneReturnedRow(results[1], "run event insert");
+		assertExactlyOneReturnedRow(results[2], "command completion");
+	} catch (cause: unknown) {
+		if (cause instanceof ORPCError) throw cause;
+		if (isUniqueConstraintError(cause)) {
+			await releaseReservation(db, reservation.id);
+			throw new ORPCError("CONFLICT", {
+				message: "Command conflict: the run revision is no longer current.",
 			});
 		}
 		throw cause;
@@ -297,7 +484,7 @@ async function persistExistingCommand(options: {
 	existing: Run;
 	state: GameState;
 	nextRevision: number;
-	command: Exclude<ApplyCommand, { kind: "start_run" }>;
+	command: Exclude<ApplyCommand, { kind: "start_run" | "replace_run" }>;
 }): Promise<AuthoritativeRunResponse> {
 	const { db, userId, reservation, existing, state, nextRevision, command } =
 		options;
@@ -310,61 +497,77 @@ async function persistExistingCommand(options: {
 		stateJson,
 	);
 	const now = new Date();
+	const timestamp = toSqliteTimestamp(now);
 	const eventId = crypto.randomUUID();
 	const commandJson = serializeCommand(command);
-	const eventInsert = db.insert(runEvents).select(((
-		queryBuilder: QueryBuilder,
-	) =>
-		queryBuilder
-			.select({
-				id: sql<string>`${eventId}`,
-				runId: sql<string>`${runs.id}`,
-				revision: sql<number>`${nextRevision}`,
-				requestId: sql<string>`${reservation.requestId}`,
-				commandKind: sql<string>`${command.kind}`,
-				commandJson: sql<string>`${commandJson}`,
-				createdAt: sql<number>`${now.getTime()}`,
-			})
-			.from(runs)
-			.where(
-				and(
-					eq(runs.id, existing.id),
-					eq(runs.userId, userId),
-					eq(runs.revision, nextRevision),
-				),
-			)) as never);
-	try {
-		const results = await db.batch([
-			db
-				.update(runs)
-				.set({
-					state: stateJson,
-					currentWeek: state.meta.week,
-					status: response.status,
-					schemaVersion: state.meta.schemaVersion,
-					updatedAt: now,
-					revision: sql<number>`${runs.revision} + 1`,
+	const reservationCutoff = reservationCutoffSeconds();
+	const eventInsert = db
+		.insert(runEvents)
+		.select(((queryBuilder: QueryBuilder) =>
+			queryBuilder
+				.select({
+					id: sql<string>`${eventId}`,
+					runId: sql<string>`${runs.id}`,
+					revision: sql<number>`${nextRevision}`,
+					requestId: sql<string>`${reservation.requestId}`,
+					commandKind: sql<string>`${command.kind}`,
+					commandJson: sql<string>`${commandJson}`,
+					createdAt: sql<number>`${timestamp}`,
 				})
+				.from(runs)
 				.where(
 					and(
 						eq(runs.id, existing.id),
 						eq(runs.userId, userId),
-						eq(runs.revision, existing.revision),
-						eq(runs.status, "active"),
+						eq(runs.revision, nextRevision),
+						reservationIsLive(reservation.id, userId, reservationCutoff),
 					),
-				)
-				.returning(),
+				)) as never)
+		.returning();
+	const runUpdate = db
+		.update(runs)
+		.set({
+			state: stateJson,
+			currentWeek: state.meta.week,
+			status: response.status,
+			schemaVersion: state.meta.schemaVersion,
+			updatedAt: now,
+			revision: nextRevision,
+		})
+		.where(
+			and(
+				eq(runs.id, existing.id),
+				eq(runs.userId, userId),
+				eq(runs.revision, existing.revision),
+				eq(runs.status, "active"),
+				reservationIsLive(reservation.id, userId, reservationCutoff),
+			),
+		)
+		.returning();
+	try {
+		const results = (await db.batch([
+			runUpdate,
 			eventInsert,
-			completeReservation(db, reservation.id, eventId, response, nextRevision),
-		]);
-		const updatedRows = results[0] as Run[];
-		if (updatedRows[0] === undefined) {
+			completeReservation(
+				db,
+				reservation.id,
+				userId,
+				reservation.requestId,
+				eventId,
+				response,
+				nextRevision,
+				reservationCutoff,
+			),
+		] as never)) as unknown[];
+		if (!hasExactlyOneReturnedRow(results[0])) {
 			await releaseReservation(db, reservation.id);
 			throw new ORPCError("CONFLICT", {
 				message: "Command conflict: the run revision is no longer current.",
 				data: { storedRevision: await readRevision(db, userId) },
 			});
 		}
+		assertExactlyOneReturnedRow(results[1], "run event insert");
+		assertExactlyOneReturnedRow(results[2], "command completion");
 	} catch (cause: unknown) {
 		if (cause instanceof ORPCError) throw cause;
 		if (isUniqueConstraintError(cause)) {
@@ -380,7 +583,7 @@ async function persistExistingCommand(options: {
 
 function executeCommand(
 	state: GameState,
-	command: Exclude<ApplyCommand, { kind: "start_run" }>,
+	command: Exclude<ApplyCommand, { kind: "start_run" | "replace_run" }>,
 ): ReturnType<typeof advanceWeek> {
 	switch (command.kind) {
 		case "advance_week":
@@ -513,57 +716,109 @@ async function reserveRequest(
 	userId: string,
 	requestId: string,
 ): Promise<CommandRequest> {
-	const reservationId = crypto.randomUUID();
-	try {
-		const inserted = await db
-			.insert(commandRequests)
-			.values({
-				id: reservationId,
-				userId,
-				requestId,
-				status: "pending",
-				createdAt: new Date(),
-			})
-			.onConflictDoNothing({
-				target: [commandRequests.userId, commandRequests.requestId],
-			})
-			.returning();
-		const created = inserted[0];
-		if (created !== undefined) return created;
-	} catch (cause: unknown) {
-		if (!isUniqueConstraintError(cause)) throw cause;
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		const reservationId = crypto.randomUUID();
+		try {
+			const inserted = await db
+				.insert(commandRequests)
+				.values({
+					id: reservationId,
+					userId,
+					requestId,
+					status: "pending",
+					createdAt: new Date(),
+				})
+				.onConflictDoNothing({
+					target: [commandRequests.userId, commandRequests.requestId],
+				})
+				.returning();
+			const created = inserted[0];
+			if (created !== undefined) return created;
+		} catch (cause: unknown) {
+			if (!isUniqueConstraintError(cause)) throw cause;
+		}
+
+		const rows = await db
+			.select()
+			.from(commandRequests)
+			.where(
+				and(
+					eq(commandRequests.userId, userId),
+					eq(commandRequests.requestId, requestId),
+				),
+			)
+			.limit(1);
+		const existing = rows[0];
+		if (existing === undefined) continue;
+		if (existing.status === "pending") {
+			const staleCutoff = reservationCutoffSeconds();
+			const removed = await db
+				.delete(commandRequests)
+				.where(
+					and(
+						eq(commandRequests.id, existing.id),
+						eq(commandRequests.userId, userId),
+						eq(commandRequests.status, "pending"),
+						sql`${commandRequests.createdAt} < ${staleCutoff}`,
+					),
+				)
+				.returning({ id: commandRequests.id });
+			if (removed.length > 0) continue;
+			throw new ORPCError("CONFLICT", {
+				message:
+					"This command request is already in progress; retry it shortly.",
+			});
+		}
+		return existing;
 	}
 
-	const rows = await db
-		.select()
-		.from(commandRequests)
-		.where(
-			and(
-				eq(commandRequests.userId, userId),
-				eq(commandRequests.requestId, requestId),
-			),
-		)
-		.limit(1);
-	const existing = rows[0];
-	if (existing === undefined) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Command request reservation was not readable.",
-		});
+	throw new ORPCError("CONFLICT", {
+		message: "This command request could not be reserved; retry it shortly.",
+	});
+}
+
+function reservationCutoffSeconds(now = Date.now()): number {
+	return Math.floor((now - PENDING_RESERVATION_TTL_MS) / 1000);
+}
+
+function reservationIsLive(
+	reservationId: string,
+	userId: string,
+	cutoffSeconds: number,
+) {
+	return sql`EXISTS (
+		SELECT 1
+		FROM command_requests
+		WHERE id = ${reservationId}
+			AND user_id = ${userId}
+			AND status = 'pending'
+			AND created_at >= ${cutoffSeconds}
+	)`;
+}
+
+function toSqliteTimestamp(value: Date): number {
+	return Math.floor(value.getTime() / 1000);
+}
+
+function hasExactlyOneReturnedRow(value: unknown): value is [unknown] {
+	return Array.isArray(value) && value.length === 1;
+}
+
+function assertExactlyOneReturnedRow(value: unknown, operation: string): void {
+	if (!hasExactlyOneReturnedRow(value)) {
+		throw new Error(`${operation} did not affect exactly one row`);
 	}
-	if (existing.status === "pending") {
-		throw new ORPCError("CONFLICT", {
-			message: "This command request is already in progress; retry it shortly.",
-		});
-	}
-	return existing;
 }
 
 function completeReservation(
 	db: AppDatabase,
 	reservationId: string,
+	userId: string,
+	requestId: string,
 	eventId: string,
 	response: AuthoritativeRunResponse,
 	revision: number,
+	cutoffSeconds: number,
 ) {
 	return db
 		.update(commandRequests)
@@ -576,10 +831,20 @@ function completeReservation(
 		.where(
 			and(
 				eq(commandRequests.id, reservationId),
+				eq(commandRequests.userId, userId),
 				eq(commandRequests.status, "pending"),
-				sql`EXISTS (SELECT 1 FROM run_events WHERE id = ${eventId})`,
+				sql`${commandRequests.createdAt} >= ${cutoffSeconds}`,
+				sql`EXISTS (
+					SELECT 1
+					FROM run_events
+					WHERE id = ${eventId}
+						AND run_id = ${response.id}
+						AND revision = ${revision}
+						AND request_id = ${requestId}
+				)`,
 			),
-		);
+		)
+		.returning({ id: commandRequests.id });
 }
 
 async function releaseReservation(
@@ -609,12 +874,56 @@ function readCompletedResponse(
 		});
 	}
 	try {
-		return JSON.parse(reservation.responseJson) as AuthoritativeRunResponse;
+		const response: unknown = JSON.parse(reservation.responseJson);
+		if (
+			!isAuthoritativeRunResponse(response) ||
+			response.revision !== reservation.revision
+		) {
+			throw new Error("invalid completed response");
+		}
+		return response;
 	} catch {
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Completed command response is malformed.",
 		});
 	}
+}
+
+function isAuthoritativeRunResponse(
+	value: unknown,
+): value is AuthoritativeRunResponse {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		return false;
+	}
+	const response = value as Record<string, unknown>;
+	return (
+		typeof response.id === "string" &&
+		typeof response.seed === "number" &&
+		Number.isSafeInteger(response.seed) &&
+		typeof response.schemaVersion === "number" &&
+		Number.isSafeInteger(response.schemaVersion) &&
+		typeof response.state === "string" &&
+		typeof response.currentWeek === "number" &&
+		Number.isSafeInteger(response.currentWeek) &&
+		(response.status === "active" || response.status === "terminal") &&
+		typeof response.revision === "number" &&
+		Number.isSafeInteger(response.revision)
+	);
+}
+
+function responsesMatch(
+	left: AuthoritativeRunResponse,
+	right: AuthoritativeRunResponse,
+): boolean {
+	return (
+		left.id === right.id &&
+		left.seed === right.seed &&
+		left.schemaVersion === right.schemaVersion &&
+		left.state === right.state &&
+		left.currentWeek === right.currentWeek &&
+		left.status === right.status &&
+		left.revision === right.revision
+	);
 }
 
 async function readCommittedResponse(
@@ -634,6 +943,7 @@ async function readCommittedResponse(
 			message: "Command completion was not persisted.",
 		});
 	}
+	const committed = readCompletedResponse(request);
 	const storedRows = await db
 		.select()
 		.from(runs)
@@ -642,15 +952,20 @@ async function readCommittedResponse(
 	const stored = storedRows[0];
 	if (
 		stored === undefined ||
-		stored.id !== fallback.id ||
-		stored.revision !== fallback.revision ||
-		stored.state !== fallback.state
+		stored.id !== committed.id ||
+		stored.seed !== committed.seed ||
+		stored.schemaVersion !== committed.schemaVersion ||
+		stored.state !== committed.state ||
+		stored.currentWeek !== committed.currentWeek ||
+		stored.status !== committed.status ||
+		stored.revision !== committed.revision ||
+		!responsesMatch(committed, fallback)
 	) {
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Authoritative run readback did not match the command result.",
 		});
 	}
-	return readCompletedResponse(request);
+	return committed;
 }
 
 async function readRevision(db: AppDatabase, userId: string): Promise<number> {
