@@ -369,7 +369,14 @@ export function assertFact(value: unknown): asserts value is Fact {
 							"servedShare",
 							"week",
 						]
-					: ["kind", "productId", "channel", "amount", "effectiveQuality", "week"],
+					: [
+							"kind",
+							"productId",
+							"channel",
+							"amount",
+							"effectiveQuality",
+							"week",
+						],
 				"revenue fact",
 			);
 			assertIdentifier(value.productId, "Revenue product id");
