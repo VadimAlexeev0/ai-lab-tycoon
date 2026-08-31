@@ -14,6 +14,7 @@ import {
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
+import type { ActiveResearchEffects } from "./research-effects.js";
 import type { EngineResult, GameState } from "./state.js";
 import { appendFactsAsReports } from "./systems/reporting.js";
 import { assertEnum, assertIdentifier, assertObject } from "./validation.js";
@@ -240,6 +241,7 @@ export function evaluationDimensions(
 export function completeEvaluationModel(
 	model: Model,
 	evaluation: EvaluationKind,
+	researchEffects?: ActiveResearchEffects,
 ): { model: Model; coverage: number } {
 	if (model.trueScores === undefined || model.estimates === undefined) {
 		throw new Error("Model must have scores before evaluation completion");
@@ -255,7 +257,12 @@ export function completeEvaluationModel(
 		evaluation === "safety_reliability"
 			? (emphasis.safety + emphasis.reliability) * tuning.safetyEmphasisBonus
 			: 0;
-	const coverage = Math.min(100, tuning.coveragePercent + emphasisBonus);
+	const researchCoverageBonus =
+		researchEffects?.evaluationCoverageBonus[evaluation] ?? 0;
+	const coverage = Math.min(
+		100,
+		tuning.coveragePercent + emphasisBonus + researchCoverageBonus,
+	);
 	const estimates = cloneEstimates(model.estimates);
 	for (const dimension of dimensionsFor(evaluation)) {
 		estimates[dimension] = narrowBand(

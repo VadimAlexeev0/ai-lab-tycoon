@@ -22,6 +22,10 @@ import {
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
+import {
+	type ActiveResearchEffects,
+	createEmptyResearchEffects,
+} from "./research-effects.js";
 import { nextInt } from "./rng.js";
 import type { EngineResult, GameState, RngState } from "./state.js";
 import {
@@ -224,6 +228,7 @@ export function generateTrueScores(
 	rng: RngState,
 	model: Model,
 	parent?: Model,
+	researchEffects: ActiveResearchEffects = createEmptyResearchEffects(),
 ): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
@@ -270,6 +275,7 @@ export function generateTrueScores(
 			) +
 			emphasisContribution * BALANCE.modelScore.emphasisWeight +
 			tierContribution +
+			researchEffects.modelScoreBonus[dimension] +
 			scoreDraw.value;
 		const floor = foundationFloorFor(
 			model.foundation,

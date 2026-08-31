@@ -533,6 +533,9 @@ function cloneFact(fact: DeepReadonly<Fact>): Fact {
 	if (fact.kind === "funding_resolved" && fact.factors !== undefined) {
 		return { ...fact, factors: { ...fact.factors } };
 	}
+	if (fact.kind === "research_completed" && fact.effects !== undefined) {
+		return { ...fact, effects: fact.effects.map((effect) => ({ ...effect })) };
+	}
 	return { ...fact } as Fact;
 }
 

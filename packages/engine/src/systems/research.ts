@@ -11,6 +11,10 @@ import {
 import { hasShippedModelProof } from "../era-proof.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
+import {
+	type ResearchEffect,
+	researchEffectsForNode,
+} from "../research-effects.js";
 import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
@@ -93,9 +97,13 @@ export const researchSystem: GameSystem = (state, context) => {
 		}
 		node.status = "completed";
 		completedNodeIds.add(node.id);
+		const effects = researchEffectsForNode(node.id);
 		facts.push({
 			kind: "research_completed",
 			nodeId: node.id,
+			...(effects.length === 0
+				? {}
+				: { effects: effects.map(cloneResearchEffect) }),
 			week: context.week,
 		});
 	}
@@ -199,6 +207,10 @@ function hasCompletedNode(research: ResearchState, nodeId: string): boolean {
 	return research.nodes.some(
 		(node) => node.id === nodeId && node.status === "completed",
 	);
+}
+
+function cloneResearchEffect(effect: ResearchEffect): ResearchEffect {
+	return { ...effect };
 }
 
 function advanceEraIfUnlocked(

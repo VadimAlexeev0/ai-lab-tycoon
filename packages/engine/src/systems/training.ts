@@ -8,6 +8,7 @@ import {
 import { BALANCE } from "../data/balance.js";
 import { assertGameState } from "../invariants.js";
 import { generateTrueScores } from "../model-design.js";
+import { deriveResearchEffects } from "../research-effects.js";
 import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
@@ -21,6 +22,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 
 	const facts: Fact[] = [];
 	const completedProjectIds = new Set<string>();
+	const researchEffects = deriveResearchEffects(state.research);
 	const reservations = computeReservations(state);
 	const trainingDemand = reservations.trainingDemand;
 	const availableTrainingCapacity = Math.max(
@@ -95,7 +97,12 @@ export const trainingSystem: GameSystem = (state, context) => {
 			model.parentModelId === undefined || model.parentModelId === null
 				? undefined
 				: nextModels.find((candidate) => candidate.id === model.parentModelId);
-		const generated = generateTrueScores(nextRng, model, parent);
+		const generated = generateTrueScores(
+			nextRng,
+			model,
+			parent,
+			researchEffects,
+		);
 		nextRng = generated.rng;
 		model.status = "ready";
 		model.projectId = null;

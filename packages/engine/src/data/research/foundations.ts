@@ -4,6 +4,7 @@ import {
 	MODELS_BRANCH,
 	PRODUCTS_SAFETY_BRANCH,
 	RESEARCH_CATEGORY_LABELS,
+	RESEARCH_EFFECT_BALANCE,
 	type ResearchDefinition,
 	RNN_LSTM_ID,
 	SEQ2SEQ_ID,
@@ -39,7 +40,14 @@ export const FOUNDATIONS_NODES = [
 		insightCost: 1,
 		prerequisites: [],
 		description:
-			"A small recurrent memory lets the model carry yesterday's token into today's sentence without starting over.",
+			"A small recurrent memory lets the model carry yesterday's token into today's sentence; new models gain four Reliability.",
+		effects: [
+			{
+				kind: "model_score_bonus",
+				dimension: "reliability",
+				amount: RESEARCH_EFFECT_BALANCE.recurrentReliabilityScoreBonus,
+			},
+		],
 	},
 	{
 		id: SEQ2SEQ_ID,
@@ -65,6 +73,14 @@ export const FOUNDATIONS_NODES = [
 		insightCost: 1,
 		prerequisites: [SEQ2SEQ_ID],
 		description:
-			"The machine learned to point at the right shelf instead of rereading every page in order.",
+			"The machine learned to point at the right shelf; capability evaluations now inspect fifteen more points of evidence.",
+		effects: [
+			{
+				kind: "evaluation_coverage_bonus",
+				evaluation: "capability",
+				amount:
+					RESEARCH_EFFECT_BALANCE.attentionCapabilityEvaluationCoverageBonus,
+			},
+		],
 	},
 ] as const satisfies readonly ResearchDefinition[];

@@ -32,6 +32,10 @@ export type {
 	ModelFamilyId,
 	ModelTier,
 } from "./data/model-families.js";
+export type {
+	ResearchEffect,
+	ResearchEvaluationKind,
+} from "./data/research.js";
 export { assertGameState, setAssertionsEnabled } from "./invariants.js";
 export type { GameStateUpgradeResult } from "./migrations.js";
 export {
@@ -49,6 +53,7 @@ export type {
 	ReplayCommandLogOptions,
 } from "./replay.js";
 export { replayCommandLog } from "./replay.js";
+export type { ActiveResearchEffects } from "./research-effects.js";
 export type {
 	NextObjective,
 	ResourceBarSummary,

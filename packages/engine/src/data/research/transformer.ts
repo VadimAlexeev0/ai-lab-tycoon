@@ -4,6 +4,7 @@ import {
 	MODELS_BRANCH,
 	PARALLEL_TRAINING_ID,
 	RESEARCH_CATEGORY_LABELS,
+	RESEARCH_EFFECT_BALANCE,
 	type ResearchDefinition,
 	TEXT_ERA,
 	TEXT_MODELS_KEYSTONE_ID,
@@ -63,7 +64,13 @@ export const TRANSFORMER_NODES = [
 		insightCost: 1,
 		prerequisites: ["multi_head_attention", "positional_encoding"],
 		description:
-			"The cluster stops waiting for one token at a time and turns more pages in the same expensive breath.",
+			"The cluster stops waiting for one token at a time; each later training run uses one less Compute.",
+		effects: [
+			{
+				kind: "training_compute_reduction",
+				amount: RESEARCH_EFFECT_BALANCE.parallelTrainingComputeReduction,
+			},
+		],
 	},
 	{
 		id: TEXT_MODELS_KEYSTONE_ID,

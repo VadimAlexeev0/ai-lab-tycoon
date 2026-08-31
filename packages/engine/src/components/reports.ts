@@ -1,5 +1,9 @@
 import type { IncidentCondition } from "../data/incidents.js";
 import {
+	assertResearchEffects,
+	type ResearchEffect,
+} from "../data/research.js";
+import {
 	assertArray,
 	assertBoolean,
 	assertEnum,
@@ -79,6 +83,7 @@ export type Fact =
 	| {
 			kind: "research_completed";
 			nodeId: string;
+			effects?: readonly ResearchEffect[];
 			week: number;
 	  }
 	| {
@@ -205,10 +210,35 @@ export function createReportsState(
 	return {
 		items: items.slice(-REPORT_RETENTION_LIMIT).map((report) => ({
 			...report,
-			fact: { ...report.fact },
+			fact: cloneFact(report.fact),
 		})),
 		totalCount: Math.max(totalCount, items.length),
 	};
+}
+
+export function cloneFact(fact: Fact): Fact {
+	switch (fact.kind) {
+		case "terminal":
+			return {
+				...fact,
+				contributors: fact.contributors.map((contributor) => ({
+					...contributor,
+				})),
+			};
+		case "funding_resolved":
+			return fact.factors === undefined
+				? { ...fact }
+				: { ...fact, factors: { ...fact.factors } };
+		case "research_completed":
+			return fact.effects === undefined
+				? { ...fact }
+				: {
+						...fact,
+						effects: fact.effects.map((effect) => ({ ...effect })),
+					};
+		default:
+			return { ...fact };
+	}
 }
 
 export function assertReportsState(
@@ -303,10 +333,15 @@ export function assertFact(value: unknown): asserts value is Fact {
 		case "research_completed":
 			assertExactObject(
 				value,
-				["kind", "nodeId", "week"],
+				Object.hasOwn(value, "effects")
+					? ["kind", "nodeId", "effects", "week"]
+					: ["kind", "nodeId", "week"],
 				"research completed fact",
 			);
 			assertIdentifier(value.nodeId, "Completed research node id");
+			if (Object.hasOwn(value, "effects")) {
+				assertResearchEffects(value.effects, "Research completion effects");
+			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "model_trained":

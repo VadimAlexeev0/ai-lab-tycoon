@@ -1,4 +1,5 @@
 import { BALANCE } from "./data/balance.js";
+import { deriveResearchEffects } from "./research-effects.js";
 import type { GameState } from "./state.js";
 
 export type ComputeReservations = Readonly<{
@@ -9,21 +10,30 @@ export type ComputeReservations = Readonly<{
 	allocated: number;
 }>;
 
+const MIN_TRAINING_COMPUTE_DEMAND = 1;
+
 /**
  * Recompute reservations from their owning active entities. `allocated` is the
  * capacity reservation actually held; demand remains visible even when the
  * world is overloaded so incidents can explain the pressure.
  */
 export function computeReservations(state: GameState): ComputeReservations {
+	const researchEffects = deriveResearchEffects(state.research);
 	const trainingDemand = state.projects.items.reduce((total, project) => {
 		if (project.kind !== "training" || project.status !== "active")
 			return total;
 		const model = state.models.items.find(
 			(candidate) => candidate.id === project.modelId,
 		);
-		return model?.tier === undefined
-			? total
-			: total + BALANCE.modelTiers[model.tier].trainingCompute;
+		if (model?.tier === undefined) return total;
+		const baseDemand = BALANCE.modelTiers[model.tier].trainingCompute;
+		return (
+			total +
+			Math.max(
+				MIN_TRAINING_COMPUTE_DEMAND,
+				baseDemand - researchEffects.trainingComputeReduction,
+			)
+		);
 	}, 0);
 	const servingDemand = state.products.items.reduce(
 		(total, product) =>
