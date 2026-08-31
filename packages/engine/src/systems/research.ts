@@ -1,7 +1,7 @@
 import type { Fact } from "../components/reports.js";
 import type { ResearchEra, ResearchState } from "../components/research.js";
 import { BALANCE } from "../data/balance.js";
-import { MODEL_FAMILIES, type ModelFamilyId } from "../data/model-families.js";
+import { MODEL_FAMILIES } from "../data/model-families.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
@@ -212,7 +212,7 @@ function advanceEraIfUnlocked(
 		if (nextEra === undefined) {
 			break;
 		}
-		if (!hasShippedModelForEra(state, currentEra)) {
+		if (!hasShippedModelForEra(state, currentEra, completedNodeIds)) {
 			break;
 		}
 		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[nextEra];
@@ -227,6 +227,7 @@ function advanceEraIfUnlocked(
 function hasShippedModelForEra(
 	state: Pick<GameState, "models" | "products">,
 	era: ResearchEra,
+	completedNodeIds: ReadonlySet<string>,
 ): boolean {
 	// V1 retains every launched product. Operating and paused products both
 	// prove that a model reached the public launch path; planned projects do not.
@@ -238,19 +239,20 @@ function hasShippedModelForEra(
 				(model) =>
 					model.id === product.modelId &&
 					model.status === "launched" &&
-					model.family === family,
+					model.family === family.id &&
+					completedNodeIds.has(family.unlockedByResearchNodeId),
 			),
 	);
 }
 
-function modelFamilyForEra(era: ResearchEra): ModelFamilyId {
+function modelFamilyForEra(era: ResearchEra) {
 	const family = MODEL_FAMILIES.find((candidate) =>
 		candidate.allowedEras.some((allowedEra) => allowedEra === era),
 	);
 	if (family === undefined) {
 		throw new Error(`No model family is defined for the ${era} era`);
 	}
-	return family.id;
+	return family;
 }
 
 function isEraAtLeast(

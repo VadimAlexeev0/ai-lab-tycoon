@@ -352,6 +352,11 @@ function assertModelRelations(state: GameState): void {
 				`Model ${model.id} must have true scores and estimates together`,
 			);
 		}
+		if (model.status === "launched" && (!hasTrueScores || !hasEstimates)) {
+			throw new Error(
+				`Launched model ${model.id} must retain true scores and estimates`,
+			);
+		}
 		if (
 			model.status !== "designing" &&
 			(model.family === undefined || model.tier === undefined)

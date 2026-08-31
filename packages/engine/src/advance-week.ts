@@ -42,7 +42,7 @@ const DECLARATIONS = {
 			"models.items",
 			"products.items",
 		],
-		writes: ["research", "company.insight", "projects.items"],
+		writes: ["research", "meta.era", "company.insight", "projects.items"],
 	},
 	training: {
 		reads: ["projects.items", "models.items", "compute"],

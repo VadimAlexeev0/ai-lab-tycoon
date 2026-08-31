@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { Model } from "./components/models.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
+import {
+	ASSISTANT_MODELS_KEYSTONE_ID,
+	RESEARCH_NODES,
+} from "./data/research.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 import { launchProduct } from "./products.js";
@@ -83,6 +87,29 @@ function launchedAssistantState(): ReturnType<typeof startRun> {
 	return launchChatModel(state, "model_002");
 }
 
+function completeResearchPrerequisites(
+	state: ReturnType<typeof startRun>,
+	nodeId: string,
+	visiting = new Set<string>(),
+): void {
+	if (visiting.has(nodeId)) {
+		throw new Error(`Cycle in test fixture at ${nodeId}`);
+	}
+	const definition = RESEARCH_NODES.find((node) => node.id === nodeId);
+	const node = state.research.nodes.find(
+		(candidate) => candidate.id === nodeId,
+	);
+	if (definition === undefined || node === undefined) {
+		throw new Error(`Expected research fixture node ${nodeId}`);
+	}
+	visiting.add(nodeId);
+	for (const prerequisiteId of definition.prerequisites) {
+		completeResearchPrerequisites(state, prerequisiteId, visiting);
+	}
+	visiting.delete(nodeId);
+	node.status = "completed";
+}
+
 describe("shipped-generation era gates", () => {
 	it("does not advance from Text with only the completed Text keystone", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
@@ -107,6 +134,41 @@ describe("shipped-generation era gates", () => {
 		const result = researchSystem(state, { phase: "research", week: 2 });
 
 		expect(result.state.research.currentEra).toBe("text");
+	});
+
+	it("rejects a launched model without retained true scores and estimates", () => {
+		const state = launchedTextState();
+		const model = state.models.items[0];
+		if (model === undefined) throw new Error("Expected launched Text model");
+		delete model.trueScores;
+		delete model.estimates;
+
+		expect(() => assertGameState(state)).toThrow(
+			/launched.*true scores.*estimates|true scores.*estimates.*launched/i,
+		);
+	});
+
+	it("advances with a valid launched scored model after its family unlock completes", () => {
+		const state = launchedTextState();
+		completeEra(state, "text");
+
+		const result = researchSystem(state, { phase: "research", week: 2 });
+
+		expect(result.state.research.currentEra).toBe("assistant");
+		expect(result.state.meta.era).toBe("assistant");
+	});
+
+	it("keeps a ready model valid without retained scores or estimates", () => {
+		const state = withReadyModel(
+			startRun({ companyName: "Acme Labs" }, 42),
+			"text",
+		);
+		const model = state.models.items[0];
+		if (model === undefined) throw new Error("Expected ready Text model");
+		delete model.trueScores;
+		delete model.estimates;
+
+		expect(() => assertGameState(state)).not.toThrow();
 	});
 
 	it("does not let a shipped Text model bypass its Text keystone", () => {
@@ -168,6 +230,28 @@ describe("shipped-generation era gates", () => {
 		model.status = "launched";
 
 		expect(() => assertGameState(state)).toThrow(/launched|shipped|product/i);
+	});
+
+	it("does not accept shipped proof while the model family unlock is locked", () => {
+		let state = launchedTextState();
+		completeEra(state, "text");
+		state = researchSystem(state, { phase: "research", week: 2 }).state;
+		state = withReadyModel(state, "assistant", "model_002");
+		state = launchChatModel(state, "model_002");
+		completeResearchPrerequisites(state, ASSISTANT_MODELS_KEYSTONE_ID);
+
+		const familyUnlock = state.research.nodes.find(
+			(node) => node.id === "assistant_models_reasoning",
+		);
+		if (familyUnlock === undefined) {
+			throw new Error("Expected Assistant family unlock node");
+		}
+		expect(familyUnlock.status).toBe("locked");
+
+		const result = researchSystem(state, { phase: "research", week: 3 });
+
+		expect(result.state.research.currentEra).toBe("assistant");
+		expect(result.state.meta.era).toBe("assistant");
 	});
 
 	it("applies the same shipped-generation gate from Assistant to Multimodal", () => {
