@@ -3,6 +3,7 @@ import { vi } from "vitest";
 vi.mock("cloudflare:workers", () => ({ env: {} }));
 
 import { commandRequests, runEvents, runs } from "@ai-lab-tycoon/db";
+import { GAME_STATE_SCHEMA_VERSION } from "@ai-lab-tycoon/engine";
 import { createClient } from "@libsql/client";
 import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
@@ -75,6 +76,18 @@ async function apply(db: TestDatabase, userId: string, input: unknown) {
 	return procedure(input as never);
 }
 
+async function getActive(db: TestDatabase, userId: string) {
+	const procedure = gameSaveRouter.getActiveRun.callable({
+		context: {
+			db: db as never,
+			user: { id: userId },
+			session: { userId },
+			auth: null,
+		},
+	});
+	return procedure(undefined);
+}
+
 const startInput = (requestId: string, expectedRevision = 0) => ({
 	requestId,
 	expectedRevision,
@@ -109,6 +122,88 @@ describe("game save router", () => {
 		).toHaveLength(1);
 	});
 
+	it("loads current v1 rows and reports current schema metadata", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("load-v1"));
+
+		const loaded = await getActive(db, "user-1");
+		expect(loaded).toMatchObject({
+			id: started.id,
+			seed: started.seed,
+			schemaVersion: GAME_STATE_SCHEMA_VERSION,
+			currentWeek: 1,
+			status: "active",
+		});
+		expect(JSON.parse(loaded?.state ?? "{}").meta.schemaVersion).toBe(
+			GAME_STATE_SCHEMA_VERSION,
+		);
+	});
+
+	it("writes current schema metadata after loading a persisted state", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("rewrite-v1"));
+		await db
+			.update(runs)
+			.set({ state: ` ${started.state} ` })
+			.where(eq(runs.userId, "user-1"));
+
+		const advanced = await apply(db, "user-1", {
+			requestId: "rewrite-v1-command",
+			expectedRevision: started.revision,
+			command: { kind: "buy_compute" },
+		});
+		const stored = (
+			await db.select().from(runs).where(eq(runs.userId, "user-1"))
+		)[0];
+
+		expect(advanced.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(stored?.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(JSON.parse(stored?.state ?? "{}").meta.schemaVersion).toBe(
+			GAME_STATE_SCHEMA_VERSION,
+		);
+	});
+
+	it("rejects a row schema version that does not match the raw state", async () => {
+		const db = await createTestDatabase();
+		await apply(db, "user-1", startInput("load-mismatch"));
+		await db
+			.update(runs)
+			.set({ schemaVersion: GAME_STATE_SCHEMA_VERSION + 1 })
+			.where(eq(runs.userId, "user-1"));
+
+		await expect(getActive(db, "user-1")).rejects.toThrow(/schema version/i);
+	});
+
+	it("rejects a future state version at the API load boundary", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("load-future"));
+		const futureState = JSON.parse(started.state) as {
+			meta: { schemaVersion: number };
+		};
+		futureState.meta.schemaVersion = GAME_STATE_SCHEMA_VERSION + 1;
+		await db
+			.update(runs)
+			.set({
+				schemaVersion: GAME_STATE_SCHEMA_VERSION + 1,
+				state: JSON.stringify(futureState),
+			})
+			.where(eq(runs.userId, "user-1"));
+
+		await expect(getActive(db, "user-1")).rejects.toThrow(
+			/newer|unsupported.*version/i,
+		);
+	});
+
+	it("rejects malformed serialized state at the API load boundary", async () => {
+		const db = await createTestDatabase();
+		await apply(db, "user-1", startInput("load-malformed"));
+		await db
+			.update(runs)
+			.set({ state: "{not-json" })
+			.where(eq(runs.userId, "user-1"));
+
+		await expect(getActive(db, "user-1")).rejects.toThrow(/json/i);
+	});
 	it("rejects unauthenticated calls before loading or mutating the database", async () => {
 		const db = await createTestDatabase();
 		const procedure = gameSaveRouter.applyCommand.callable({

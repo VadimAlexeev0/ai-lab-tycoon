@@ -4,9 +4,11 @@ import { canonicalEqual } from "./canonical.js";
 import currentV1FixtureJson from "./fixtures/game-state-v1.json";
 import {
 	deserializeGameState,
+	deserializeGameStateWithMetadata,
 	serializeGameState,
 	startRun,
 	upgradeGameState,
+	upgradeGameStateWithMetadata,
 } from "./index.js";
 import type { GameState } from "./state.js";
 import { GAME_STATE_SCHEMA_VERSION } from "./state.js";
@@ -44,6 +46,26 @@ describe("GameState migration and serialization", () => {
 		);
 	});
 
+	it("reports source and current versions separately at the migration boundary", () => {
+		const fixture = currentV1Fixture();
+
+		const upgraded = upgradeGameStateWithMetadata(fixture);
+		expect(upgraded.sourceSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.state.meta.schemaVersion).toBe(
+			upgraded.currentSchemaVersion,
+		);
+		expect(upgraded.state).not.toBe(fixture);
+
+		const serialized = serializeGameState(upgraded.state);
+		expect(JSON.parse(serialized).meta.schemaVersion).toBe(
+			upgraded.currentSchemaVersion,
+		);
+		expect(deserializeGameStateWithMetadata(serialized)).toMatchObject({
+			sourceSchemaVersion: upgraded.currentSchemaVersion,
+			currentSchemaVersion: upgraded.currentSchemaVersion,
+		});
+	});
 	it("identity-migrates the representative current V1 fixture deterministically", () => {
 		const fixture = currentV1Fixture();
 		const before = JSON.stringify(fixture);

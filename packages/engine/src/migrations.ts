@@ -11,11 +11,13 @@ import {
 	assertString,
 } from "./validation.js";
 
-/**
- * Schema v1 is the first accepted persisted GameState format. Keep the
- * dispatcher explicit so future structural versions add a deliberate
- * migration instead of guessing at an older shape.
- */
+/** Result of upgrading a persisted value through the current engine schema. */
+export type GameStateUpgradeResult = Readonly<{
+	state: GameState;
+	sourceSchemaVersion: number;
+	currentSchemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
+}>;
+
 type StateMigration = (value: unknown) => unknown;
 
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
@@ -36,6 +38,14 @@ export function deserializeGameState(
 	serialized: string,
 	options: GameStateValidationOptions = {},
 ): GameState {
+	return deserializeGameStateWithMetadata(serialized, options).state;
+}
+
+/** Parse and migrate a serialized state while retaining source version metadata. */
+export function deserializeGameStateWithMetadata(
+	serialized: string,
+	options: GameStateValidationOptions = {},
+): GameStateUpgradeResult {
 	assertString(serialized, "Serialized game state");
 
 	let parsed: unknown;
@@ -44,7 +54,7 @@ export function deserializeGameState(
 	} catch {
 		throw new Error("Serialized game state is not valid JSON");
 	}
-	return upgradeGameState(parsed, options);
+	return upgradeGameStateWithMetadata(parsed, options);
 }
 
 /**
@@ -61,23 +71,43 @@ export function upgradeGameState(
 	value: unknown,
 	options: GameStateValidationOptions = {},
 ): GameState {
-	assertJsonCompatible(value);
-	const version = readSchemaVersion(value);
+	return upgradeGameStateWithMetadata(value, options).state;
+}
 
-	if (version > GAME_STATE_SCHEMA_VERSION) {
+/**
+ * Upgrade a value and return both the persisted source and current versions.
+ *
+ * `sourceSchemaVersion` describes the value before migration. The returned
+ * state's metadata and `currentSchemaVersion` always describe the validated
+ * current engine contract.
+ */
+export function upgradeGameStateWithMetadata(
+	value: unknown,
+	options: GameStateValidationOptions = {},
+): GameStateUpgradeResult {
+	assertJsonCompatible(value);
+	const sourceSchemaVersion = readSchemaVersion(value);
+
+	if (sourceSchemaVersion > GAME_STATE_SCHEMA_VERSION) {
 		throw new Error(
-			`Game state schema version ${version} is newer than supported version ${GAME_STATE_SCHEMA_VERSION}`,
+			`Game state schema version ${sourceSchemaVersion} is newer than supported version ${GAME_STATE_SCHEMA_VERSION}`,
 		);
 	}
 
-	const migration = STATE_MIGRATIONS[version];
+	const migration = STATE_MIGRATIONS[sourceSchemaVersion];
 	if (migration === undefined) {
-		throw new Error(`Unsupported game state schema version: ${version}`);
+		throw new Error(
+			`Unsupported game state schema version: ${sourceSchemaVersion}`,
+		);
 	}
 
 	const migrated = migration(value);
 	assertGameState(migrated, options, true);
-	return migrated;
+	return {
+		state: migrated,
+		sourceSchemaVersion,
+		currentSchemaVersion: GAME_STATE_SCHEMA_VERSION,
+	};
 }
 
 function readSchemaVersion(value: unknown): number {

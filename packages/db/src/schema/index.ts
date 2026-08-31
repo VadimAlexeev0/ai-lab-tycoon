@@ -126,7 +126,7 @@ export const runs = sqliteTable(
 			.notNull()
 			.references(() => user.id, { onDelete: "cascade" }),
 		seed: integer("seed").notNull(),
-		/** Engine schema version for save migration gating. */
+		/** Version of the serialized state blob before any engine migration. */
 		schemaVersion: integer("schema_version").notNull().default(1),
 		/** Full serialized engine state (JSON). */
 		state: text("state").notNull(),

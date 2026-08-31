@@ -20,7 +20,7 @@ import {
 	buyCompute,
 	cancelProject,
 	type DecisionChoice,
-	deserializeGameState,
+	deserializeGameStateWithMetadata,
 	designModel,
 	type GameState,
 	hireTeam,
@@ -92,7 +92,8 @@ export const gameSaveRouter = {
 				.where(eq(runs.userId, userId))
 				.orderBy(desc(runs.updatedAt))
 				.limit(1);
-			return rows[0] ?? null;
+			const row = rows[0];
+			return row === undefined ? null : loadStoredRun(row);
 		}),
 
 	/**
@@ -622,16 +623,19 @@ function executeCommand(
 
 function loadStoredState(row: Run): GameState {
 	assertJsonNestingDepth(row.state);
-	const state = deserializeGameState(row.state, {
-		allowNegativeCash: row.status === "terminal",
-	});
+	const { state, sourceSchemaVersion } = deserializeGameStateWithMetadata(
+		row.state,
+		{
+			allowNegativeCash: row.status === "terminal",
+		},
+	);
+	if (sourceSchemaVersion !== row.schemaVersion) {
+		throw new Error(
+			"Stored run schema version does not match its serialized engine state",
+		);
+	}
 	if (state.rng.seed !== row.seed) {
 		throw new Error("Stored run seed does not match its engine state");
-	}
-	if (state.meta.schemaVersion !== row.schemaVersion) {
-		throw new Error(
-			"Stored run schema version does not match its engine state",
-		);
 	}
 	if (state.meta.week !== row.currentWeek) {
 		throw new Error("Stored run week does not match its engine state");
@@ -642,6 +646,17 @@ function loadStoredState(row: Run): GameState {
 	assertWeekWithinLimit(row.currentWeek);
 	assertCommandLogLimit(state.commandLog);
 	return state;
+}
+
+function loadStoredRun(row: Run): Run {
+	const state = loadStoredState(row);
+	return {
+		...row,
+		schemaVersion: state.meta.schemaVersion,
+		state: serializeAuthoritativeState(state),
+		currentWeek: state.meta.week,
+		status: state.terminal.status === "lost" ? "terminal" : "active",
+	};
 }
 
 function serializeAuthoritativeState(state: GameState): string {

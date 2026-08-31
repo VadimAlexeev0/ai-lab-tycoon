@@ -769,6 +769,7 @@ describe("hardened component contract", () => {
 			"buyCompute",
 			"cancelProject",
 			"deserializeGameState",
+			"deserializeGameStateWithMetadata",
 			"designModel",
 			"fundingFactors",
 			"hireTeam",
@@ -793,6 +794,7 @@ describe("hardened component contract", () => {
 			"setAssertionsEnabled",
 			"startRun",
 			"upgradeGameState",
+			"upgradeGameStateWithMetadata",
 		]);
 	});
 
