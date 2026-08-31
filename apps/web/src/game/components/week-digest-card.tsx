@@ -11,6 +11,7 @@ import {
 	ArrowUpRight,
 	CircleAlert,
 	FlaskConical,
+	RefreshCw,
 	Rocket,
 	WalletCards,
 } from "lucide-react";
@@ -125,6 +126,12 @@ function createDigestRows(digest: WeekDigest): DigestRow[] {
 			icon: Rocket,
 			id: `launch-${fact.productId}`,
 			label: `${fact.productId} launched on ${fact.channel.replaceAll("_", " ")}`,
+			to: "/game/products" as const,
+		})),
+		...digest.resumes.map((fact) => ({
+			icon: RefreshCw,
+			id: `resume-${fact.productId}-${fact.week}`,
+			label: `${fact.productId} resumed on ${fact.channel.replaceAll("_", " ")}`,
 			to: "/game/products" as const,
 		})),
 		...digest.incidents.map((fact) => ({

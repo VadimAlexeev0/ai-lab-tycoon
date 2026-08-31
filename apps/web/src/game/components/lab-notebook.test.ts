@@ -75,4 +75,30 @@ describe("lab notebook projections", () => {
 		expect(textEra).toMatchObject({ discovered: true, week: 4 });
 		expect(countDiscoveredNotebookTiles(state)).toBe(5);
 	});
+
+	it("gives product-resumed first entries a player-facing annotation", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.reports.items = [
+			{
+				id: "report_001",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "product_resumed",
+					productId: "product_001",
+					channel: "chat",
+					week: 2,
+				},
+			},
+		];
+
+		const firstPage = buildNotebookTiles(state).find(
+			(tile) => tile.id === "first-report",
+		);
+
+		expect(firstPage).toMatchObject({
+			discovered: true,
+			annotation: "Week 2 · product_001 resumed on Chat.",
+		});
+	});
 });

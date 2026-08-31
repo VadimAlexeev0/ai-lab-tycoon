@@ -429,6 +429,12 @@ function resolutionEvent(
 				label: `${labels.productId ?? humanizeId(fact.productId)} launched.`,
 				tone: "positive",
 			};
+		case "product_resumed":
+			return {
+				id: `product-resume-${fact.productId}-${index}`,
+				label: `${labels.productId ?? humanizeId(fact.productId)} resumed on ${humanizeId(fact.channel)}.`,
+				tone: "positive",
+			};
 		case "revenue":
 			return {
 				id: `revenue-${fact.productId}-${index}`,

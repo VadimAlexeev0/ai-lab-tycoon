@@ -83,6 +83,7 @@ export function resolveFactLabels(state: GameState, fact: Fact): FactLabels {
 		case "evaluation_completed":
 			return { modelId: resolveEntityLabel(state, "model", fact.modelId) };
 		case "product_launched":
+		case "product_resumed":
 		case "revenue":
 			return {
 				productId: resolveEntityLabel(state, "product", fact.productId),

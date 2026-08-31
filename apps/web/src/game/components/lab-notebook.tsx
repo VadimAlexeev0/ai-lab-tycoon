@@ -11,6 +11,7 @@ type NotebookFactKind =
 	| "incident_occurred"
 	| "evaluation_completed"
 	| "product_launched"
+	| "product_resumed"
 	| "research_completed"
 	| "model_trained"
 	| "revenue"
@@ -311,6 +312,8 @@ function notebookFactAnnotation(fact: Fact): string {
 			return `${humanize(fact.evaluation)} evaluation completed for ${fact.modelId} at ${fact.coverage}% coverage.`;
 		case "product_launched":
 			return `${fact.productId} entered the ${humanize(fact.channel)} channel.`;
+		case "product_resumed":
+			return `${fact.productId} resumed on ${humanize(fact.channel)}.`;
 		case "research_completed":
 			return `Research node ${fact.nodeId} completed.`;
 		case "model_trained":

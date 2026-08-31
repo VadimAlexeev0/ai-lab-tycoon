@@ -179,6 +179,8 @@ function advisorForReport(report: VisibleReport) {
 		case "model_trained":
 		case "evaluation_completed":
 			return ADVISOR_ART.maya;
+		case "product_resumed":
+			return ADVISOR_ART.ops;
 		default:
 			return ADVISOR_ART.ops;
 	}
@@ -200,6 +202,8 @@ function factSummary(fact: Fact): string {
 			return `${fact.evaluation} evaluation completed for model ${fact.modelId}; coverage ${fact.coverage}%.`;
 		case "product_launched":
 			return `Product ${fact.productId} launched on ${fact.channel}.`;
+		case "product_resumed":
+			return `Product ${fact.productId} resumed on ${fact.channel}.`;
 		case "revenue":
 			return `Product ${fact.productId} generated ${fact.amount} revenue at quality ${fact.effectiveQuality}.`;
 		case "serving_throttled":

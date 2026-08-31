@@ -427,6 +427,7 @@ function markerForFact(fact: Fact): ChronicleMarker {
 	switch (fact.kind) {
 		case "research_completed":
 		case "product_launched":
+		case "product_resumed":
 		case "milestone_reached":
 			return "milestone";
 		case "incident_occurred":
@@ -453,6 +454,8 @@ function titleForFact(fact: Fact): string {
 			return `${humanize(fact.evaluation)} evaluation completed`;
 		case "product_launched":
 			return `Product ${fact.productId} launched`;
+		case "product_resumed":
+			return `Product ${fact.productId} resumed`;
 		case "revenue":
 			return `Product ${fact.productId} recorded revenue`;
 		case "serving_throttled":
@@ -492,6 +495,8 @@ function detailForFact(fact: Fact): string {
 			return `${humanize(fact.evaluation)} coverage reached ${fact.coverage}% for ${fact.modelId}.`;
 		case "product_launched":
 			return `${fact.productId} entered the ${humanize(fact.channel)} channel.`;
+		case "product_resumed":
+			return `${fact.productId} resumed in the ${humanize(fact.channel)} channel and is operating again.`;
 		case "revenue":
 			return `${fact.productId} returned ${fact.amount} in ${humanize(fact.channel)} revenue at quality ${fact.effectiveQuality}.`;
 		case "serving_throttled":

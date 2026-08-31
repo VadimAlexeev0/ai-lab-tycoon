@@ -8,6 +8,7 @@ import {
 import { type FactEntityField, resolveFactLabels } from "./labels";
 
 export type LaunchFact = Extract<Fact, { kind: "product_launched" }>;
+export type ProductResumeFact = Extract<Fact, { kind: "product_resumed" }>;
 export type TrainingCompletionFact = Extract<Fact, { kind: "model_trained" }>;
 export type EvaluationFact = Extract<Fact, { kind: "evaluation_completed" }>;
 export type IncidentFact = Extract<
@@ -36,6 +37,7 @@ export type WeekDigest = {
 	week: number;
 	facts: Fact[];
 	launches: LaunchFact[];
+	resumes: ProductResumeFact[];
 	trainingCompletions: TrainingCompletionFact[];
 	evaluations: EvaluationFact[];
 	incidents: IncidentFact[];
@@ -79,6 +81,7 @@ export function deriveWeekDigest(
 		week,
 		facts,
 		launches: factsOfKind(facts, "product_launched"),
+		resumes: factsOfKind(facts, "product_resumed"),
 		trainingCompletions: factsOfKind(facts, "model_trained"),
 		evaluations: factsOfKind(facts, "evaluation_completed"),
 		incidents: facts.filter(
@@ -127,6 +130,9 @@ export function summarizeWeekDigest(
 	const eventLabels = [
 		...digest.launches.map(
 			(fact) => `${factLabel(state, fact, "productId")} launched`,
+		),
+		...digest.resumes.map(
+			(fact) => `${factLabel(state, fact, "productId")} resumed`,
 		),
 		...digest.incidents.map((fact) =>
 			fact.kind === "incident_resolved"

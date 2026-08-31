@@ -793,6 +793,40 @@ function reportToCalendarEvent(
 				sources,
 			};
 		}
+		case "product_resumed": {
+			const product = lookups.products.get(fact.productId);
+			const modelName =
+				product === undefined
+					? undefined
+					: lookups.models.get(product.modelId)?.name;
+			const resumeCommand = state.commandLog.find(
+				(command) =>
+					command.kind === "product_resume" &&
+					command.productId === fact.productId &&
+					command.week === fact.week,
+			);
+			let sources = appendSource(
+				base.sources,
+				product,
+				"products (public selector)",
+				fact.productId,
+			);
+			if (resumeCommand !== undefined) {
+				sources = [
+					...sources,
+					sourceRef("commandLog", resumeCommand.id, resumeCommand),
+				];
+			}
+			return {
+				...base,
+				id: `calendar-report-${report.id}`,
+				kind: "product",
+				title: `Product resumed · ${humanize(fact.channel)}`,
+				summary: `${modelName ?? fact.productId} resumed on the ${humanize(fact.channel)} channel in week ${fact.week}.`,
+				destination: "/game/products",
+				sources,
+			};
+		}
 		case "rival_progressed": {
 			const rival = state.rivals.items.find((candidate) => candidate.id === fact.rivalId);
 			return {
@@ -902,6 +936,14 @@ function commandEventsForState(
 				return `${report.fact.productId}:${report.fact.week}`;
 			}),
 	);
+	const resumeReportKeys = new Set(
+		reports
+			.filter((report) => report.fact.kind === "product_resumed")
+			.map((report) => {
+				if (report.fact.kind !== "product_resumed") return "";
+				return `${report.fact.productId}:${report.fact.week}`;
+			}),
+	);
 	for (const command of state.commandLog) {
 		if (command.kind === "start_run") {
 			events.push({
@@ -919,7 +961,34 @@ function commandEventsForState(
 			});
 			continue;
 		}
-		if (command.kind !== "launch_product") continue;
+		if (command.kind !== "launch_product") {
+			if (command.kind !== "product_resume") continue;
+			if (resumeReportKeys.has(`${command.productId}:${command.week}`)) continue;
+			const product = lookups.products.get(command.productId);
+			const day = dayForCalendarEvent(command.id);
+			events.push({
+				id: `calendar-command-${command.id}`,
+				kind: "product",
+				status: "recorded",
+				title: "Product resumed",
+				summary: `The ${humanize(command.productId)} product resumed in week ${command.week}.`,
+				startWeek: command.week,
+				endWeek: command.week,
+				startDay: day,
+				finishDay: day,
+				destination: "/game/products",
+				sources: [
+					sourceRef("commandLog", command.id, command),
+					...appendSource(
+						[],
+						product,
+						"products (public selector)",
+						command.productId,
+					),
+				],
+			});
+			continue;
+		}
 		if (launchReportKeys.has(`${command.productId}:${command.week}`)) continue;
 		const product = lookups.products.get(command.productId);
 		const day = dayForCalendarEvent(command.id);

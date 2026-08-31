@@ -141,6 +141,7 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 		case "research_completed":
 			return "research";
 		case "product_launched":
+		case "product_resumed":
 		case "revenue":
 		case "serving_throttled":
 			return "product";
@@ -179,6 +180,8 @@ function factSummary(fact: Fact): string {
 			return `${fact.evaluation} evaluation completed for model ${fact.modelId}; coverage ${fact.coverage}%.`;
 		case "product_launched":
 			return `Product ${fact.productId} launched on ${fact.channel}.`;
+		case "product_resumed":
+			return `Product ${fact.productId} resumed on ${fact.channel}.`;
 		case "revenue":
 			return `Product ${fact.productId} generated ${fact.amount} revenue at quality ${fact.effectiveQuality}.`;
 		case "serving_throttled":

@@ -85,6 +85,36 @@ describe("entity labels", () => {
 		});
 	});
 
+	it("resolves product resume fact IDs like other product facts", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.models.items = [
+			{
+				id: "model_001",
+				name: "Atlas",
+				foundation: "fresh",
+				status: "ready",
+				projectId: null,
+			},
+		];
+		state.products.items = [
+			{
+				id: "product_001",
+				channel: "developer_api",
+				modelId: "model_001",
+				status: "operating",
+			},
+		];
+
+		expect(
+			resolveFactLabels(state, {
+				kind: "product_resumed",
+				productId: "product_001",
+				channel: "developer_api",
+				week: 2,
+			}),
+		).toEqual({ productId: "Atlas · Developer API" });
+	});
+
 	it("humanizes missing and stale IDs", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 
