@@ -1,5 +1,6 @@
 import { type AdvanceWeekOptions, advanceWeek } from "./advance-week.js";
 import { applyDecision } from "./apply-decision.js";
+import { canonicalEqual } from "./canonical.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
 import { buyCompute, hireTeam } from "./commands/teams.js";
 import { runEvaluation } from "./evaluations.js";
@@ -75,7 +76,7 @@ export function replayCommandLog(
 
 	if (
 		options.expectedState !== undefined &&
-		!canonicalStructuralEqual(state, options.expectedState)
+		!canonicalEqual(state, options.expectedState)
 	) {
 		throw new Error(
 			"Replay state mismatch: reconstructed state does not equal expectedState",
@@ -207,47 +208,9 @@ function assertReplayedCommand(
 	actual: CommandLogEntry | undefined,
 	expected: CommandLogEntry,
 ): void {
-	if (actual === undefined || !canonicalStructuralEqual(actual, expected)) {
+	if (actual === undefined || !canonicalEqual(actual, expected)) {
 		throw new Error(
 			`Replay command mismatch for ${expected.id}: generated command does not match the log`,
 		);
 	}
-}
-
-/** Compare JSON-compatible structures without depending on object key order. */
-function canonicalStructuralEqual(left: unknown, right: unknown): boolean {
-	if (Object.is(left, right)) return true;
-	if (
-		typeof left !== "object" ||
-		left === null ||
-		typeof right !== "object" ||
-		right === null
-	) {
-		return false;
-	}
-	if (Array.isArray(left) || Array.isArray(right)) {
-		if (
-			!Array.isArray(left) ||
-			!Array.isArray(right) ||
-			left.length !== right.length
-		) {
-			return false;
-		}
-		return left.every((value, index) =>
-			canonicalStructuralEqual(value, right[index]),
-		);
-	}
-
-	const leftRecord = left as Record<string, unknown>;
-	const rightRecord = right as Record<string, unknown>;
-	const leftKeys = Object.keys(leftRecord).sort();
-	const rightKeys = Object.keys(rightRecord).sort();
-	if (leftKeys.length !== rightKeys.length) return false;
-	for (let index = 0; index < leftKeys.length; index += 1) {
-		const key = leftKeys[index];
-		if (key === undefined || key !== rightKeys[index]) return false;
-		if (!canonicalStructuralEqual(leftRecord[key], rightRecord[key]))
-			return false;
-	}
-	return true;
 }
