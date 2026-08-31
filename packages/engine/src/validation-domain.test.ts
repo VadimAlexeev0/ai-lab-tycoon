@@ -22,6 +22,16 @@ function scoredModel(
 	};
 }
 
+function completeTextFamilyUnlock(state: GameState): void {
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
+}
+
 function terminalContributors() {
 	return [
 		{ kind: "resource_changed" as const, impact: -10, week: 1, index: 0 },
@@ -167,6 +177,7 @@ describe("assertGameState domain validation", () => {
 
 	it("requires true scores and estimates to be present together", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
+		completeTextFamilyUnlock(state);
 		state.models.items = [
 			scoredModel({
 				trueScores: {
@@ -199,6 +210,7 @@ describe("assertGameState domain validation", () => {
 
 	it("rejects operating products whose model is shelved", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
+		completeTextFamilyUnlock(state);
 		state.models.items = [scoredModel({ status: "shelved" })];
 		state.products.items = [
 			{

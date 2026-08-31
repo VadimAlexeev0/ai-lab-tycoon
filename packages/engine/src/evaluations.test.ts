@@ -5,6 +5,13 @@ import type { GameState } from "./state.js";
 
 function scoredState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.company.insight = 10;
 	state.models.items = [
 		{

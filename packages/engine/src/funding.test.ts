@@ -11,6 +11,13 @@ import {
 
 function fundableState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.company.hype = BALANCE.funding.seed.minimumHype;
 	state.company.trust = BALANCE.funding.seed.minimumTrust;
 	state.models.items = [

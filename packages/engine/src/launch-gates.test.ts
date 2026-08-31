@@ -12,6 +12,13 @@ import type { GameState } from "./state.js";
 
 function readyState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.company.hype = 100;
 	state.company.trust = 100;
 	state.models.items = [

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Model } from "./components/models.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import {
-	ASSISTANT_MODELS_KEYSTONE_ID,
+	MULTIMODAL_MODELS_FUSION_ID,
 	RESEARCH_NODES,
 } from "./data/research.js";
 import { deserializeGameState, serializeGameState, startRun } from "./index.js";
@@ -73,9 +73,9 @@ function launchChatModel(
 }
 
 function launchedTextState(): ReturnType<typeof startRun> {
-	return launchChatModel(
-		withReadyModel(startRun({ companyName: "Acme Labs" }, 42), "text"),
-	);
+	const state = startRun({ companyName: "Acme Labs" }, 42);
+	completeResearchPrerequisites(state, "text_models_principles");
+	return launchChatModel(withReadyModel(state, "text"));
 }
 
 function launchedAssistantState(): ReturnType<typeof startRun> {
@@ -85,6 +85,49 @@ function launchedAssistantState(): ReturnType<typeof startRun> {
 	completeEra(state, "assistant");
 	state = withReadyModel(state, "assistant", "model_002");
 	return launchChatModel(state, "model_002");
+}
+
+function launchedAssistantStateWithLockedFamilyUnlock(): ReturnType<
+	typeof startRun
+> {
+	let state = launchedTextState();
+	completeEra(state, "text");
+	state = researchSystem(state, { phase: "research", week: 2 }).state;
+	completeResearchPrerequisites(state, "assistant_models_reasoning");
+	state = withReadyModel(state, "assistant", "model_002");
+	state = launchChatModel(state, "model_002");
+	lockResearchNode(state, "assistant_models_reasoning");
+	return state;
+}
+
+function launchedMultimodalState(): ReturnType<typeof startRun> {
+	let state = launchedAssistantState();
+	state.meta.era = "multimodal";
+	state.research.currentEra = "multimodal";
+	completeResearchPrerequisites(state, MULTIMODAL_MODELS_FUSION_ID);
+	state = withReadyModel(state, "multimodal", "model_003");
+	return launchChatModel(state, "model_003");
+}
+
+function launchedMultimodalStateWithLockedFamilyUnlock(): ReturnType<
+	typeof startRun
+> {
+	const state = launchedMultimodalState();
+	lockResearchNode(state, MULTIMODAL_MODELS_FUSION_ID);
+	return state;
+}
+
+function lockResearchNode(
+	state: ReturnType<typeof startRun>,
+	nodeId: string,
+): void {
+	const node = state.research.nodes.find(
+		(candidate) => candidate.id === nodeId,
+	);
+	if (node === undefined) {
+		throw new Error(`Expected research node ${nodeId}`);
+	}
+	node.status = "locked";
 }
 
 function completeResearchPrerequisites(
@@ -123,6 +166,20 @@ function nodeOnlyEraState(
 	return state;
 }
 
+function removeResearchNode(
+	state: ReturnType<typeof startRun>,
+	nodeId: string,
+): void {
+	state.research.nodes = state.research.nodes
+		.filter((node) => node.id !== nodeId)
+		.map((node) => ({
+			...node,
+			prerequisites: node.prerequisites.filter(
+				(prerequisiteId) => prerequisiteId !== nodeId,
+			),
+		}));
+}
+
 describe("shipped-generation era gates", () => {
 	it.each(["assistant", "multimodal"] as const)(
 		"rejects node-only %s era states at every persisted boundary",
@@ -158,6 +215,124 @@ describe("shipped-generation era gates", () => {
 			const restored = deserializeGameState(serialized);
 			expect(serializeGameState(restored)).toBe(serialized);
 		}
+	});
+
+	it.each([
+		[
+			"Assistant",
+			"assistant_models_reasoning",
+			launchedAssistantStateWithLockedFamilyUnlock,
+		],
+		[
+			"Multimodal",
+			MULTIMODAL_MODELS_FUSION_ID,
+			launchedMultimodalStateWithLockedFamilyUnlock,
+		],
+	] as const)(
+		"rejects a launched current-generation %s model with a locked family unlock at every persisted boundary",
+		(_label, unlockNodeId, createState) => {
+			const state = createState();
+			const model = state.models.items.at(-1);
+			const product = state.products.items.at(-1);
+			const unlockNode = state.research.nodes.find(
+				(node) => node.id === unlockNodeId,
+			);
+			expect(model?.status).toBe("launched");
+			expect(product?.status).toBe("operating");
+			expect(unlockNode?.status).toBe("locked");
+
+			expect(() => assertGameState(state)).toThrow(/family|unlock|research/i);
+			expect(() => serializeGameState(state)).toThrow(
+				/family|unlock|research/i,
+			);
+			expect(() => deserializeGameState(JSON.stringify(state))).toThrow(
+				/family|unlock|research/i,
+			);
+		},
+	);
+
+	it.each([
+		[
+			"Assistant",
+			"assistant_models_reasoning",
+			launchedAssistantStateWithLockedFamilyUnlock,
+		],
+		[
+			"Multimodal",
+			MULTIMODAL_MODELS_FUSION_ID,
+			launchedMultimodalStateWithLockedFamilyUnlock,
+		],
+	] as const)(
+		"rejects a launched current-generation %s model with an absent family unlock at every persisted boundary",
+		(_label, unlockNodeId, createState) => {
+			const state = createState();
+			removeResearchNode(state, unlockNodeId);
+			const model = state.models.items.at(-1);
+			const product = state.products.items.at(-1);
+			expect(model?.status).toBe("launched");
+			expect(product?.status).toBe("operating");
+			expect(
+				state.research.nodes.some((node) => node.id === unlockNodeId),
+			).toBe(false);
+
+			expect(() => assertGameState(state)).toThrow(/family|unlock|research/i);
+			expect(() => serializeGameState(state)).toThrow(
+				/family|unlock|research/i,
+			);
+			expect(() => deserializeGameState(JSON.stringify(state))).toThrow(
+				/family|unlock|research/i,
+			);
+		},
+	);
+
+	describe("valid current-generation model relations", () => {
+		it("keeps a ready Assistant model valid after its family unlock completes", () => {
+			const state = launchedAssistantState();
+			const ready = withReadyModel(state, "assistant", "model_003");
+
+			expect(() => assertGameState(ready)).not.toThrow();
+			expect(ready.models.items.at(-1)?.status).toBe("ready");
+		});
+
+		it("keeps a ready Multimodal model valid after its family unlock completes", () => {
+			const state = launchedAssistantState();
+			state.meta.era = "multimodal";
+			state.research.currentEra = "multimodal";
+			completeResearchPrerequisites(state, MULTIMODAL_MODELS_FUSION_ID);
+			const ready = withReadyModel(state, "multimodal", "model_003");
+
+			expect(() => assertGameState(ready)).not.toThrow();
+			expect(ready.models.items.at(-1)?.status).toBe("ready");
+		});
+	});
+
+	describe("normal era transitions", () => {
+		it("still advances through a valid launched Assistant proof", () => {
+			const state = launchedAssistantState();
+
+			expect(() => assertGameState(state)).not.toThrow();
+			const result = researchSystem(state, {
+				phase: "research",
+				week: 3,
+			});
+
+			expect(result.state.research.currentEra).toBe("multimodal");
+			expect(result.state.meta.era).toBe("multimodal");
+		});
+	});
+
+	describe("persisted model-family unlock gate", () => {
+		it("keeps the Text era ready model fixture valid when its family unlock is complete", () => {
+			const state = startRun({ companyName: "Acme Labs" }, 42);
+			completeResearchPrerequisites(state, "text_models_principles");
+			const ready = withReadyModel(state, "text");
+			const model = ready.models.items[0];
+			if (model === undefined) throw new Error("Expected ready Text model");
+			delete model.trueScores;
+			delete model.estimates;
+
+			expect(() => assertGameState(ready)).not.toThrow();
+		});
 	});
 
 	it("does not advance from Text with only the completed Text keystone", () => {
@@ -208,10 +383,9 @@ describe("shipped-generation era gates", () => {
 	});
 
 	it("keeps a ready model valid without retained scores or estimates", () => {
-		const state = withReadyModel(
-			startRun({ companyName: "Acme Labs" }, 42),
-			"text",
-		);
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		completeResearchPrerequisites(state, "text_models_principles");
+		withReadyModel(state, "text");
 		const model = state.models.items[0];
 		if (model === undefined) throw new Error("Expected ready Text model");
 		delete model.trueScores;
@@ -270,10 +444,9 @@ describe("shipped-generation era gates", () => {
 	});
 
 	it("rejects a launched model with no retained shipped product", () => {
-		const state = withReadyModel(
-			startRun({ companyName: "Acme Labs" }, 42),
-			"text",
-		);
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		completeResearchPrerequisites(state, "text_models_principles");
+		withReadyModel(state, "text");
 		const model = state.models.items[0];
 		if (model === undefined) throw new Error("Expected Text model");
 		model.status = "launched";
@@ -281,14 +454,8 @@ describe("shipped-generation era gates", () => {
 		expect(() => assertGameState(state)).toThrow(/launched|shipped|product/i);
 	});
 
-	it("does not accept shipped proof while the model family unlock is locked", () => {
-		let state = launchedTextState();
-		completeEra(state, "text");
-		state = researchSystem(state, { phase: "research", week: 2 }).state;
-		state = withReadyModel(state, "assistant", "model_002");
-		state = launchChatModel(state, "model_002");
-		completeResearchPrerequisites(state, ASSISTANT_MODELS_KEYSTONE_ID);
-
+	it("rejects a launched Assistant model before research can use its locked family unlock", () => {
+		const state = launchedAssistantStateWithLockedFamilyUnlock();
 		const familyUnlock = state.research.nodes.find(
 			(node) => node.id === "assistant_models_reasoning",
 		);
@@ -297,10 +464,9 @@ describe("shipped-generation era gates", () => {
 		}
 		expect(familyUnlock.status).toBe("locked");
 
-		const result = researchSystem(state, { phase: "research", week: 3 });
-
-		expect(result.state.research.currentEra).toBe("assistant");
-		expect(result.state.meta.era).toBe("assistant");
+		expect(() => researchSystem(state, { phase: "research", week: 3 })).toThrow(
+			/family|unlock|research/i,
+		);
 	});
 
 	it("applies the same shipped-generation gate from Assistant to Multimodal", () => {

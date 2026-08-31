@@ -21,6 +21,13 @@ const INCIDENTS: readonly IncidentType[] = [
 
 function forcedState(incident: IncidentType): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.models.items = [
 		{
 			id: "model_001",

@@ -30,7 +30,10 @@ import {
 	RESEARCH_NODE_DEFINITIONS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
-import { hasRequiredShippedModelProof } from "./era-proof.js";
+import {
+	hasCompletedModelFamilyUnlock,
+	hasRequiredShippedModelProof,
+} from "./era-proof.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -365,8 +368,27 @@ function assertShippedEraProof(state: GameState): void {
 
 function assertModelRelations(state: GameState): void {
 	assertModelGenerationAvailability(state);
+	const completedResearchNodeIds = new Set(
+		state.research.nodes
+			.filter((node) => node.status === "completed")
+			.map((node) => node.id),
+	);
 
 	for (const model of state.models.items) {
+		if (model.family !== undefined) {
+			const family = MODEL_FAMILIES.find(
+				(candidate) => candidate.id === model.family,
+			);
+			if (
+				family === undefined ||
+				!hasCompletedModelFamilyUnlock(family, completedResearchNodeIds)
+			) {
+				throw new Error(
+					`Model ${model.id} requires completed family unlock research node ${family?.unlockedByResearchNodeId ?? "its family unlock"}`,
+				);
+			}
+		}
+
 		const hasTrueScores = model.trueScores !== undefined;
 		const hasEstimates = model.estimates !== undefined;
 		if (hasTrueScores !== hasEstimates) {

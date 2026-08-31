@@ -78,8 +78,16 @@ function shipResearchEraModel(
 	};
 	state.models.items = [...state.models.items, model];
 	state.counters.model = state.models.items.length + 1;
+	completePrerequisites(
+		state,
+		family === "text" ? "text_models_principles" : "assistant_models_reasoning",
+	);
 	state.company.hype = 100;
-	return launchProduct(state, id, "chat").state;
+	const launched = launchProduct(state, id, "chat").state;
+	return researchSystem(launched, {
+		phase: "research",
+		week: launched.meta.week,
+	}).state;
 }
 
 function completeResearchNode(

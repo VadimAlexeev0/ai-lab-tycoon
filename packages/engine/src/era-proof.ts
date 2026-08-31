@@ -1,7 +1,21 @@
 import type { ResearchEra } from "./components/research.js";
-import { MODEL_FAMILIES } from "./data/model-families.js";
+import {
+	MODEL_FAMILIES,
+	type ModelFamilyDefinition,
+} from "./data/model-families.js";
 import { RESEARCH_ERAS } from "./data/research.js";
 import type { GameState } from "./state.js";
+
+/**
+ * A model family is usable only after its defining research node is complete.
+ * The completed set may include nodes completed during the current tick.
+ */
+export function hasCompletedModelFamilyUnlock(
+	family: Pick<ModelFamilyDefinition, "unlockedByResearchNodeId">,
+	completedResearchNodeIds: ReadonlySet<string>,
+): boolean {
+	return completedResearchNodeIds.has(family.unlockedByResearchNodeId);
+}
 
 /**
  * A shipped proof is derived from retained launch evidence, never stored as a
@@ -24,7 +38,7 @@ export function hasShippedModelProof(
 					model.family === family.id &&
 					model.trueScores !== undefined &&
 					model.estimates !== undefined &&
-					completedResearchNodeIds.has(family.unlockedByResearchNodeId),
+					hasCompletedModelFamilyUnlock(family, completedResearchNodeIds),
 			),
 	);
 }
