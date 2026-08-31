@@ -107,6 +107,13 @@ async function installPausedProduct(
 	started: { state: string },
 ): Promise<GameState> {
 	const state = JSON.parse(started.state) as GameState;
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.models = {
 		...state.models,
 		activeModelId: "model_001",
