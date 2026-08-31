@@ -26,7 +26,7 @@ function canonicalize(value: unknown, path: CanonicalPath): CanonicalJson {
 			canonicalize(child, [...path, index]),
 		);
 		if (isUnorderedStateCollection(path)) {
-			return items.toSorted(compareCanonicalJson);
+			return [...items].sort(compareCanonicalJson);
 		}
 		return items;
 	}
