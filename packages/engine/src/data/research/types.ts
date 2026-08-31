@@ -74,6 +74,7 @@ export const RESEARCH_EFFECT_BALANCE = {
 	parallelTrainingComputeReduction: 1,
 	attentionCapabilityEvaluationCoverageBonus: 15,
 } as const;
+export const MAX_TRAINING_COMPUTE_REDUCTION = 100;
 
 export function assertResearchEffect(
 	value: unknown,
@@ -85,6 +86,11 @@ export function assertResearchEffect(
 		case "training_compute_reduction":
 			assertExactObject(value, ["kind", "amount"], path);
 			assertPositiveInteger(value.amount, `${path} amount`);
+			if (value.amount > MAX_TRAINING_COMPUTE_REDUCTION) {
+				throw new Error(
+					`${path} amount must be at most ${MAX_TRAINING_COMPUTE_REDUCTION}`,
+				);
+			}
 			return;
 		case "model_score_bonus":
 			assertExactObject(value, ["kind", "dimension", "amount"], path);

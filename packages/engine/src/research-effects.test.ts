@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { advanceWeek } from "./advance-week.js";
 import { assignProject } from "./commands/projects.js";
+import { hireTeam } from "./commands/teams.js";
 import type { Model } from "./components/models.js";
 import { assertFact, type Fact } from "./components/reports.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
@@ -9,6 +10,7 @@ import { BALANCE } from "./data/balance.js";
 import {
 	ATTENTION_MECHANISM_ID,
 	assertResearchDefinitions,
+	assertResearchEffect,
 	PARALLEL_TRAINING_ID,
 	RESEARCH_EFFECT_BALANCE,
 	RESEARCH_NODES,
@@ -253,6 +255,50 @@ describe("typed research effects", () => {
 		expect(report?.fact).toEqual(fact);
 	});
 
+	it("recomputes training reservations when an effect activates during advanceWeek", () => {
+		const state = startRun({ companyName: "Activation Boundary Lab" }, 42);
+		getResearchNode(state, WORD_VECTORS_ID).status = "completed";
+		completePrerequisites(state, PARALLEL_TRAINING_ID);
+		getResearchNode(state, PARALLEL_TRAINING_ID).status = "available";
+		state.company.insight = 1;
+
+		const staffed = hireTeam(state, "Research Team").state;
+		const materialized = researchSystem(staffed, {
+			phase: "research",
+			week: staffed.meta.week,
+		}).state;
+		const researchProject = materialized.projects.items.find(
+			(project) =>
+				project.kind === "research" &&
+				project.nodeId === PARALLEL_TRAINING_ID &&
+				project.status === "available",
+		);
+		if (researchProject === undefined) {
+			throw new Error("Expected the scaling research project");
+		}
+		const designed = designModel(materialized, MODEL_SPEC).state;
+		const assigned = assignProject(
+			designed,
+			"team_002",
+			researchProject.id,
+		).state;
+
+		const advanced = advanceWeek(assigned);
+
+		expect(
+			advanced.state.research.nodes.find(
+				(node) => node.id === PARALLEL_TRAINING_ID,
+			)?.status,
+		).toBe("completed");
+		expect(advanced.state.compute.trainingDemand).toBe(
+			BALANCE.modelTiers.standard.trainingCompute -
+				RESEARCH_EFFECT_BALANCE.parallelTrainingComputeReduction,
+		);
+		expect(advanced.state.compute.allocated).toBe(
+			advanced.state.compute.trainingDemand,
+		);
+	});
+
 	it("derives effects idempotently across repeated research ticks", () => {
 		const completed = completeParallelTrainingResearch();
 		const before = deriveResearchEffects(completed.state.research);
@@ -365,6 +411,13 @@ describe("typed research effects", () => {
 				},
 			]),
 		).toThrow(/positive|effect/i);
+
+		expect(() =>
+			assertResearchEffect({
+				kind: "training_compute_reduction",
+				amount: 101,
+			}),
+		).toThrow(/at most|bounded|reduction/i);
 
 		expect(() =>
 			assertFact({

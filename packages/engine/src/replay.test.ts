@@ -6,6 +6,7 @@ import {
 	assignProject,
 	cancelProject,
 	designModel,
+	GAME_STATE_SCHEMA_VERSION,
 	launchProduct,
 	runEvaluation,
 	selectAvailableProjects,
@@ -311,7 +312,7 @@ describe("command-log replay", () => {
 
 		const replayed = replayCommandLog(
 			{
-				schemaVersion: 1,
+				schemaVersion: GAME_STATE_SCHEMA_VERSION,
 				commands: reordered,
 			},
 			{ expectedState: original },
@@ -323,7 +324,7 @@ describe("command-log replay", () => {
 		alteredExpected.company.cash += 1;
 		expect(() =>
 			replayCommandLog(
-				{ schemaVersion: 1, commands: reordered },
+				{ schemaVersion: GAME_STATE_SCHEMA_VERSION, commands: reordered },
 				{ expectedState: alteredExpected },
 			),
 		).toThrow(/expectedState|state mismatch/i);

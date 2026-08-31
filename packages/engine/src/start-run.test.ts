@@ -5,7 +5,7 @@ import { BALANCE } from "./data/balance.js";
 import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
 import { OPENING_RIVALS } from "./data/rivals.js";
 import { FOUNDING_TEAM } from "./data/teams.js";
-import { startRun } from "./index.js";
+import { GAME_STATE_SCHEMA_VERSION, startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 
 const EXPECTED_OPENING_NODES = RESEARCH_NODES.map((node) => ({
@@ -39,7 +39,7 @@ describe("startRun", () => {
 
 		expect(state).toEqual({
 			meta: {
-				schemaVersion: 1,
+				schemaVersion: GAME_STATE_SCHEMA_VERSION,
 				runId: "run_42",
 				week: 1,
 				era: "text",

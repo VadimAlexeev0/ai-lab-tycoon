@@ -1,5 +1,6 @@
 import type { Fact } from "../components/reports.js";
 import type { ResearchEra, ResearchState } from "../components/research.js";
+import { withRecomputedCompute } from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
 import {
 	ASSISTANT_ERA,
@@ -136,6 +137,12 @@ export const researchSystem: GameSystem = (state, context) => {
 			currentEra,
 			nodes: nextNodes,
 		},
+	};
+	// Research effects become active before the next project allocation is
+	// validated, so derived compute reservations must cross the same boundary.
+	nextState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
 	};
 
 	for (const node of nextNodes) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { canonicalEqual } from "./canonical.js";
 import currentV1FixtureJson from "./fixtures/game-state-v1.json";
+import staleV1FixtureJson from "./fixtures/game-state-v1-stale-compute.json";
 import {
 	deserializeGameState,
 	deserializeGameStateWithMetadata,
@@ -46,11 +47,32 @@ describe("GameState migration and serialization", () => {
 		);
 	});
 
+	it("migrates v1 stale compute reservations before current validation", () => {
+		const fixture = jsonClone(staleV1FixtureJson);
+		const before = JSON.stringify(fixture);
+		const source = asRecord(fixture);
+		const sourceMeta = asRecord(source.meta);
+		const sourceCompute = asRecord(source.compute);
+		expect(sourceMeta.schemaVersion).toBe(1);
+		expect(sourceCompute.trainingDemand).toBe(5);
+		expect(sourceCompute.allocated).toBe(5);
+
+		const upgraded = upgradeGameStateWithMetadata(fixture);
+
+		expect(upgraded.sourceSchemaVersion).toBe(1);
+		expect(upgraded.currentSchemaVersion).toBe(2);
+		expect(upgraded.state.meta.schemaVersion).toBe(2);
+		expect(upgraded.state.compute.trainingDemand).toBe(4);
+		expect(upgraded.state.compute.allocated).toBe(4);
+		expect(JSON.stringify(fixture)).toBe(before);
+		expect(upgradeGameState(fixture)).toEqual(upgraded.state);
+	});
+
 	it("reports source and current versions separately at the migration boundary", () => {
 		const fixture = currentV1Fixture();
 
 		const upgraded = upgradeGameStateWithMetadata(fixture);
-		expect(upgraded.sourceSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.sourceSchemaVersion).toBe(1);
 		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.state.meta.schemaVersion).toBe(
 			upgraded.currentSchemaVersion,
@@ -66,7 +88,7 @@ describe("GameState migration and serialization", () => {
 			currentSchemaVersion: upgraded.currentSchemaVersion,
 		});
 	});
-	it("identity-migrates the representative current V1 fixture deterministically", () => {
+	it("migrates the representative V1 fixture deterministically", () => {
 		const fixture = currentV1Fixture();
 		const before = JSON.stringify(fixture);
 
@@ -125,7 +147,7 @@ describe("GameState migration and serialization", () => {
 
 		const prior = currentV1Fixture();
 		const priorMeta = asRecord(asRecord(prior).meta);
-		priorMeta.schemaVersion = GAME_STATE_SCHEMA_VERSION - 1;
+		priorMeta.schemaVersion = 0;
 
 		expect(() => upgradeGameState(prior)).toThrow(/unsupported.*version/i);
 	});
