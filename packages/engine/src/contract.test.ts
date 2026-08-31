@@ -768,6 +768,7 @@ describe("hardened component contract", () => {
 			"assignProject",
 			"buyCompute",
 			"cancelProject",
+			"deserializeGameState",
 			"designModel",
 			"fundingFactors",
 			"hireTeam",
@@ -788,8 +789,10 @@ describe("hardened component contract", () => {
 			"selectTerminalProjection",
 			"selectVisibleModels",
 			"selectVisibleState",
+			"serializeGameState",
 			"setAssertionsEnabled",
 			"startRun",
+			"upgradeGameState",
 		]);
 	});
 
