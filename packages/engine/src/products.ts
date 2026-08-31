@@ -247,16 +247,14 @@ export function applyProductResume(
 		compute: withRecomputedCompute(nextState),
 	};
 	assertGameState(recomputedState);
-	// `product_resumed` is intentionally returned now, while the report/fact
-	// union and public command-log wiring are outside this worker's file scope.
-	const facts = [
+	const facts: Fact[] = [
 		{
 			kind: "product_resumed",
 			productId: product.id,
 			channel: product.channel,
 			week: state.meta.week,
 		},
-	] as unknown as Fact[];
+	];
 	return {
 		state: recomputedState,
 		facts,
