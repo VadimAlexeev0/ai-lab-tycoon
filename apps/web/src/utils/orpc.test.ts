@@ -70,4 +70,68 @@ describe("active run schema normalization", () => {
 			}),
 		).toThrow(/json/i);
 	});
+
+	it("preserves zero seed and revision metadata with a positive week", () => {
+		const state = startRun({ companyName: "Web Migration Labs" }, 0);
+
+		const normalized = normalizeActiveRun({
+			id: "run-id",
+			seed: 0,
+			schemaVersion: GAME_STATE_SCHEMA_VERSION,
+			state: JSON.stringify(state),
+			currentWeek: 1,
+			status: "active",
+			revision: 0,
+		});
+
+		expect(normalized).toMatchObject({
+			seed: 0,
+			currentWeek: 1,
+			revision: 0,
+		});
+	});
+
+	it.each([
+		["seed", -1, "Saved run seed"],
+		["currentWeek", -1, "Saved run week"],
+		["revision", -1, "Saved run revision"],
+	] as const)("rejects negative %s metadata", (key, value, label) => {
+		const state = startRun({ companyName: "Web Migration Labs" }, 23);
+		const record: Record<string, unknown> = {
+			id: "run-id",
+			seed: state.rng.seed,
+			schemaVersion: GAME_STATE_SCHEMA_VERSION,
+			state: JSON.stringify(state),
+			currentWeek: state.meta.week,
+			status: "active",
+			revision: 0,
+		};
+		record[key] = value;
+
+		expect(() => normalizeActiveRun(record)).toThrow(
+			`${label} must be a non-negative safe integer`,
+		);
+	});
+
+	it.each([
+		["seed", -0, "Saved run seed"],
+		["currentWeek", -0, "Saved run week"],
+		["revision", -0, "Saved run revision"],
+	] as const)("rejects negative-zero %s metadata", (key, value, label) => {
+		const state = startRun({ companyName: "Web Migration Labs" }, 23);
+		const record: Record<string, unknown> = {
+			id: "run-id",
+			seed: state.rng.seed,
+			schemaVersion: GAME_STATE_SCHEMA_VERSION,
+			state: JSON.stringify(state),
+			currentWeek: state.meta.week,
+			status: "active",
+			revision: 0,
+		};
+		record[key] = value;
+
+		expect(() => normalizeActiveRun(record)).toThrow(
+			`${label} must be a non-negative safe integer`,
+		);
+	});
 });

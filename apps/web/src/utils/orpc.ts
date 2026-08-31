@@ -275,8 +275,13 @@ function readOptionalInteger(
 ): number | undefined {
 	if (!Object.hasOwn(record, key)) return undefined;
 	const value = record[key];
-	if (typeof value !== "number" || !Number.isSafeInteger(value)) {
-		throw new Error(`${label} must be a safe integer`);
+	if (
+		typeof value !== "number" ||
+		!Number.isSafeInteger(value) ||
+		value < 0 ||
+		Object.is(value, -0)
+	) {
+		throw new Error(`${label} must be a non-negative safe integer`);
 	}
 	return value;
 }

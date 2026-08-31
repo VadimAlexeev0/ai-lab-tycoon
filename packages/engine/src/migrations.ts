@@ -64,6 +64,10 @@ export function deserializeGameStateWithMetadata(
  * first accepted persisted format. The returned value is a JSON clone, so
  * future migrations can build new state without mutating their input.
  *
+ * When a second structural schema version is introduced, replace this
+ * direct-to-current lookup with explicit stepwise chaining through each
+ * intermediate version; do not skip migrations.
+ *
  * ponytail: Historical pre-v1 data is intentionally not modeled; add each
  * structural version here with a real fixture and deterministic migration.
  */
