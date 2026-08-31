@@ -1,5 +1,4 @@
 import {
-	advanceWeek,
 	type GameState,
 	selectRivals,
 	selectTeams,
@@ -49,7 +48,7 @@ function DashboardRoute() {
 	const runwayWarnings = deriveRunwayWarnings(state);
 
 	function advanceFromHero() {
-		void game.executeEngineCommand((current) => advanceWeek(current));
+		void game.executeCommand({ kind: "advance_week" });
 	}
 
 	function resolveDecision(decisionId: string) {
@@ -78,8 +77,7 @@ function DashboardRoute() {
 						advanceControl={
 							<AdvanceWeekButton
 								className="px-0 py-0"
-								onAdvanced={game.handleAdvanced}
-								revision={game.revision}
+								onAdvance={() => game.executeCommand({ kind: "advance_week" })}
 								state={state}
 							/>
 						}

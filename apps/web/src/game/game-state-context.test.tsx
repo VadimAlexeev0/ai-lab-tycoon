@@ -10,9 +10,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+	applyServerCommand: vi.fn(),
+	createRequestId: vi.fn(() => "request-1"),
 	getActiveRun: vi.fn(),
 	getOrCreateAnonymousSession: vi.fn(),
-	persistActiveRun: vi.fn(),
+	normalizeActiveRun: vi.fn((value: unknown) => value),
 	resetAnonymousSessionBootstrap: vi.fn(),
 }));
 
@@ -28,8 +30,10 @@ vi.mock("@/utils/orpc", () => {
 
 	return {
 		SaveConflictError: MockSaveConflictError,
+		applyServerCommand: mocks.applyServerCommand,
+		createRequestId: mocks.createRequestId,
 		client: { gameSave: { getActiveRun: mocks.getActiveRun } },
-		persistActiveRun: mocks.persistActiveRun,
+		normalizeActiveRun: mocks.normalizeActiveRun,
 	};
 });
 
@@ -67,7 +71,8 @@ describe("GameStateProvider retry flows", () => {
 	beforeEach(() => {
 		mocks.getActiveRun.mockReset();
 		mocks.getOrCreateAnonymousSession.mockReset();
-		mocks.persistActiveRun.mockReset();
+		mocks.normalizeActiveRun.mockReset();
+		mocks.normalizeActiveRun.mockImplementation((value: unknown) => value);
 		mocks.resetAnonymousSessionBootstrap.mockReset();
 	});
 

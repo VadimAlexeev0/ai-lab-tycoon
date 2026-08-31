@@ -8,6 +8,8 @@ import * as schema from "./schema";
 export { and, desc, eq, sql } from "drizzle-orm";
 export type {
 	Account,
+	CommandRequest,
+	NewCommandRequest,
 	NewRun,
 	Run,
 	RunEvent,
@@ -17,6 +19,7 @@ export type {
 } from "./schema";
 export {
 	account,
+	commandRequests,
 	runEvents,
 	runs,
 	session,

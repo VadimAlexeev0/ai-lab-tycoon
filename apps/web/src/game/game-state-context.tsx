@@ -1,15 +1,8 @@
-import {
-	applyDecision,
-	assertGameState,
-	type DecisionChoice,
-	type EngineResult,
-	assignProject as engineAssignProject,
-	cancelProject as engineCancelProject,
-	designModel as engineDesignModel,
-	type GameState,
-	type ModelDesignSpec,
-	runEvaluation,
-	selectPendingDecisions,
+import type { ApplyCommand } from "@ai-lab-tycoon/api/routers/game-save-command";
+import type {
+	DecisionChoice,
+	GameState,
+	ModelDesignSpec,
 } from "@ai-lab-tycoon/engine";
 import {
 	createContext,
@@ -28,8 +21,10 @@ import {
 } from "@/utils/auth-client";
 import {
 	type ActiveRunRecord,
+	applyServerCommand,
 	client,
-	persistActiveRun,
+	createRequestId,
+	normalizeActiveRun,
 	SaveConflictError,
 } from "@/utils/orpc";
 
@@ -55,8 +50,6 @@ export type RunScreen = "selection" | "new" | "active";
 
 export type UiDensity = "concise" | "detailed";
 
-type EngineOperation = (state: GameState) => EngineResult;
-
 export type RunContextValue = {
 	session: SessionState;
 	sessionLabel: string;
@@ -76,7 +69,7 @@ export type RunContextValue = {
 	handleStarted: (result: ActiveRunSnapshot) => void;
 	handleAdvanced: (result: ActiveRunSnapshot) => void;
 	deleteRun: () => Promise<void>;
-	executeEngineCommand: (operation: EngineOperation) => Promise<boolean>;
+	executeCommand: (command: ApplyCommand) => Promise<boolean>;
 	assignProject: (teamId: string, projectId: string) => Promise<boolean>;
 	cancelProject: (teamId: string, projectId: string) => Promise<boolean>;
 	designModel: (spec: ModelDesignSpec) => Promise<boolean>;
@@ -172,7 +165,7 @@ export function GameStateProvider({ children }: { children: ReactNode }) {
 			handleStarted: controller.handleStarted,
 			handleAdvanced: controller.handleAdvanced,
 			deleteRun: controller.deleteRun,
-			executeEngineCommand: controller.executeEngineCommand,
+			executeCommand: controller.executeCommand,
 			assignProject: controller.assignProject,
 			cancelProject: controller.cancelProject,
 			designModel: controller.designModel,
@@ -290,6 +283,14 @@ function useRunController(userId: string | null) {
 	const [conflictRecord, setConflictRecord] = useState<ActiveRunRecord | null>(
 		null,
 	);
+	const pendingCommandRef = useRef<{
+		key: string;
+		requestId: string;
+	} | null>(null);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset request identity when the authenticated user changes
+	useEffect(() => {
+		pendingCommandRef.current = null;
+	}, [userId]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: retry counter intentionally re-runs the saved-run request
 	useEffect(() => {
@@ -346,11 +347,13 @@ function useRunController(userId: string | null) {
 	}, []);
 
 	const chooseNewRun = useCallback(() => {
+		pendingCommandRef.current = null;
 		setActiveRun(null);
 		setScreen("new");
 	}, []);
 
 	const handleStarted = useCallback((result: ActiveRunSnapshot) => {
+		pendingCommandRef.current = null;
 		setSavedRun(result.record);
 		setActiveRun(result);
 		setSaveState({ status: "ready", record: result.record });
@@ -377,6 +380,7 @@ function useRunController(userId: string | null) {
 			}
 			setSavedRun(null);
 			setActiveRun(null);
+			pendingCommandRef.current = null;
 			setScreen("selection");
 			setSaveState({ status: "empty" });
 		} catch (cause: unknown) {
@@ -387,22 +391,33 @@ function useRunController(userId: string | null) {
 		}
 	}, [savedRun, userId]);
 
-	const executeEngineCommand = useCallback(
-		async (operation: EngineOperation): Promise<boolean> => {
+	const executeCommand = useCallback(
+		async (command: ApplyCommand): Promise<boolean> => {
 			if (activeRun === null || actionBusy) return false;
+			const expectedRevision = activeRun.record.revision;
+			const key = JSON.stringify([expectedRevision, command]);
+			const pending = pendingCommandRef.current;
+			const requestId =
+				pending?.key === key ? pending.requestId : createRequestId();
+			if (pending?.key !== key) {
+				pendingCommandRef.current = { key, requestId };
+			}
+
 			setActionBusy(true);
 			setActionError(null);
 			setConflictRecord(null);
 			try {
-				const result = operation(activeRun.state);
-				const record = await persistActiveRun(
-					result.state,
-					activeRun.record.revision,
+				const record = await applyServerCommand(
+					command,
+					expectedRevision,
+					requestId,
 				);
-				handleAdvanced({ state: result.state, record });
+				pendingCommandRef.current = null;
+				handleAdvanced({ state: record.state, record });
 				return true;
 			} catch (cause: unknown) {
 				if (cause instanceof SaveConflictError) {
+					pendingCommandRef.current = null;
 					setConflictRecord(cause.storedRun);
 					setActionError(cause.message);
 				} else {
@@ -422,53 +437,63 @@ function useRunController(userId: string | null) {
 
 	const assignProject = useCallback(
 		(teamId: string, projectId: string) =>
-			executeEngineCommand((state) =>
-				engineAssignProject(state, teamId, projectId),
-			),
-		[executeEngineCommand],
+			executeCommand({ kind: "assign_project", teamId, projectId }),
+		[executeCommand],
 	);
 
 	const cancelProject = useCallback(
 		(teamId: string, projectId: string) =>
-			executeEngineCommand((state) =>
-				engineCancelProject(state, teamId, projectId),
-			),
-		[executeEngineCommand],
+			executeCommand({ kind: "cancel_project", teamId, projectId }),
+		[executeCommand],
 	);
 
 	const designModel = useCallback(
 		(spec: ModelDesignSpec) =>
-			executeEngineCommand((state) => engineDesignModel(state, spec)),
-		[executeEngineCommand],
+			executeCommand({
+				kind: "design_model",
+				name: spec.name,
+				family: spec.family ?? spec.modelFamily ?? "text",
+				foundation: spec.foundation,
+				parentModelId:
+					spec.parentModelId ?? spec.foundationModelId ?? spec.parentId ?? null,
+				tier: spec.tier ?? spec.computeTier ?? "standard",
+				dataMix: spec.dataMix,
+				emphasis: spec.emphasis,
+				teamId: spec.teamId ?? spec.assignedTeamId ?? "",
+			}),
+		[executeCommand],
 	);
 
 	const evaluateModel = useCallback(
-		(modelId: string, evaluation: "capability" | "safety_reliability") =>
-			executeEngineCommand((state) => {
-				const pending = selectPendingDecisions(state).find(
-					(decision) =>
-						decision.kind === "evaluation" &&
-						decision.modelId === modelId &&
-						decision.evaluation === evaluation,
-				);
-				return pending
-					? applyDecision(state, {
+		(modelId: string, evaluation: "capability" | "safety_reliability") => {
+			const pending = activeRun?.state.decisions.pending.find(
+				(decision) =>
+					decision.kind === "evaluation" &&
+					decision.modelId === modelId &&
+					decision.evaluation === evaluation,
+			);
+			return pending
+				? executeCommand({
+						kind: "apply_decision",
+						choice: {
 							kind: "evaluate",
 							decisionId: pending.id,
 							evaluation,
-						})
-					: runEvaluation(state, modelId, evaluation);
-			}),
-		[executeEngineCommand],
+						},
+					})
+				: executeCommand({ kind: "run_evaluation", modelId, evaluation });
+		},
+		[activeRun, executeCommand],
 	);
 
 	const resolveDecision = useCallback(
 		(choice: DecisionChoice) =>
-			executeEngineCommand((state) => applyDecision(state, choice)),
-		[executeEngineCommand],
+			executeCommand({ kind: "apply_decision", choice }),
+		[executeCommand],
 	);
 
 	const adoptConflictRecord = useCallback((record: ActiveRunRecord) => {
+		pendingCommandRef.current = null;
 		setConflictRecord(null);
 		setActionError(null);
 		setSavedRun(record);
@@ -496,7 +521,7 @@ function useRunController(userId: string | null) {
 			handleStarted,
 			handleAdvanced,
 			deleteRun,
-			executeEngineCommand,
+			executeCommand,
 			assignProject,
 			cancelProject,
 			designModel,
@@ -517,7 +542,7 @@ function useRunController(userId: string | null) {
 			deleteRun,
 			designModel,
 			evaluateModel,
-			executeEngineCommand,
+			executeCommand,
 			conflictRecord,
 			handleAdvanced,
 			handleStarted,
@@ -529,90 +554,6 @@ function useRunController(userId: string | null) {
 			screen,
 		],
 	);
-}
-
-function normalizeActiveRun(value: unknown): ActiveRunRecord | null {
-	const record = unwrapRecord(value);
-	if (record === null) return null;
-
-	const rawState = record.state;
-	const state = typeof rawState === "string" ? parseState(rawState) : rawState;
-	if (state === null || state === undefined) {
-		throw new Error("The saved run did not include an engine state.");
-	}
-
-	try {
-		assertGameState(state);
-	} catch (cause: unknown) {
-		throw new Error(
-			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
-		);
-	}
-
-	const id = asNonEmptyString(record.id) ?? state.meta.runId;
-	const seed = asInteger(record.seed) ?? state.rng.seed;
-	const schemaVersion =
-		asInteger(record.schemaVersion) ?? state.meta.schemaVersion;
-	const currentWeek = asInteger(record.currentWeek) ?? state.meta.week;
-	const revision = asInteger(record.revision) ?? 0;
-	const status =
-		record.status === "terminal" || state.terminal.status === "lost"
-			? "terminal"
-			: "active";
-
-	return {
-		id,
-		seed,
-		schemaVersion,
-		state,
-		currentWeek,
-		status,
-		revision,
-	};
-}
-
-function unwrapRecord(value: unknown): Record<string, unknown> | null {
-	if (value === null || value === undefined) return null;
-	let record = asRecord(value);
-	if (record === null) return null;
-
-	if (Object.hasOwn(record, "data")) {
-		const data = record.data;
-		if (data === null || data === undefined) return null;
-		const nested = asRecord(data);
-		if (nested !== null) record = nested;
-	}
-	if (Object.hasOwn(record, "run")) {
-		const nested = record.run;
-		if (nested === null || nested === undefined) return null;
-		const nestedRecord = asRecord(nested);
-		if (nestedRecord !== null) record = nestedRecord;
-	}
-	return record;
-}
-
-function parseState(rawState: string): GameState {
-	try {
-		return JSON.parse(rawState) as GameState;
-	} catch {
-		throw new Error("The saved run contains malformed engine JSON.");
-	}
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-	return value !== null && typeof value === "object" && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null;
-}
-
-function asNonEmptyString(value: unknown): string | null {
-	return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function asInteger(value: unknown): number | null {
-	return typeof value === "number" && Number.isSafeInteger(value)
-		? value
-		: null;
 }
 
 function toErrorMessage(cause: unknown, fallback: string): string {

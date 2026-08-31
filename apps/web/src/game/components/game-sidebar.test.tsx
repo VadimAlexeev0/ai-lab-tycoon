@@ -43,7 +43,7 @@ function renderSidebar(pathname = "/game") {
 		activeRun: null,
 		actionBusy: false,
 		deleteRun: vi.fn(),
-		executeEngineCommand: vi.fn(),
+		executeCommand: vi.fn(),
 		session: { status: "ready", session: { userId: "user-1234" } },
 		sessionLabel: "ANON / user-1234",
 		state,

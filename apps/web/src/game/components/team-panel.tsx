@@ -1,6 +1,5 @@
 import {
 	type GameState,
-	hireTeam,
 	selectAvailableProjects,
 	selectTeams,
 } from "@ai-lab-tycoon/engine";
@@ -33,7 +32,7 @@ export default function TeamPanel({
 	onAssign,
 	onCancel,
 }: TeamPanelProps) {
-	const { actionBusy, executeEngineCommand } = useRunState();
+	const { actionBusy, executeCommand } = useRunState();
 	const teams = selectTeams(state);
 	const availableProjects = selectAvailableProjects(state);
 	const teamCount = teams.length;
@@ -99,7 +98,7 @@ export default function TeamPanel({
 					aria-label={`Hire team for $${HIRE_TEAM_COST}`}
 					disabled={hireDisabled}
 					onClick={() => {
-						void executeEngineCommand(hireTeam);
+						void executeCommand({ kind: "hire_team" });
 					}}
 					size="sm"
 					title={hireTitle}

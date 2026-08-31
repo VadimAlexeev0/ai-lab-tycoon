@@ -1,4 +1,4 @@
-import { type GameState, type RunSetup, startRun } from "@ai-lab-tycoon/engine";
+import type { GameState, RunSetup } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import {
 	Dialog,
@@ -13,8 +13,13 @@ import { Input } from "@ai-lab-tycoon/ui/components/input";
 import { Label } from "@ai-lab-tycoon/ui/components/label";
 import { cn } from "@ai-lab-tycoon/ui/lib/utils";
 import { Loader2, Play, Shuffle } from "lucide-react";
-import { useState } from "react";
-import { type ActiveRunRecord, persistActiveRun } from "@/utils/orpc";
+import { useRef, useState } from "react";
+
+import {
+	type ActiveRunRecord,
+	applyServerCommand,
+	createRequestId,
+} from "@/utils/orpc";
 
 export type StartRunFormProps = {
 	onStarted: (result: {
@@ -22,9 +27,8 @@ export type StartRunFormProps = {
 		record: ActiveRunRecord;
 	}) => void | Promise<void>;
 	hasExistingRun?: boolean;
+	existingRevision?: number;
 };
-
-const MAX_UNSIGNED_SEED = 4_294_967_295;
 
 const FOUNDER_ARCHETYPES = [
 	{
@@ -62,9 +66,9 @@ const FOUNDER_ARCHETYPES = [
 export default function StartRunForm({
 	onStarted,
 	hasExistingRun = false,
+	existingRevision,
 }: StartRunFormProps) {
 	const [companyName, setCompanyName] = useState("");
-	const [seedInput, setSeedInput] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [isStarting, setIsStarting] = useState(false);
 	const [selectedFounder, setSelectedFounder] = useState<
@@ -72,20 +76,41 @@ export default function StartRunForm({
 	>(null);
 	const [pendingStart, setPendingStart] = useState<{
 		setup: RunSetup;
-		seed: number;
+	} | null>(null);
+	const pendingRequestRef = useRef<{
+		key: string;
+		requestId: string;
 	} | null>(null);
 	const [confirmNewRunOpen, setConfirmNewRunOpen] = useState(false);
 
-	async function startRunNow(setup: RunSetup, seed: number, replace = false) {
+	async function startRunNow(setup: RunSetup, replace = false) {
+		const expectedRevision = replace ? existingRevision : 0;
+		if (expectedRevision === undefined) {
+			setError("The saved run revision is unavailable; reload and try again.");
+			return;
+		}
+
 		setIsStarting(true);
+		const command = replace
+			? ({ kind: "replace_run", setup } as const)
+			: ({ kind: "start_run", setup } as const);
+		const key = JSON.stringify([expectedRevision, command]);
+		const pending = pendingRequestRef.current;
+		const requestId =
+			pending?.key === key ? pending.requestId : createRequestId();
+		if (pending?.key !== key) {
+			pendingRequestRef.current = { key, requestId };
+		}
 		try {
-			// Calling the engine command here keeps web validation identical to the
-			// persisted command semantics instead of maintaining a second schema.
-			const state = startRun(setup, seed);
-			const record = await persistActiveRun(state, undefined, replace);
-			await onStarted({ state, record });
+			const record = await applyServerCommand(
+				command,
+				expectedRevision,
+				requestId,
+			);
+			pendingRequestRef.current = null;
+			await onStarted({ state: record.state, record });
 		} catch (cause: unknown) {
-			setError(toErrorMessage(cause, "The new run could not be saved."));
+			setError(toErrorMessage(cause, "The new run could not be started."));
 		} finally {
 			setIsStarting(false);
 		}
@@ -94,7 +119,7 @@ export default function StartRunForm({
 	async function confirmNewRun() {
 		if (pendingStart === null) return;
 		setConfirmNewRunOpen(false);
-		await startRunNow(pendingStart.setup, pendingStart.seed, true);
+		await startRunNow(pendingStart.setup, true);
 	}
 
 	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -102,19 +127,18 @@ export default function StartRunForm({
 		setError(null);
 
 		const setup: RunSetup = { companyName: companyName.trim() };
-		const seedResult = parseSeed(seedInput);
-		if (typeof seedResult === "string") {
-			setError(seedResult);
+		if (setup.companyName.length === 0) {
+			setError("Company name is required.");
 			return;
 		}
 
 		if (hasExistingRun) {
-			setPendingStart({ setup, seed: seedResult });
+			setPendingStart({ setup });
 			setConfirmNewRunOpen(true);
 			return;
 		}
 
-		await startRunNow(setup, seedResult);
+		await startRunNow(setup);
 	}
 
 	return (
@@ -134,8 +158,7 @@ export default function StartRunForm({
 						Start a new company
 					</h2>
 					<p className="mt-1 max-w-xl text-muted-foreground text-sm leading-6">
-						Name your lab and choose a reproducible seed. Leave the seed blank
-						to generate one automatically.
+						Name your lab. The server generates a secure seed for this run.
 					</p>
 				</div>
 				<Shuffle
@@ -145,40 +168,21 @@ export default function StartRunForm({
 			</div>
 
 			<form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-				<div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.45fr)]">
-					<div className="space-y-2">
-						<Label htmlFor="company-name">
-							Company name{" "}
-							<span className="text-[var(--game-negative)]">*</span>
-						</Label>
-						<Input
-							autoComplete="organization"
-							disabled={isStarting}
-							id="company-name"
-							maxLength={80}
-							name="companyName"
-							onChange={(event) => setCompanyName(event.target.value)}
-							placeholder="e.g. Northstar Labs"
-							required
-							value={companyName}
-						/>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="run-seed">Seed (optional)</Label>
-						<Input
-							disabled={isStarting}
-							id="run-seed"
-							inputMode="numeric"
-							max={MAX_UNSIGNED_SEED}
-							min={0}
-							name="seed"
-							onChange={(event) => setSeedInput(event.target.value)}
-							placeholder="Auto"
-							type="number"
-							value={seedInput}
-						/>
-					</div>
+				<div>
+					<Label htmlFor="company-name">
+						Company name <span className="text-[var(--game-negative)]">*</span>
+					</Label>
+					<Input
+						autoComplete="organization"
+						disabled={isStarting}
+						id="company-name"
+						maxLength={80}
+						name="companyName"
+						onChange={(event) => setCompanyName(event.target.value)}
+						placeholder="e.g. Northstar Labs"
+						required
+						value={companyName}
+					/>
 				</div>
 
 				<fieldset className="space-y-2">
@@ -272,33 +276,6 @@ export default function StartRunForm({
 			</Dialog>
 		</section>
 	);
-}
-
-function parseSeed(input: string): number | string {
-	const value = input.trim();
-	if (value.length === 0) return createSeed();
-
-	const seed = Number(value);
-	if (
-		!Number.isInteger(seed) ||
-		!Number.isSafeInteger(seed) ||
-		seed < 0 ||
-		seed > MAX_UNSIGNED_SEED ||
-		Object.is(seed, -0)
-	) {
-		return "Seed must be a non-negative integer from 0 to 4,294,967,295.";
-	}
-	return seed;
-}
-
-function createSeed(): number {
-	const cryptoObject = globalThis.crypto;
-	if (cryptoObject !== undefined) {
-		const values = new Uint32Array(1);
-		cryptoObject.getRandomValues(values);
-		return values[0] ?? 0;
-	}
-	return Math.floor(Math.random() * (MAX_UNSIGNED_SEED + 1));
 }
 
 function toErrorMessage(cause: unknown, fallback: string): string {

@@ -8,6 +8,13 @@
 			"when": 1787787580950,
 			"tag": "0000_remarkable_vengeance",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1788128430575,
+			"tag": "0001_server_authority",
+			"breakpoints": true
 		}
 	]
 }

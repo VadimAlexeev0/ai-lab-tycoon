@@ -26,6 +26,7 @@
 	},
 	"devDependencies": {
 		"@ai-lab-tycoon/config": "workspace:*",
+		"@libsql/client": "0.17.4",
 		"hono": "catalog:",
 		"typescript": "catalog:"
 	}

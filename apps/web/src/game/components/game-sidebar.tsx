@@ -1,5 +1,4 @@
 import {
-	advanceWeek,
 	type ResourceBarSummary,
 	selectPendingDecisions,
 	selectResourceBar,
@@ -310,9 +309,7 @@ export default function GameSidebar() {
 									});
 									return;
 								}
-								void game.executeEngineCommand((current) =>
-									advanceWeek(current),
-								);
+								void game.executeCommand({ kind: "advance_week" });
 							}}
 							size="sm"
 							type="button"
