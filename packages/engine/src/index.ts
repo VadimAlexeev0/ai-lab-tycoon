@@ -33,6 +33,14 @@ export type {
 	ModelTier,
 } from "./data/model-families.js";
 export { assertGameState, setAssertionsEnabled } from "./invariants.js";
+export type { GameStateUpgradeResult } from "./migrations.js";
+export {
+	deserializeGameState,
+	deserializeGameStateWithMetadata,
+	serializeGameState,
+	upgradeGameState,
+	upgradeGameStateWithMetadata,
+} from "./migrations.js";
 export type { ModelDesignSpec } from "./model-design.js";
 export { applyProductResume } from "./products.js";
 export type {

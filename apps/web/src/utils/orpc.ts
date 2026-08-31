@@ -1,6 +1,11 @@
 import type { ApplyCommand } from "@ai-lab-tycoon/api/routers/game-save-command";
 import type { AppRouter } from "@ai-lab-tycoon/api/routers/index";
-import { assertGameState, type GameState } from "@ai-lab-tycoon/engine";
+import {
+	deserializeGameStateWithMetadata,
+	type GameState,
+	type GameStateUpgradeResult,
+	upgradeGameStateWithMetadata,
+} from "@ai-lab-tycoon/engine";
 import { env } from "@ai-lab-tycoon/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -131,37 +136,58 @@ export function normalizeActiveRun(value: unknown): ActiveRunRecord | null {
 	if (record === null) return null;
 
 	const rawState = record.state;
-	const state = typeof rawState === "string" ? parseState(rawState) : rawState;
-	if (state === null || state === undefined) {
+	if (rawState === null || rawState === undefined) {
 		throw new Error("The saved run did not include an engine state.");
 	}
 
-	try {
-		assertGameState(state);
-	} catch (cause: unknown) {
+	const parsed = parseState(rawState);
+	const { state } = parsed;
+
+	const envelopeSchemaVersion = readOptionalInteger(
+		record,
+		"schemaVersion",
+		"Saved run schema version",
+	);
+	if (
+		envelopeSchemaVersion !== undefined &&
+		envelopeSchemaVersion !== parsed.sourceSchemaVersion
+	) {
 		throw new Error(
-			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
+			"The saved run schema version does not match its raw engine state",
 		);
 	}
 
+	const envelopeSeed = readOptionalInteger(record, "seed", "Saved run seed");
+	if (envelopeSeed !== undefined && envelopeSeed !== state.rng.seed) {
+		throw new Error("The saved run seed does not match its engine state");
+	}
+	const envelopeWeek = readOptionalInteger(
+		record,
+		"currentWeek",
+		"Saved run week",
+	);
+	if (envelopeWeek !== undefined && envelopeWeek !== state.meta.week) {
+		throw new Error("The saved run week does not match its engine state");
+	}
+	const stateStatus = state.terminal.status === "lost" ? "terminal" : "active";
+	const envelopeStatus = readOptionalStatus(record);
+	if (envelopeStatus !== undefined && envelopeStatus !== stateStatus) {
+		throw new Error("The saved run status does not match its engine state");
+	}
+
 	const id = asNonEmptyString(record.id) ?? state.meta.runId;
-	const seed = asInteger(record.seed) ?? state.rng.seed;
-	const schemaVersion =
-		asInteger(record.schemaVersion) ?? state.meta.schemaVersion;
-	const currentWeek = asInteger(record.currentWeek) ?? state.meta.week;
-	const revision = asInteger(record.revision) ?? 0;
-	const status =
-		record.status === "terminal" || state.terminal.status === "lost"
-			? "terminal"
-			: "active";
+	const seed = envelopeSeed ?? state.rng.seed;
+	const currentWeek = envelopeWeek ?? state.meta.week;
+	const revision =
+		readOptionalInteger(record, "revision", "Saved run revision") ?? 0;
 
 	return {
 		id,
 		seed,
-		schemaVersion,
+		schemaVersion: parsed.currentSchemaVersion,
 		state,
 		currentWeek,
-		status,
+		status: envelopeStatus ?? stateStatus,
 		revision,
 	};
 }
@@ -213,11 +239,22 @@ function unwrapRecord(value: unknown): UnknownRecord | null {
 	return record;
 }
 
-function parseState(rawState: string): GameState {
+function parseState(rawState: unknown): GameStateUpgradeResult {
 	try {
-		return JSON.parse(rawState) as GameState;
-	} catch {
-		throw new Error("The saved run contains malformed engine JSON.");
+		return typeof rawState === "string"
+			? deserializeGameStateWithMetadata(rawState)
+			: upgradeGameStateWithMetadata(rawState);
+	} catch (cause: unknown) {
+		if (
+			typeof rawState === "string" &&
+			cause instanceof Error &&
+			cause.message === "Serialized game state is not valid JSON"
+		) {
+			throw new Error("The saved run contains malformed engine JSON.");
+		}
+		throw new Error(
+			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
+		);
 	}
 }
 
@@ -231,10 +268,33 @@ function asNonEmptyString(value: unknown): string | null {
 	return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function asInteger(value: unknown): number | null {
-	return typeof value === "number" && Number.isSafeInteger(value)
-		? value
-		: null;
+function readOptionalInteger(
+	record: UnknownRecord,
+	key: string,
+	label: string,
+): number | undefined {
+	if (!Object.hasOwn(record, key)) return undefined;
+	const value = record[key];
+	if (
+		typeof value !== "number" ||
+		!Number.isSafeInteger(value) ||
+		value < 0 ||
+		Object.is(value, -0)
+	) {
+		throw new Error(`${label} must be a non-negative safe integer`);
+	}
+	return value;
+}
+
+function readOptionalStatus(
+	record: UnknownRecord,
+): ActiveRunRecord["status"] | undefined {
+	if (!Object.hasOwn(record, "status")) return undefined;
+	const value = record.status;
+	if (value !== "active" && value !== "terminal") {
+		throw new Error("Saved run status must be active or terminal");
+	}
+	return value;
 }
 
 function toErrorMessage(cause: unknown, fallback: string): string {

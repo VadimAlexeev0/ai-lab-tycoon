@@ -20,12 +20,14 @@ import {
 	buyCompute,
 	cancelProject,
 	type DecisionChoice,
+	deserializeGameStateWithMetadata,
 	designModel,
 	type GameState,
 	hireTeam,
 	launchProduct,
 	type ModelDesignSpec,
 	runEvaluation,
+	serializeGameState,
 	startRun,
 } from "@ai-lab-tycoon/engine";
 import { ORPCError } from "@orpc/server";
@@ -90,7 +92,8 @@ export const gameSaveRouter = {
 				.where(eq(runs.userId, userId))
 				.orderBy(desc(runs.updatedAt))
 				.limit(1);
-			return rows[0] ?? null;
+			const row = rows[0];
+			return row === undefined ? null : loadStoredRun(row);
 		}),
 
 	/**
@@ -620,20 +623,19 @@ function executeCommand(
 
 function loadStoredState(row: Run): GameState {
 	assertJsonNestingDepth(row.state);
-	const parsed: unknown = JSON.parse(row.state);
-	assertGameState(
-		parsed,
-		{ allowNegativeCash: row.status === "terminal" },
-		true,
+	const { state, sourceSchemaVersion } = deserializeGameStateWithMetadata(
+		row.state,
+		{
+			allowNegativeCash: row.status === "terminal",
+		},
 	);
-	const state = parsed as GameState;
+	if (sourceSchemaVersion !== row.schemaVersion) {
+		throw new Error(
+			"Stored run schema version does not match its serialized engine state",
+		);
+	}
 	if (state.rng.seed !== row.seed) {
 		throw new Error("Stored run seed does not match its engine state");
-	}
-	if (state.meta.schemaVersion !== row.schemaVersion) {
-		throw new Error(
-			"Stored run schema version does not match its engine state",
-		);
 	}
 	if (state.meta.week !== row.currentWeek) {
 		throw new Error("Stored run week does not match its engine state");
@@ -646,8 +648,21 @@ function loadStoredState(row: Run): GameState {
 	return state;
 }
 
+function loadStoredRun(row: Run): Run {
+	const state = loadStoredState(row);
+	return {
+		...row,
+		schemaVersion: state.meta.schemaVersion,
+		state: serializeAuthoritativeState(state),
+		currentWeek: state.meta.week,
+		status: state.terminal.status === "lost" ? "terminal" : "active",
+	};
+}
+
 function serializeAuthoritativeState(state: GameState): string {
-	const value = JSON.stringify(state);
+	const value = serializeGameState(state, {
+		allowNegativeCash: state.company.cash < 0,
+	});
 	if (value.length > MAX_PERSISTED_STATE_LENGTH) {
 		throw new Error("The authoritative state exceeds the persistence limit");
 	}

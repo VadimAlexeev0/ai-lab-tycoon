@@ -1,0 +1,670 @@
+{
+	"meta": {
+		"schemaVersion": 1,
+		"runId": "run_23",
+		"week": 1,
+		"era": "text"
+	},
+	"rng": {
+		"seed": 23,
+		"streams": {
+			"training": [1331409201, 934512055, 196392207, 1809894112],
+			"incidents": [1176183455, 17068800, 829317965, -1072729924],
+			"products": [510673232, 2005598370, -919590140, -2109907258],
+			"rivals": [-1301260863, -850588444, -1821219838, 634082797],
+			"funding": [2124522334, -285868862, 384064290, -1981443444]
+		}
+	},
+	"counters": {
+		"team": 2,
+		"project": 4,
+		"model": 1,
+		"product": 1,
+		"rival": 4,
+		"decision": 1,
+		"report": 1,
+		"command": 2
+	},
+	"company": {
+		"name": "Migration Labs",
+		"cash": 1000,
+		"insight": 0,
+		"trust": 60,
+		"hype": 10
+	},
+	"teams": {
+		"items": [
+			{
+				"id": "team_001",
+				"name": "Founding Team",
+				"activeProjectId": null
+			}
+		]
+	},
+	"projects": {
+		"items": [
+			{
+				"kind": "research",
+				"id": "project_001",
+				"teamId": null,
+				"status": "available",
+				"progress": 0,
+				"duration": 1,
+				"nodeId": "text_models_principles"
+			},
+			{
+				"kind": "research",
+				"id": "project_002",
+				"teamId": null,
+				"status": "available",
+				"progress": 0,
+				"duration": 1,
+				"nodeId": "text_infrastructure_compute"
+			},
+			{
+				"kind": "research",
+				"id": "project_003",
+				"teamId": null,
+				"status": "available",
+				"progress": 0,
+				"duration": 1,
+				"nodeId": "text_products_safety_basics"
+			}
+		]
+	},
+	"compute": {
+		"capacity": 12,
+		"allocated": 0,
+		"trainingDemand": 0,
+		"servingDemand": 0
+	},
+	"research": {
+		"currentEra": "text",
+		"nodes": [
+			{
+				"id": "text_models_principles",
+				"era": "text",
+				"branch": "models",
+				"status": "available",
+				"insightCost": 1,
+				"prerequisites": []
+			},
+			{
+				"id": "text_infrastructure_compute",
+				"era": "text",
+				"branch": "infrastructure",
+				"status": "available",
+				"insightCost": 1,
+				"prerequisites": []
+			},
+			{
+				"id": "text_products_safety_basics",
+				"era": "text",
+				"branch": "products_safety",
+				"status": "available",
+				"insightCost": 1,
+				"prerequisites": []
+			},
+			{
+				"id": "text_products_evaluation",
+				"era": "text",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_products_safety_basics"]
+			},
+			{
+				"id": "self_attention",
+				"era": "text",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_products_evaluation"]
+			},
+			{
+				"id": "multi_head_attention",
+				"era": "text",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["self_attention"]
+			},
+			{
+				"id": "positional_encoding",
+				"era": "text",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["self_attention"]
+			},
+			{
+				"id": "text_infrastructure_scaling",
+				"era": "text",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["multi_head_attention", "positional_encoding"]
+			},
+			{
+				"id": "text_models_keystone",
+				"era": "text",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_products_evaluation",
+					"self_attention",
+					"multi_head_attention",
+					"positional_encoding",
+					"text_infrastructure_scaling"
+				]
+			},
+			{
+				"id": "bert_encoder",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone"]
+			},
+			{
+				"id": "gpt_decoder",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone"]
+			},
+			{
+				"id": "t5_encoder_decoder",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone", "bert_encoder", "gpt_decoder"]
+			},
+			{
+				"id": "task_finetuning",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone", "bert_encoder", "gpt_decoder"]
+			},
+			{
+				"id": "zero_shot_transfer",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"t5_encoder_decoder",
+					"task_finetuning"
+				]
+			},
+			{
+				"id": "scaling_laws_keystone",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": ["text_models_keystone", "text_infrastructure_scaling"]
+			},
+			{
+				"id": "gpt3_scale_params",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"scaling_laws_keystone",
+					"gpt_decoder"
+				]
+			},
+			{
+				"id": "assistant_models_reasoning",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"gpt3_scale_params",
+					"zero_shot_transfer"
+				]
+			},
+			{
+				"id": "assistant_models_tool_use",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"assistant_models_reasoning",
+					"task_finetuning"
+				]
+			},
+			{
+				"id": "assistant_models_keystone",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"gpt3_scale_params",
+					"training_stability",
+					"rlhf_alignment"
+				]
+			},
+			{
+				"id": "multilingual_corpora",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone", "zero_shot_transfer"]
+			},
+			{
+				"id": "training_stability",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone", "scaling_laws_keystone"]
+			},
+			{
+				"id": "hyperscale_compute_infrastructure",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"training_stability",
+					"scaling_laws_keystone"
+				]
+			},
+			{
+				"id": "open_weights_movement",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"gpt3_scale_params",
+					"multilingual_corpora"
+				]
+			},
+			{
+				"id": "chinchilla_compute_optimal",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"scaling_laws_keystone",
+					"training_stability"
+				]
+			},
+			{
+				"id": "rlhf_alignment",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"task_finetuning",
+					"text_products_evaluation"
+				]
+			},
+			{
+				"id": "constitutional_ai",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"rlhf_alignment",
+					"zero_shot_transfer"
+				]
+			},
+			{
+				"id": "chain_of_thought",
+				"era": "assistant",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"text_products_evaluation",
+					"rlhf_alignment",
+					"assistant_models_reasoning"
+				]
+			},
+			{
+				"id": "export_control_politics",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"hyperscale_compute_infrastructure",
+					"open_weights_movement"
+				]
+			},
+			{
+				"id": "sparse_moe",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"scaling_laws_keystone",
+					"training_stability"
+				]
+			},
+			{
+				"id": "mla_kv_compression",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"sparse_moe",
+					"assistant_models_reasoning"
+				]
+			},
+			{
+				"id": "int4_quantization",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["text_models_keystone", "mla_kv_compression"]
+			},
+			{
+				"id": "distillation_lines",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"gpt_decoder",
+					"int4_quantization"
+				]
+			},
+			{
+				"id": "inference_price_war",
+				"era": "assistant",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"text_models_keystone",
+					"int4_quantization",
+					"distillation_lines"
+				]
+			},
+			{
+				"id": "open_weight_ecosystem",
+				"era": "assistant",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"text_models_keystone",
+					"open_weights_movement",
+					"distillation_lines",
+					"export_control_politics"
+				]
+			},
+			{
+				"id": "test_time_compute",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": ["assistant_models_keystone", "chain_of_thought"]
+			},
+			{
+				"id": "reasoning_tokens_economy",
+				"era": "multimodal",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"test_time_compute",
+					"inference_price_war"
+				]
+			},
+			{
+				"id": "hybrid_thinking_dial",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"test_time_compute",
+					"mla_kv_compression"
+				]
+			},
+			{
+				"id": "verification",
+				"era": "multimodal",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"constitutional_ai",
+					"test_time_compute"
+				]
+			},
+			{
+				"id": "vision_encoders",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": ["assistant_models_keystone", "t5_encoder_decoder"]
+			},
+			{
+				"id": "tool_calling",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"assistant_models_tool_use"
+				]
+			},
+			{
+				"id": "rag_memory",
+				"era": "multimodal",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"zero_shot_transfer",
+					"assistant_models_reasoning"
+				]
+			},
+			{
+				"id": "code_execution",
+				"era": "multimodal",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"tool_calling",
+					"verification"
+				]
+			},
+			{
+				"id": "computer_use",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"tool_calling",
+					"vision_encoders"
+				]
+			},
+			{
+				"id": "mcp_protocols",
+				"era": "multimodal",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 1,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"tool_calling",
+					"code_execution"
+				]
+			},
+			{
+				"id": "long_context",
+				"era": "multimodal",
+				"branch": "infrastructure",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"rag_memory",
+					"mla_kv_compression"
+				]
+			},
+			{
+				"id": "multimodal_models_fusion",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 2,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"computer_use",
+					"inference_price_war"
+				]
+			},
+			{
+				"id": "persistent_memory",
+				"era": "multimodal",
+				"branch": "products_safety",
+				"status": "locked",
+				"insightCost": 4,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"rag_memory",
+					"mcp_protocols",
+					"verification"
+				]
+			},
+			{
+				"id": "long_horizon_autonomy",
+				"era": "multimodal",
+				"branch": "models",
+				"status": "locked",
+				"insightCost": 4,
+				"prerequisites": [
+					"assistant_models_keystone",
+					"multimodal_models_fusion",
+					"persistent_memory",
+					"verification"
+				]
+			}
+		]
+	},
+	"models": {
+		"items": [],
+		"activeModelId": null
+	},
+	"products": {
+		"items": []
+	},
+	"rivals": {
+		"items": [
+			{
+				"id": "rival_001",
+				"name": "Northstar Labs",
+				"archetype": "research_lab",
+				"focus": "capability",
+				"progress": 0,
+				"active": true
+			},
+			{
+				"id": "rival_002",
+				"name": "MarketSpring",
+				"archetype": "platform",
+				"focus": "distribution",
+				"progress": 0,
+				"active": true
+			},
+			{
+				"id": "rival_003",
+				"name": "LeanForge",
+				"archetype": "efficiency",
+				"focus": "reliability",
+				"progress": 0,
+				"active": false
+			}
+		]
+	},
+	"funding": {
+		"seed": {
+			"round": "seed",
+			"status": "available"
+		},
+		"seriesA": {
+			"round": "series_a",
+			"status": "locked"
+		}
+	},
+	"decisions": {
+		"pending": []
+	},
+	"reports": {
+		"items": [],
+		"totalCount": 0
+	},
+	"queue": {
+		"decisionIds": [],
+		"reportIds": []
+	},
+	"commandLog": [
+		{
+			"id": "command_001",
+			"kind": "start_run",
+			"week": 1,
+			"setup": {
+				"companyName": "Migration Labs"
+			},
+			"seed": 23
+		}
+	],
+	"warnings": [],
+	"terminal": {
+		"status": "active",
+		"reason": "none",
+		"frontierReached": false,
+		"contributors": []
+	}
+}
