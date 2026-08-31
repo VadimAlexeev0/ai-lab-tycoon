@@ -7,6 +7,8 @@ import {
 import { History } from "lucide-react";
 import { useState } from "react";
 
+import { summarizeResearchEffects } from "@/game/derived/labels";
+
 export type ReportFilter =
 	| "all"
 	| "training"
@@ -172,8 +174,10 @@ function factSummary(fact: Fact): string {
 			return `Project ${fact.projectId} progressed by ${fact.amount}.`;
 		case "project_completed":
 			return `Project ${fact.projectId} completed.`;
-		case "research_completed":
-			return `Research node ${fact.nodeId} completed.`;
+		case "research_completed": {
+			const effects = summarizeResearchEffects(fact.effects);
+			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
+		}
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

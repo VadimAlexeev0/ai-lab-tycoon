@@ -1,6 +1,7 @@
 import {
 	type Fact,
 	type GameState,
+	type ResearchEffect,
 	selectResearchNodes,
 } from "@ai-lab-tycoon/engine";
 
@@ -25,6 +26,26 @@ export function humanizeId(value: string): string {
 		.trim();
 	if (readable.length === 0) return "Unknown";
 	return readable.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+}
+
+/** Render the engine's typed research result without recreating its rules. */
+export function summarizeResearchEffects(
+	effects: readonly ResearchEffect[] | undefined,
+): string {
+	if (effects === undefined || effects.length === 0) return "";
+	return effects.map(summarizeResearchEffect).join("; ");
+}
+
+function summarizeResearchEffect(effect: ResearchEffect): string {
+	switch (effect.kind) {
+		case "training_compute_reduction":
+			return `−${effect.amount} training Compute`;
+		case "model_score_bonus":
+			return `+${effect.amount} ${humanizeId(effect.dimension)} model score`;
+		case "evaluation_coverage_bonus":
+			return `+${effect.amount} ${humanizeId(effect.evaluation)} evaluation coverage`;
+	}
+	return "";
 }
 
 /** Resolve an entity ID against the current state without mutating it. */
