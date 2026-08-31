@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { Model } from "./components/models.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	ASSISTANT_ERA,
@@ -20,6 +21,7 @@ import {
 	assignProject,
 	startRun,
 } from "./index.js";
+import { launchProduct } from "./products.js";
 import { projectsSystem } from "./systems/projects.js";
 import { researchSystem } from "./systems/research.js";
 
@@ -39,6 +41,45 @@ function completeTextTier(state: ReturnType<typeof startRun>): void {
 	for (const node of state.research.nodes) {
 		if (node.era === TEXT_ERA) node.status = "completed";
 	}
+}
+
+function shipResearchEraModel(
+	state: ReturnType<typeof startRun>,
+	family: "text" | "assistant",
+): ReturnType<typeof startRun> {
+	const id = `model_${String(state.models.items.length + 1).padStart(3, "0")}`;
+	const model: Model = {
+		id,
+		name: `${family}-${id}`,
+		foundation: "fresh",
+		status: "ready",
+		projectId: null,
+		family,
+		tier: "standard",
+		scoreCeiling: 88,
+		dataMix: { general: 70, code: 20, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+		trueScores: {
+			capability: 100,
+			coding: 100,
+			reliability: 100,
+			safety: 100,
+			efficiency: 100,
+			multimodal: 100,
+		},
+		estimates: {
+			capability: { estimate: 100, lower: 80, upper: 100 },
+			coding: { estimate: 100, lower: 80, upper: 100 },
+			reliability: { estimate: 100, lower: 80, upper: 100 },
+			safety: { estimate: 100, lower: 80, upper: 100 },
+			efficiency: { estimate: 100, lower: 80, upper: 100 },
+			multimodal: { estimate: 100, lower: 80, upper: 100 },
+		},
+	};
+	state.models.items = [...state.models.items, model];
+	state.counters.model = state.models.items.length + 1;
+	state.company.hype = 100;
+	return launchProduct(state, id, "chat").state;
 }
 
 function completeResearchNode(
@@ -89,7 +130,8 @@ function completeResearchEra(
 	era: "text" | "assistant" | "multimodal",
 	week: number,
 ): ReturnType<typeof startRun> {
-	let nextState = state;
+	let nextState =
+		era === MULTIMODAL_ERA ? state : shipResearchEraModel(state, era);
 	while (true) {
 		const availableNode = nextState.research.nodes.find(
 			(node) => node.era === era && node.status === "available",
@@ -674,7 +716,7 @@ describe("LLM-history research data", () => {
 		});
 	});
 
-	it("enters the Assistant era from the node gate without a shipped model", () => {
+	it("waits in Text after the node gate until a model is shipped", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		completeTextTier(state);
 		const result = researchSystem(state, {
@@ -682,13 +724,13 @@ describe("LLM-history research data", () => {
 			week: 2,
 		});
 
-		expect(result.state.meta.era).toBe("assistant");
+		expect(result.state.meta.era).toBe(TEXT_ERA);
 		expect(result.state.models.items).toEqual([]);
 		expect(
 			result.state.research.nodes.some(
 				(node) => node.era === ASSISTANT_ERA && node.status === "available",
 			),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	it("walks every research node through the DAG in a valid completion order", () => {

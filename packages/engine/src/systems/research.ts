@@ -1,6 +1,7 @@
 import type { Fact } from "../components/reports.js";
 import type { ResearchEra, ResearchState } from "../components/research.js";
 import { BALANCE } from "../data/balance.js";
+import { MODEL_FAMILIES, type ModelFamilyId } from "../data/model-families.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
@@ -100,6 +101,7 @@ export const researchSystem: GameSystem = (state, context) => {
 	}
 
 	const currentEra = advanceEraIfUnlocked(
+		state,
 		state.research.currentEra,
 		completedNodeIds,
 	);
@@ -200,6 +202,7 @@ function hasCompletedNode(research: ResearchState, nodeId: string): boolean {
 }
 
 function advanceEraIfUnlocked(
+	state: Pick<GameState, "models" | "products">,
 	currentEra: ResearchEra,
 	completedNodeIds: ReadonlySet<string>,
 ): ResearchEra {
@@ -209,6 +212,9 @@ function advanceEraIfUnlocked(
 		if (nextEra === undefined) {
 			break;
 		}
+		if (!hasShippedModelForEra(state, currentEra)) {
+			break;
+		}
 		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[nextEra];
 		if (keystoneId === undefined || !completedNodeIds.has(keystoneId)) {
 			break;
@@ -216,6 +222,35 @@ function advanceEraIfUnlocked(
 		currentIndex += 1;
 	}
 	return RESEARCH_ERA_ORDER[currentIndex] ?? currentEra;
+}
+
+function hasShippedModelForEra(
+	state: Pick<GameState, "models" | "products">,
+	era: ResearchEra,
+): boolean {
+	// V1 retains every launched product. Operating and paused products both
+	// prove that a model reached the public launch path; planned projects do not.
+	const family = modelFamilyForEra(era);
+	return state.products.items.some(
+		(product) =>
+			(product.status === "operating" || product.status === "paused") &&
+			state.models.items.some(
+				(model) =>
+					model.id === product.modelId &&
+					model.status === "launched" &&
+					model.family === family,
+			),
+	);
+}
+
+function modelFamilyForEra(era: ResearchEra): ModelFamilyId {
+	const family = MODEL_FAMILIES.find((candidate) =>
+		candidate.allowedEras.some((allowedEra) => allowedEra === era),
+	);
+	if (family === undefined) {
+		throw new Error(`No model family is defined for the ${era} era`);
+	}
+	return family.id;
 }
 
 function isEraAtLeast(

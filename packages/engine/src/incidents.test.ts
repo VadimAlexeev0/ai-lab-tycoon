@@ -58,6 +58,7 @@ function forcedState(incident: IncidentType): GameState {
 		if (firstModel === undefined || firstTeam === undefined) {
 			throw new Error("Expected training fixture components");
 		}
+		firstModel.status = "training";
 		firstModel.tier = "aggressive";
 		firstModel.projectId = "project_001";
 		firstTeam.activeProjectId = "project_001";

@@ -19,6 +19,7 @@ import { BALANCE } from "./data/balance.js";
 import {
 	DATA_MIX_DIMENSIONS,
 	MODEL_EMPHASIS_DIMENSIONS,
+	MODEL_FAMILIES,
 	MODEL_FAMILY_IDS,
 	MODEL_TIERS,
 } from "./data/model-families.js";
@@ -341,6 +342,8 @@ function hasCompletedResearchNode(state: GameState, nodeId: string): boolean {
 }
 
 function assertModelRelations(state: GameState): void {
+	assertModelGenerationAvailability(state);
+
 	for (const model of state.models.items) {
 		const hasTrueScores = model.trueScores !== undefined;
 		const hasEstimates = model.estimates !== undefined;
@@ -362,6 +365,17 @@ function assertModelRelations(state: GameState): void {
 			(product) => product.modelId === model.id,
 		);
 		if (
+			model.status === "launched" &&
+			!referencedProducts.some(
+				(product) =>
+					product.status === "operating" || product.status === "paused",
+			)
+		) {
+			throw new Error(
+				`Launched model ${model.id} must retain an operating or paused product`,
+			);
+		}
+		if (
 			model.status === "shelved" &&
 			referencedProducts.some((product) => product.status === "operating")
 		) {
@@ -379,6 +393,25 @@ function assertModelRelations(state: GameState): void {
 		if (model !== undefined && model.status !== "launched") {
 			throw new Error(
 				`Product ${product.id} with status ${product.status} requires referenced model ${model.id} to be launched`,
+			);
+		}
+	}
+}
+
+function assertModelGenerationAvailability(state: GameState): void {
+	const currentEraIndex = RESEARCH_ERAS.indexOf(state.meta.era);
+	for (const model of state.models.items) {
+		if (model.family === undefined) continue;
+		const family = MODEL_FAMILIES.find(
+			(candidate) => candidate.id === model.family,
+		);
+		const familyEra = family?.allowedEras[0];
+		if (familyEra === undefined) {
+			throw new Error(`Model ${model.id} has no generation era`);
+		}
+		if (RESEARCH_ERAS.indexOf(familyEra) > currentEraIndex) {
+			throw new Error(
+				`Model ${model.id} belongs to the ${familyEra} generation, which is unavailable in the ${state.meta.era} era`,
 			);
 		}
 	}

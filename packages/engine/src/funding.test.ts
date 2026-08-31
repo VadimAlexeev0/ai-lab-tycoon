@@ -233,6 +233,8 @@ describe("funding gates", () => {
 				below.products.items = [];
 				below.compute.servingDemand = 0;
 				below.compute.allocated = 0;
+				const model = below.models.items[0];
+				if (model !== undefined) model.status = "shelved";
 			}
 			if (factor === "modelScore") {
 				const model = below.models.items[0];
