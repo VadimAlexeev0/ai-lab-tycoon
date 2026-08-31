@@ -224,13 +224,23 @@ export function applyProductResume(
 		servingDemand: users * tuning.servingComputePerUser,
 		effectiveQuality: effectiveProductQuality(model, product.channel),
 	};
+	const commandAllocation = allocateId(state, "command");
 	const nextState: GameState = {
-		...state,
+		...commandAllocation.state,
 		products: {
 			items: state.products.items.map((candidate) =>
 				candidate.id === product.id ? resumedProduct : cloneProduct(candidate),
 			),
 		},
+		commandLog: [
+			...commandAllocation.state.commandLog,
+			{
+				id: commandAllocation.id,
+				kind: "product_resume",
+				week: state.meta.week,
+				productId: product.id,
+			},
+		],
 	};
 	const recomputedState = {
 		...nextState,
