@@ -19,6 +19,13 @@ import type { GameState } from "./state.js";
 
 function pausedProductState(): GameState {
 	const state = startRun({ companyName: "Contract Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.models.items = [
 		{
 			id: "model_001",

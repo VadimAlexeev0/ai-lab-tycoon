@@ -8,6 +8,7 @@ import {
 	RESEARCH_ERAS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "../data/research.js";
+import { hasShippedModelProof } from "../era-proof.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import type { GameState } from "../state.js";
@@ -100,6 +101,7 @@ export const researchSystem: GameSystem = (state, context) => {
 	}
 
 	const currentEra = advanceEraIfUnlocked(
+		state,
 		state.research.currentEra,
 		completedNodeIds,
 	);
@@ -200,6 +202,7 @@ function hasCompletedNode(research: ResearchState, nodeId: string): boolean {
 }
 
 function advanceEraIfUnlocked(
+	state: Pick<GameState, "models" | "products">,
 	currentEra: ResearchEra,
 	completedNodeIds: ReadonlySet<string>,
 ): ResearchEra {
@@ -207,6 +210,9 @@ function advanceEraIfUnlocked(
 	while (currentIndex >= 0 && currentIndex + 1 < RESEARCH_ERA_ORDER.length) {
 		const nextEra = RESEARCH_ERA_ORDER[currentIndex + 1];
 		if (nextEra === undefined) {
+			break;
+		}
+		if (!hasShippedModelProof(state, currentEra, completedNodeIds)) {
 			break;
 		}
 		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[nextEra];

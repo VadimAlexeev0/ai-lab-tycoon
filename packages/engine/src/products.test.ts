@@ -8,6 +8,13 @@ import { productsSystem } from "./systems/products.js";
 
 function readyState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.models.items = [
 		{
 			id: "model_001",
@@ -47,6 +54,22 @@ function assistantEra(state: GameState): GameState {
 	for (const node of state.research.nodes) {
 		if (node.era === "text") node.status = "completed";
 	}
+	const textModel = state.models.items[0];
+	if (textModel === undefined) throw new Error("Expected Text model proof");
+	state.models.items.push({
+		...textModel,
+		id: "model_002",
+		name: "Aurora-proof",
+		status: "launched",
+	});
+	state.products.items.push({
+		id: "product_002",
+		channel: "chat",
+		modelId: "model_002",
+		status: "paused",
+	});
+	state.counters.model = 3;
+	state.counters.product = 3;
 	return state;
 }
 

@@ -12,6 +12,13 @@ import type { GameState } from "./state.js";
 
 function readyState(): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.company.hype = 100;
 	state.company.trust = 100;
 	state.models.items = [
@@ -61,6 +68,22 @@ function assistantEraState(): GameState {
 			node.status = "completed";
 		}
 	}
+	const textModel = state.models.items[0];
+	if (textModel === undefined) throw new Error("Expected Text model proof");
+	state.models.items.push({
+		...textModel,
+		id: "model_002",
+		name: "Aurora-proof",
+		status: "launched",
+	});
+	state.products.items.push({
+		id: "product_002",
+		channel: "chat",
+		modelId: "model_002",
+		status: "paused",
+	});
+	state.counters.model = 3;
+	state.counters.product = 3;
 	return state;
 }
 

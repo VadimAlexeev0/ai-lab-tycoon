@@ -62,6 +62,42 @@ function multimodalReadyState(): GameState {
 			},
 		},
 	];
+	const multimodalModel = state.models.items[0];
+	if (multimodalModel === undefined) {
+		throw new Error("Expected Multimodal model");
+	}
+	state.models.items.push(
+		{
+			...multimodalModel,
+			id: "model_002",
+			name: "Text-proof",
+			family: "text",
+			status: "launched",
+		},
+		{
+			...multimodalModel,
+			id: "model_003",
+			name: "Assistant-proof",
+			family: "assistant",
+			status: "launched",
+		},
+	);
+	state.products.items = [
+		{
+			id: "product_002",
+			channel: "chat",
+			modelId: "model_002",
+			status: "paused",
+		},
+		{
+			id: "product_003",
+			channel: "chat",
+			modelId: "model_003",
+			status: "paused",
+		},
+	];
+	state.counters.model = 4;
+	state.counters.product = 4;
 	return state;
 }
 
@@ -125,6 +161,7 @@ describe("terminal outcomes and milestone", () => {
 				servingDemand: 10,
 				effectiveQuality: 100,
 			},
+			...state.products.items,
 		];
 
 		const result = advanceWeek(state);

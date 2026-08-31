@@ -11,6 +11,7 @@ import {
 	designModel,
 	type ModelDesignSpec,
 } from "./model-design.js";
+import { launchProduct } from "./products.js";
 import type { GameState } from "./state.js";
 import { researchSystem } from "./systems/research.js";
 import { trainingSystem } from "./systems/training.js";
@@ -43,6 +44,39 @@ function multimodalDesignableState(seed = 42): GameState {
 	for (const node of state.research.nodes) {
 		node.status = "completed";
 	}
+	const proofScores = {
+		capability: 80,
+		coding: 80,
+		reliability: 80,
+		safety: 80,
+		efficiency: 80,
+		multimodal: 80,
+	};
+	const textProof = parentModel(proofScores);
+	textProof.status = "launched";
+	const assistantProof = {
+		...textProof,
+		id: "model_002",
+		name: "Assistant-proof",
+		family: "assistant" as const,
+	};
+	state.models.items = [textProof, assistantProof];
+	state.products.items = [
+		{
+			id: "product_001",
+			channel: "chat",
+			modelId: "model_001",
+			status: "paused" as const,
+		},
+		{
+			id: "product_002",
+			channel: "chat",
+			modelId: "model_002",
+			status: "paused" as const,
+		},
+	];
+	state.counters.model = 3;
+	state.counters.product = 3;
 	return state;
 }
 
@@ -277,7 +311,21 @@ describe("Task 6 review regressions", () => {
 			if (node.era === "text") node.status = "completed";
 		}
 
-		const assistantEra = researchSystem(state, {
+		state.models.items.push(
+			parentModel({
+				capability: 80,
+				coding: 80,
+				reliability: 80,
+				safety: 80,
+				efficiency: 80,
+				multimodal: 80,
+			}),
+		);
+		state.counters.model = 2;
+		state.company.hype = 100;
+		const textLaunch = launchProduct(state, "model_001", "chat");
+
+		const assistantEra = researchSystem(textLaunch.state, {
 			phase: "research",
 			week: 2,
 		}).state;
@@ -318,7 +366,24 @@ describe("Task 6 review regressions", () => {
 			throw new Error("Expected Assistant keystone state");
 		}
 		readyKeystone.status = "completed";
-		const multimodalEra = researchSystem(assistantReady, {
+		const assistantModel = {
+			...parentModel({
+				capability: 80,
+				coding: 80,
+				reliability: 80,
+				safety: 80,
+				efficiency: 80,
+				multimodal: 80,
+			}),
+			id: "model_002",
+			name: "Assistant-1",
+			family: "assistant" as const,
+		};
+		assistantReady.models.items.push(assistantModel);
+		assistantReady.counters.model = 3;
+		assistantReady.company.hype = 100;
+		const assistantLaunch = launchProduct(assistantReady, "model_002", "chat");
+		const multimodalEra = researchSystem(assistantLaunch.state, {
 			phase: "research",
 			week: 4,
 		}).state;

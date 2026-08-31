@@ -89,6 +89,22 @@ describe("training system", () => {
 			scoreCeiling: BALANCE.modelTiers.lean.scoreCeiling,
 			status: "launched",
 			projectId: null,
+			trueScores: {
+				capability: 60,
+				coding: 60,
+				reliability: 60,
+				safety: 60,
+				efficiency: 60,
+				multimodal: 60,
+			},
+			estimates: {
+				capability: { estimate: 60, lower: 40, upper: 80 },
+				coding: { estimate: 60, lower: 40, upper: 80 },
+				reliability: { estimate: 60, lower: 40, upper: 80 },
+				safety: { estimate: 60, lower: 40, upper: 80 },
+				efficiency: { estimate: 60, lower: 40, upper: 80 },
+				multimodal: { estimate: 60, lower: 40, upper: 80 },
+			},
 		});
 		designed.products.items = [
 			{
@@ -189,6 +205,22 @@ describe("training system", () => {
 			scoreCeiling: BALANCE.modelTiers.lean.scoreCeiling,
 			status: "launched",
 			projectId: null,
+			trueScores: {
+				capability: 60,
+				coding: 60,
+				reliability: 60,
+				safety: 60,
+				efficiency: 60,
+				multimodal: 60,
+			},
+			estimates: {
+				capability: { estimate: 60, lower: 40, upper: 80 },
+				coding: { estimate: 60, lower: 40, upper: 80 },
+				reliability: { estimate: 60, lower: 40, upper: 80 },
+				safety: { estimate: 60, lower: 40, upper: 80 },
+				efficiency: { estimate: 60, lower: 40, upper: 80 },
+				multimodal: { estimate: 60, lower: 40, upper: 80 },
+			},
 		});
 		designed.products.items = [
 			{

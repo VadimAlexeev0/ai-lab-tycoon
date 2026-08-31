@@ -21,6 +21,13 @@ const INCIDENTS: readonly IncidentType[] = [
 
 function forcedState(incident: IncidentType): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
 	state.models.items = [
 		{
 			id: "model_001",
@@ -58,6 +65,7 @@ function forcedState(incident: IncidentType): GameState {
 		if (firstModel === undefined || firstTeam === undefined) {
 			throw new Error("Expected training fixture components");
 		}
+		firstModel.status = "training";
 		firstModel.tier = "aggressive";
 		firstModel.projectId = "project_001";
 		firstTeam.activeProjectId = "project_001";

@@ -35,8 +35,14 @@ const DECLARATIONS = {
 		],
 	},
 	research: {
-		reads: ["research", "teams.items", "projects.items"],
-		writes: ["research", "company.insight", "projects.items"],
+		reads: [
+			"research",
+			"teams.items",
+			"projects.items",
+			"models.items",
+			"products.items",
+		],
+		writes: ["research", "meta.era", "company.insight", "projects.items"],
 	},
 	training: {
 		reads: ["projects.items", "models.items", "compute"],

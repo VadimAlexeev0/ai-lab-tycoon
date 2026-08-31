@@ -25,6 +25,15 @@ const TEXT_SPEC = {
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 };
 
+const ASSISTANT_SPEC = {
+	name: "Aurora-Assistant",
+	family: "assistant" as const,
+	foundation: "fresh" as const,
+	tier: "lean" as const,
+	dataMix: { general: 50, code: 30, multimodal: 20 },
+	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+};
+
 const MULTIMODAL_SPEC = {
 	name: "Aurora-Vision",
 	family: "multimodal" as const,
@@ -75,6 +84,37 @@ function lifecycleState(status: "ready" | "launched" = "ready"): GameState {
 			},
 		},
 	];
+	const model = state.models.items[0];
+	if (model === undefined) throw new Error("Expected lifecycle model");
+	if (status === "ready") {
+		state.models.items.push({
+			...model,
+			id: "model_002",
+			name: "Aurora-proof",
+			status: "launched",
+		});
+		state.products.items = [
+			{
+				id: "product_002",
+				channel: "chat",
+				modelId: "model_002",
+				status: "paused",
+			},
+		];
+		state.counters.model = 3;
+		state.counters.product = 3;
+	} else {
+		state.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_001",
+				status: "operating",
+			},
+		];
+		state.counters.model = 2;
+		state.counters.product = 2;
+	}
 	return state;
 }
 
@@ -248,9 +288,36 @@ function runGolden(seed: number): GoldenRun {
 	if (!state.products.items.some((product) => product.status === "operating")) {
 		throw new Error("The text model did not reach a live product");
 	}
+	for (const nodeId of ["text_models_keystone", "assistant_models_reasoning"]) {
+		state = completeResearch(state, nodeId, events);
+	}
+
+	state = designModel(state, ASSISTANT_SPEC).state;
+	for (let guard = 0; guard < 30; guard += 1) {
+		if (
+			state.products.items.some((product) => {
+				const model = state.models.items.find(
+					(candidate) => candidate.id === product.modelId,
+				);
+				return model?.family === "assistant" && product.status === "operating";
+			})
+		) {
+			break;
+		}
+		state = settleWeek(state, events);
+	}
+	if (
+		!state.products.items.some((product) => {
+			const model = state.models.items.find(
+				(candidate) => candidate.id === product.modelId,
+			);
+			return model?.family === "assistant" && product.status === "operating";
+		})
+	) {
+		throw new Error("The assistant model did not reach a live product");
+	}
+
 	for (const nodeId of [
-		"text_models_keystone",
-		"assistant_models_reasoning",
 		"assistant_models_tool_use",
 		"assistant_models_keystone",
 		"multimodal_models_fusion",

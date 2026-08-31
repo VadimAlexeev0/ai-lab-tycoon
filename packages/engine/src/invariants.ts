@@ -19,6 +19,7 @@ import { BALANCE } from "./data/balance.js";
 import {
 	DATA_MIX_DIMENSIONS,
 	MODEL_EMPHASIS_DIMENSIONS,
+	MODEL_FAMILIES,
 	MODEL_FAMILY_IDS,
 	MODEL_TIERS,
 } from "./data/model-families.js";
@@ -29,6 +30,10 @@ import {
 	RESEARCH_NODE_DEFINITIONS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
+import {
+	hasCompletedModelFamilyUnlock,
+	hasRequiredShippedModelProof,
+} from "./era-proof.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -148,6 +153,7 @@ export function assertGameState(
 	assertUniqueStateIds(state);
 	assertComponentOwnership(state);
 	assertQueueConsistency(state);
+	assertShippedEraProof(state);
 }
 
 /**
@@ -340,13 +346,59 @@ function hasCompletedResearchNode(state: GameState, nodeId: string): boolean {
 	);
 }
 
+function assertShippedEraProof(state: GameState): void {
+	const completedResearchNodeIds = new Set(
+		state.research.nodes
+			.filter((node) => node.status === "completed")
+			.map((node) => node.id),
+	);
+	if (
+		hasRequiredShippedModelProof(
+			state,
+			state.meta.era,
+			completedResearchNodeIds,
+		)
+	) {
+		return;
+	}
+	throw new Error(
+		`The ${state.meta.era} era requires retained shipped model proof for every earlier era`,
+	);
+}
+
 function assertModelRelations(state: GameState): void {
+	assertModelGenerationAvailability(state);
+	const completedResearchNodeIds = new Set(
+		state.research.nodes
+			.filter((node) => node.status === "completed")
+			.map((node) => node.id),
+	);
+
 	for (const model of state.models.items) {
+		if (model.family !== undefined) {
+			const family = MODEL_FAMILIES.find(
+				(candidate) => candidate.id === model.family,
+			);
+			if (
+				family === undefined ||
+				!hasCompletedModelFamilyUnlock(family, completedResearchNodeIds)
+			) {
+				throw new Error(
+					`Model ${model.id} requires completed family unlock research node ${family?.unlockedByResearchNodeId ?? "its family unlock"}`,
+				);
+			}
+		}
+
 		const hasTrueScores = model.trueScores !== undefined;
 		const hasEstimates = model.estimates !== undefined;
 		if (hasTrueScores !== hasEstimates) {
 			throw new Error(
 				`Model ${model.id} must have true scores and estimates together`,
+			);
+		}
+		if (model.status === "launched" && (!hasTrueScores || !hasEstimates)) {
+			throw new Error(
+				`Launched model ${model.id} must retain true scores and estimates`,
 			);
 		}
 		if (
@@ -361,6 +413,17 @@ function assertModelRelations(state: GameState): void {
 		const referencedProducts = state.products.items.filter(
 			(product) => product.modelId === model.id,
 		);
+		if (
+			model.status === "launched" &&
+			!referencedProducts.some(
+				(product) =>
+					product.status === "operating" || product.status === "paused",
+			)
+		) {
+			throw new Error(
+				`Launched model ${model.id} must retain an operating or paused product`,
+			);
+		}
 		if (
 			model.status === "shelved" &&
 			referencedProducts.some((product) => product.status === "operating")
@@ -379,6 +442,25 @@ function assertModelRelations(state: GameState): void {
 		if (model !== undefined && model.status !== "launched") {
 			throw new Error(
 				`Product ${product.id} with status ${product.status} requires referenced model ${model.id} to be launched`,
+			);
+		}
+	}
+}
+
+function assertModelGenerationAvailability(state: GameState): void {
+	const currentEraIndex = RESEARCH_ERAS.indexOf(state.meta.era);
+	for (const model of state.models.items) {
+		if (model.family === undefined) continue;
+		const family = MODEL_FAMILIES.find(
+			(candidate) => candidate.id === model.family,
+		);
+		const familyEra = family?.allowedEras[0];
+		if (familyEra === undefined) {
+			throw new Error(`Model ${model.id} has no generation era`);
+		}
+		if (RESEARCH_ERAS.indexOf(familyEra) > currentEraIndex) {
+			throw new Error(
+				`Model ${model.id} belongs to the ${familyEra} generation, which is unavailable in the ${state.meta.era} era`,
 			);
 		}
 	}

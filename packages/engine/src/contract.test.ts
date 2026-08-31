@@ -11,7 +11,18 @@ function cloneState(state: GameState): GameState {
 	return JSON.parse(JSON.stringify(state)) as GameState;
 }
 
+function completeTextFamilyUnlock(state: GameState): void {
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) {
+		throw new Error("Expected Text model family unlock");
+	}
+	familyUnlock.status = "completed";
+}
+
 function addLaunchDecision(state: GameState): void {
+	completeTextFamilyUnlock(state);
 	state.models.items = [
 		{
 			id: "model_001",
@@ -508,6 +519,7 @@ describe("hardened component contract", () => {
 
 	it("enforces current model project reciprocity without linking history", () => {
 		const active = startRun({ companyName: "Acme Labs" }, 42);
+		completeTextFamilyUnlock(active);
 		active.teams.items = [
 			{ id: "team_001", name: "Founding Team", activeProjectId: "project_001" },
 		];
@@ -545,6 +557,7 @@ describe("hardened component contract", () => {
 		expect(() => assertGameState(active)).toThrow(/reciprocal|project/i);
 
 		const historical = startRun({ companyName: "Acme Labs" }, 42);
+		completeTextFamilyUnlock(historical);
 		historical.models.items = [
 			{
 				id: "model_001",
@@ -570,6 +583,7 @@ describe("hardened component contract", () => {
 		expect(() => assertGameState(historical)).not.toThrow();
 
 		const incompatible = startRun({ companyName: "Acme Labs" }, 42);
+		completeTextFamilyUnlock(incompatible);
 		incompatible.models.items = [
 			{
 				id: "model_001",
