@@ -1,6 +1,10 @@
 import type { ApplyCommand } from "@ai-lab-tycoon/api/routers/game-save-command";
 import type { AppRouter } from "@ai-lab-tycoon/api/routers/index";
-import { assertGameState, type GameState } from "@ai-lab-tycoon/engine";
+import {
+	deserializeGameState,
+	type GameState,
+	upgradeGameState,
+} from "@ai-lab-tycoon/engine";
 import { env } from "@ai-lab-tycoon/env/web";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
@@ -131,18 +135,11 @@ export function normalizeActiveRun(value: unknown): ActiveRunRecord | null {
 	if (record === null) return null;
 
 	const rawState = record.state;
-	const state = typeof rawState === "string" ? parseState(rawState) : rawState;
-	if (state === null || state === undefined) {
+	if (rawState === null || rawState === undefined) {
 		throw new Error("The saved run did not include an engine state.");
 	}
 
-	try {
-		assertGameState(state);
-	} catch (cause: unknown) {
-		throw new Error(
-			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
-		);
-	}
+	const state = parseState(rawState);
 
 	const id = asNonEmptyString(record.id) ?? state.meta.runId;
 	const seed = asInteger(record.seed) ?? state.rng.seed;
@@ -213,11 +210,22 @@ function unwrapRecord(value: unknown): UnknownRecord | null {
 	return record;
 }
 
-function parseState(rawState: string): GameState {
+function parseState(rawState: unknown): GameState {
 	try {
-		return JSON.parse(rawState) as GameState;
-	} catch {
-		throw new Error("The saved run contains malformed engine JSON.");
+		return typeof rawState === "string"
+			? deserializeGameState(rawState)
+			: upgradeGameState(rawState);
+	} catch (cause: unknown) {
+		if (
+			typeof rawState === "string" &&
+			cause instanceof Error &&
+			cause.message === "Serialized game state is not valid JSON"
+		) {
+			throw new Error("The saved run contains malformed engine JSON.");
+		}
+		throw new Error(
+			`The saved run is incompatible with this engine version: ${toErrorMessage(cause, "invalid state")}`,
+		);
 	}
 }
 

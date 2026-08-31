@@ -20,12 +20,14 @@ import {
 	buyCompute,
 	cancelProject,
 	type DecisionChoice,
+	deserializeGameState,
 	designModel,
 	type GameState,
 	hireTeam,
 	launchProduct,
 	type ModelDesignSpec,
 	runEvaluation,
+	serializeGameState,
 	startRun,
 } from "@ai-lab-tycoon/engine";
 import { ORPCError } from "@orpc/server";
@@ -620,13 +622,9 @@ function executeCommand(
 
 function loadStoredState(row: Run): GameState {
 	assertJsonNestingDepth(row.state);
-	const parsed: unknown = JSON.parse(row.state);
-	assertGameState(
-		parsed,
-		{ allowNegativeCash: row.status === "terminal" },
-		true,
-	);
-	const state = parsed as GameState;
+	const state = deserializeGameState(row.state, {
+		allowNegativeCash: row.status === "terminal",
+	});
 	if (state.rng.seed !== row.seed) {
 		throw new Error("Stored run seed does not match its engine state");
 	}
@@ -647,7 +645,9 @@ function loadStoredState(row: Run): GameState {
 }
 
 function serializeAuthoritativeState(state: GameState): string {
-	const value = JSON.stringify(state);
+	const value = serializeGameState(state, {
+		allowNegativeCash: state.company.cash < 0,
+	});
 	if (value.length > MAX_PERSISTED_STATE_LENGTH) {
 		throw new Error("The authoritative state exceeds the persistence limit");
 	}
