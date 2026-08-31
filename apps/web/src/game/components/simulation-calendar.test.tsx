@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
-import { fireEvent, render, screen } from "@testing-library/react";
 import { startRun } from "@ai-lab-tycoon/engine";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import SimulationCalendar, { buildCalendarEvents } from "./simulation-calendar";
