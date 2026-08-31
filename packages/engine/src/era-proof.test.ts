@@ -6,7 +6,7 @@ import {
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	RESEARCH_NODES,
 } from "./data/research.js";
-import { startRun } from "./index.js";
+import { deserializeGameState, serializeGameState, startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 import { launchProduct } from "./products.js";
 import { researchSystem } from "./systems/research.js";
@@ -110,7 +110,56 @@ function completeResearchPrerequisites(
 	node.status = "completed";
 }
 
+function nodeOnlyEraState(
+	era: "assistant" | "multimodal",
+): ReturnType<typeof startRun> {
+	const state = startRun({ companyName: "Acme Labs" }, 42);
+	state.meta.era = era;
+	state.research.currentEra = era;
+	for (const node of state.research.nodes) {
+		if (era === "assistant" && node.era === "multimodal") continue;
+		node.status = "completed";
+	}
+	return state;
+}
+
 describe("shipped-generation era gates", () => {
+	it.each(["assistant", "multimodal"] as const)(
+		"rejects node-only %s era states at every persisted boundary",
+		(era) => {
+			const state = nodeOnlyEraState(era);
+
+			expect(() => assertGameState(state)).toThrow(/shipped.*proof|proof/i);
+			expect(() => serializeGameState(state)).toThrow(/shipped.*proof|proof/i);
+			expect(() => deserializeGameState(JSON.stringify(state))).toThrow(
+				/shipped.*proof|proof/i,
+			);
+		},
+	);
+
+	it("keeps the Text era valid without any shipped proof", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+
+		expect(() => assertGameState(state)).not.toThrow();
+		expect(() => serializeGameState(state)).not.toThrow();
+		expect(() => deserializeGameState(serializeGameState(state))).not.toThrow();
+	});
+
+	it("round-trips valid Assistant and Multimodal shipped proofs", () => {
+		const assistant = launchedAssistantState();
+		const multimodal = researchSystem(assistant, {
+			phase: "research",
+			week: 3,
+		}).state;
+
+		for (const state of [assistant, multimodal]) {
+			expect(() => assertGameState(state)).not.toThrow();
+			const serialized = serializeGameState(state);
+			const restored = deserializeGameState(serialized);
+			expect(serializeGameState(restored)).toBe(serialized);
+		}
+	});
+
 	it("does not advance from Text with only the completed Text keystone", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		completeEra(state, "text");

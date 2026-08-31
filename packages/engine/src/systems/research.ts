@@ -1,7 +1,6 @@
 import type { Fact } from "../components/reports.js";
 import type { ResearchEra, ResearchState } from "../components/research.js";
 import { BALANCE } from "../data/balance.js";
-import { MODEL_FAMILIES } from "../data/model-families.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
@@ -9,6 +8,7 @@ import {
 	RESEARCH_ERAS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "../data/research.js";
+import { hasShippedModelProof } from "../era-proof.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import type { GameState } from "../state.js";
@@ -212,7 +212,7 @@ function advanceEraIfUnlocked(
 		if (nextEra === undefined) {
 			break;
 		}
-		if (!hasShippedModelForEra(state, currentEra, completedNodeIds)) {
+		if (!hasShippedModelProof(state, currentEra, completedNodeIds)) {
 			break;
 		}
 		const keystoneId = ERA_ENTRY_KEYSTONE_IDS[nextEra];
@@ -222,37 +222,6 @@ function advanceEraIfUnlocked(
 		currentIndex += 1;
 	}
 	return RESEARCH_ERA_ORDER[currentIndex] ?? currentEra;
-}
-
-function hasShippedModelForEra(
-	state: Pick<GameState, "models" | "products">,
-	era: ResearchEra,
-	completedNodeIds: ReadonlySet<string>,
-): boolean {
-	// V1 retains every launched product. Operating and paused products both
-	// prove that a model reached the public launch path; planned projects do not.
-	const family = modelFamilyForEra(era);
-	return state.products.items.some(
-		(product) =>
-			(product.status === "operating" || product.status === "paused") &&
-			state.models.items.some(
-				(model) =>
-					model.id === product.modelId &&
-					model.status === "launched" &&
-					model.family === family.id &&
-					completedNodeIds.has(family.unlockedByResearchNodeId),
-			),
-	);
-}
-
-function modelFamilyForEra(era: ResearchEra) {
-	const family = MODEL_FAMILIES.find((candidate) =>
-		candidate.allowedEras.some((allowedEra) => allowedEra === era),
-	);
-	if (family === undefined) {
-		throw new Error(`No model family is defined for the ${era} era`);
-	}
-	return family;
 }
 
 function isEraAtLeast(

@@ -1,10 +1,53 @@
 import { describe, expect, it } from "vitest";
+import type { Model } from "./components/models.js";
 import { BALANCE } from "./data/balance.js";
 import { RIVAL_MILESTONES } from "./data/rivals.js";
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
-import { rivalLaunchPressure } from "./products.js";
+import { launchProduct, rivalLaunchPressure } from "./products.js";
 import { rivalsSystem } from "./systems/rivals.js";
+
+function launchedTextAssistantState(): ReturnType<typeof startRun> {
+	const state = startRun({ companyName: "Acme Labs" }, 42);
+	for (const node of state.research.nodes) {
+		if (node.era === "text") node.status = "completed";
+	}
+	const model: Model = {
+		id: "model_001",
+		name: "Aurora-1",
+		foundation: "fresh",
+		status: "ready",
+		projectId: null,
+		family: "text",
+		tier: "standard",
+		scoreCeiling: 88,
+		dataMix: { general: 70, code: 20, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+		trueScores: {
+			capability: 100,
+			coding: 100,
+			reliability: 100,
+			safety: 100,
+			efficiency: 100,
+			multimodal: 0,
+		},
+		estimates: {
+			capability: { estimate: 100, lower: 80, upper: 100 },
+			coding: { estimate: 100, lower: 80, upper: 100 },
+			reliability: { estimate: 100, lower: 80, upper: 100 },
+			safety: { estimate: 100, lower: 80, upper: 100 },
+			efficiency: { estimate: 100, lower: 80, upper: 100 },
+			multimodal: { estimate: 0, lower: 0, upper: 20 },
+		},
+	};
+	state.models.items = [model];
+	state.counters.model = 2;
+	state.company.hype = 100;
+	const launched = launchProduct(state, "model_001", "chat").state;
+	launched.meta.era = "assistant";
+	launched.research.currentEra = "assistant";
+	return launched;
+}
 
 describe("rival progress clocks", () => {
 	it("advances each active archetype by its balance clock and emits deterministic milestone facts", () => {
@@ -50,12 +93,10 @@ describe("rival progress clocks", () => {
 			textResult.state.rivals.items.filter((rival) => rival.active),
 		).toHaveLength(2);
 
-		state.meta.era = "assistant";
-		state.research.currentEra = "assistant";
-		for (const node of state.research.nodes) {
-			if (node.era === "text") node.status = "completed";
-		}
-		const assistantResult = rivalsSystem(state, { phase: "rivals", week: 2 });
+		const assistantResult = rivalsSystem(launchedTextAssistantState(), {
+			phase: "rivals",
+			week: 2,
+		});
 		expect(
 			assistantResult.state.rivals.items.filter((rival) => rival.active),
 		).toHaveLength(3);

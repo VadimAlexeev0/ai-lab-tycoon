@@ -38,6 +38,17 @@ function designableState(seed = 42): GameState {
 	return state;
 }
 
+function nodeOnlyEraState(era: "assistant" | "multimodal"): GameState {
+	const state = startRun({ companyName: "Acme Labs" }, 42);
+	state.meta.era = era;
+	state.research.currentEra = era;
+	for (const node of state.research.nodes) {
+		if (era === "assistant" && node.era === "multimodal") continue;
+		node.status = "completed";
+	}
+	return state;
+}
+
 function spec(overrides: Partial<ModelDesignSpec> = {}): ModelDesignSpec {
 	return { ...VALID_SPEC, ...overrides };
 }
@@ -101,6 +112,23 @@ describe("model designer", () => {
 			designModel(designableState(), spec({ family: "assistant" })),
 		).toThrow(/era|available/i);
 	});
+
+	it.each(["assistant", "multimodal"] as const)(
+		"rejects a future-era design from a node-only %s save",
+		(era) => {
+			expect(() =>
+				designModel(
+					nodeOnlyEraState(era),
+					spec({
+						family: era,
+						...(era === "multimodal"
+							? { dataMix: { general: 50, code: 30, multimodal: 20 } }
+							: {}),
+					}),
+				),
+			).toThrow(/shipped.*proof|proof/i);
+		},
+	);
 
 	it("enforces a single active training run and requires an idle team", () => {
 		const first = designModel(designableState(), spec()).state;

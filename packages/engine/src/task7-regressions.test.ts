@@ -84,6 +84,37 @@ function lifecycleState(status: "ready" | "launched" = "ready"): GameState {
 			},
 		},
 	];
+	const model = state.models.items[0];
+	if (model === undefined) throw new Error("Expected lifecycle model");
+	if (status === "ready") {
+		state.models.items.push({
+			...model,
+			id: "model_002",
+			name: "Aurora-proof",
+			status: "launched",
+		});
+		state.products.items = [
+			{
+				id: "product_002",
+				channel: "chat",
+				modelId: "model_002",
+				status: "paused",
+			},
+		];
+		state.counters.model = 3;
+		state.counters.product = 3;
+	} else {
+		state.products.items = [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_001",
+				status: "operating",
+			},
+		];
+		state.counters.model = 2;
+		state.counters.product = 2;
+	}
 	return state;
 }
 

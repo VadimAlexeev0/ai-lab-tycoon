@@ -30,6 +30,7 @@ import {
 	RESEARCH_NODE_DEFINITIONS,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
+import { hasRequiredShippedModelProof } from "./era-proof.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -149,6 +150,7 @@ export function assertGameState(
 	assertUniqueStateIds(state);
 	assertComponentOwnership(state);
 	assertQueueConsistency(state);
+	assertShippedEraProof(state);
 }
 
 /**
@@ -338,6 +340,26 @@ function isResearchEraUnlocked(
 function hasCompletedResearchNode(state: GameState, nodeId: string): boolean {
 	return state.research.nodes.some(
 		(node) => node.id === nodeId && node.status === "completed",
+	);
+}
+
+function assertShippedEraProof(state: GameState): void {
+	const completedResearchNodeIds = new Set(
+		state.research.nodes
+			.filter((node) => node.status === "completed")
+			.map((node) => node.id),
+	);
+	if (
+		hasRequiredShippedModelProof(
+			state,
+			state.meta.era,
+			completedResearchNodeIds,
+		)
+	) {
+		return;
+	}
+	throw new Error(
+		`The ${state.meta.era} era requires retained shipped model proof for every earlier era`,
 	);
 }
 

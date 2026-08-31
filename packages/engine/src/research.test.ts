@@ -675,7 +675,10 @@ describe("LLM-history research data", () => {
 	});
 
 	it("completes an Assistant research project only after the era gate opens", () => {
-		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const state = shipResearchEraModel(
+			startRun({ companyName: "Acme Labs" }, 42),
+			"text",
+		);
 		state.meta.era = ASSISTANT_ERA;
 		state.research.currentEra = ASSISTANT_ERA;
 		completeTextTier(state);

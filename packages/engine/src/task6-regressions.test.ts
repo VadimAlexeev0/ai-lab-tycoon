@@ -44,6 +44,39 @@ function multimodalDesignableState(seed = 42): GameState {
 	for (const node of state.research.nodes) {
 		node.status = "completed";
 	}
+	const proofScores = {
+		capability: 80,
+		coding: 80,
+		reliability: 80,
+		safety: 80,
+		efficiency: 80,
+		multimodal: 80,
+	};
+	const textProof = parentModel(proofScores);
+	textProof.status = "launched";
+	const assistantProof = {
+		...textProof,
+		id: "model_002",
+		name: "Assistant-proof",
+		family: "assistant" as const,
+	};
+	state.models.items = [textProof, assistantProof];
+	state.products.items = [
+		{
+			id: "product_001",
+			channel: "chat",
+			modelId: "model_001",
+			status: "paused" as const,
+		},
+		{
+			id: "product_002",
+			channel: "chat",
+			modelId: "model_002",
+			status: "paused" as const,
+		},
+	];
+	state.counters.model = 3;
+	state.counters.product = 3;
 	return state;
 }
 
