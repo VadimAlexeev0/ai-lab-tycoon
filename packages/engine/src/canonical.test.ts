@@ -34,6 +34,23 @@ describe("canonical JSON serialization", () => {
 		expect(canonicalSerialize(state)).toBe(canonicalSerialize(reordered));
 	});
 
+	it("does not mutate prerequisite arrays while sorting canonically", () => {
+		const first = {
+			research: { nodes: [{ prerequisites: ["node_z", "node_a"] }] },
+		};
+		const second = {
+			research: { nodes: [{ prerequisites: ["node_a", "node_z"] }] },
+		};
+		const firstNode = first.research.nodes[0];
+		if (firstNode === undefined) {
+			throw new Error("Expected a research node");
+		}
+		const originalPrerequisites = [...firstNode.prerequisites];
+
+		expect(canonicalSerialize(first)).toBe(canonicalSerialize(second));
+		expect(firstNode.prerequisites).toEqual(originalPrerequisites);
+	});
+
 	it("uses the canonical comparator for replay expectedState", () => {
 		const state = startRun({ companyName: "Canonical Labs" }, 42);
 		const expectedState = JSON.parse(JSON.stringify(state)) as GameState;
