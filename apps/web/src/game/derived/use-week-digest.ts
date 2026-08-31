@@ -49,6 +49,7 @@ export function useWeekDigest(
 					week: state?.meta.week ?? 0,
 					facts: [],
 					launches: [],
+					resumes: [],
 					trainingCompletions: [],
 					evaluations: [],
 					incidents: [],

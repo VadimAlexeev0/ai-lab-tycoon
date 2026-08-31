@@ -35,6 +35,12 @@ describe("deriveWeekDigest", () => {
 				channel: "enterprise",
 				week: 4,
 			}),
+			report("resume", {
+				kind: "product_resumed",
+				productId: "product_001",
+				channel: "enterprise",
+				week: 4,
+			}),
 			report("training", {
 				kind: "model_trained",
 				modelId: "model_001",
@@ -89,6 +95,7 @@ describe("deriveWeekDigest", () => {
 
 		expect(digest.week).toBe(4);
 		expect(digest.launches).toHaveLength(1);
+		expect(digest.resumes).toHaveLength(1);
 		expect(digest.trainingCompletions).toHaveLength(1);
 		expect(digest.evaluations).toHaveLength(1);
 		expect(digest.incidents).toHaveLength(1);
@@ -160,6 +167,45 @@ describe("deriveWeekDigest", () => {
 			expect(
 				summarizeWeekDigest(digest, diffResourceBar(previous, current)),
 			).toBe("Week 14: Apex-1 launched · Outage contained · +$800");
+		});
+
+		it("names a resumed product in the compact summary", () => {
+			const previous = startRun({ companyName: "Acme Labs" }, 42);
+			const current = startRun({ companyName: "Acme Labs" }, 42);
+			current.meta.week = 14;
+			current.models.items = [
+				{
+					id: "model_001",
+					name: "Atlas",
+					foundation: "fresh",
+					status: "launched",
+					projectId: null,
+				},
+			];
+			current.products.items = [
+				{
+					id: "product_001",
+					channel: "chat",
+					modelId: "model_001",
+					status: "operating",
+				},
+			];
+			current.reports.items = [
+				report("resume", {
+					kind: "product_resumed",
+					productId: "product_001",
+					channel: "chat",
+					week: 14,
+				}),
+			];
+
+			expect(
+				summarizeWeekDigest(
+					deriveWeekDigest(previous, current),
+					diffResourceBar(current, current),
+					current,
+				),
+			).toBe("Week 14: Atlas · Chat resumed");
 		});
 
 		it("provides a calm empty-state summary", () => {

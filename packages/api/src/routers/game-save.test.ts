@@ -3,7 +3,12 @@ import { vi } from "vitest";
 vi.mock("cloudflare:workers", () => ({ env: {} }));
 
 import { commandRequests, runEvents, runs } from "@ai-lab-tycoon/db";
-import { GAME_STATE_SCHEMA_VERSION } from "@ai-lab-tycoon/engine";
+import {
+	applyProductResume,
+	GAME_STATE_SCHEMA_VERSION,
+	type GameState,
+	serializeGameState,
+} from "@ai-lab-tycoon/engine";
 import { createClient } from "@libsql/client";
 import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
@@ -96,6 +101,71 @@ const startInput = (requestId: string, expectedRevision = 0) => ({
 		setup: { companyName: "Test Lab" },
 	},
 });
+
+async function installPausedProduct(
+	db: TestDatabase,
+	started: { state: string },
+): Promise<GameState> {
+	const state = JSON.parse(started.state) as GameState;
+	state.models = {
+		...state.models,
+		activeModelId: "model_001",
+		items: [
+			{
+				id: "model_001",
+				name: "Aurora-1",
+				foundation: "fresh",
+				status: "launched",
+				projectId: null,
+				family: "text",
+				tier: "standard",
+				scoreCeiling: 88,
+				dataMix: { general: 70, code: 20, multimodal: 10 },
+				emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+				trueScores: {
+					capability: 70,
+					coding: 60,
+					reliability: 60,
+					safety: 60,
+					efficiency: 60,
+					multimodal: 0,
+				},
+				estimates: {
+					capability: { estimate: 60, lower: 40, upper: 80 },
+					coding: { estimate: 60, lower: 40, upper: 80 },
+					reliability: { estimate: 60, lower: 40, upper: 80 },
+					safety: { estimate: 60, lower: 40, upper: 80 },
+					efficiency: { estimate: 60, lower: 40, upper: 80 },
+					multimodal: { estimate: 0, lower: 0, upper: 20 },
+				},
+			},
+		],
+	};
+	state.products = {
+		items: [
+			{
+				id: "product_001",
+				channel: "chat",
+				modelId: "model_001",
+				status: "paused",
+				users: 17,
+				lastRevenue: 0,
+				cumulativeRevenue: 123,
+				servingDemand: 0,
+				effectiveQuality: 60,
+			},
+		],
+	};
+	await db
+		.update(runs)
+		.set({
+			state: serializeGameState(state),
+			currentWeek: state.meta.week,
+			schemaVersion: state.meta.schemaVersion,
+		})
+		.where(eq(runs.userId, "user-1"));
+	return state;
+}
 
 const replaceInput = (requestId: string, expectedRevision: number) => ({
 	requestId,
@@ -482,6 +552,52 @@ describe("game save router", () => {
 				}),
 			]),
 		);
+	});
+
+	it("retains one important product-resume report and matches the engine after reload", async () => {
+		const db = await createTestDatabase();
+		const started = await apply(db, "user-1", startInput("resume-start"));
+		const paused = await installPausedProduct(db, started);
+
+		const resumed = await apply(db, "user-1", {
+			requestId: "resume-command",
+			expectedRevision: started.revision,
+			command: { kind: "product_resume", productId: "product_001" },
+		});
+		const resumedState = JSON.parse(resumed.state) as GameState;
+		const report = resumedState.reports.items[0];
+
+		expect(resumedState.products.items[0]?.status).toBe("operating");
+		expect(resumedState.reports.items).toHaveLength(1);
+		expect(resumedState.reports.totalCount).toBe(1);
+		expect(report).toMatchObject({
+			priority: "important",
+			fact: {
+				kind: "product_resumed",
+				productId: "product_001",
+				channel: "chat",
+				week: 1,
+			},
+		});
+		expect(resumedState.queue.reportIds).toEqual([report?.id]);
+		expect(
+			await getActive(db, "user-1").then((loaded) =>
+				JSON.parse(loaded?.state ?? "{}"),
+			),
+		).toEqual(resumedState);
+		expect(
+			serializeGameState(applyProductResume(paused, "product_001").state),
+		).toBe(resumed.state);
+
+		const retried = await apply(db, "user-1", {
+			requestId: "resume-command",
+			expectedRevision: started.revision,
+			command: { kind: "product_resume", productId: "product_001" },
+		});
+		expect(retried).toEqual(resumed);
+		expect(
+			await db.select().from(runEvents).where(eq(runEvents.runId, resumed.id)),
+		).toHaveLength(2);
 	});
 
 	it("rejects an explicit replacement with a stale revision", async () => {

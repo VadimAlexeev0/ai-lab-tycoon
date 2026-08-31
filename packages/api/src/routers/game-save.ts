@@ -190,6 +190,9 @@ export const gameSaveRouter = {
 			try {
 				state = loadStoredState(existing);
 				result = executeCommand(state, input.command);
+				// Fact-bearing engine transitions materialize reports in result.state.
+				// Do not append result.facts here: advanceWeek, applyDecision,
+				// runEvaluation, and product commands all own that reporting boundary.
 				assertGameState(
 					result.state,
 					{ allowNegativeCash: result.state.company.cash < 0 },

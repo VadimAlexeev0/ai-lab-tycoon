@@ -302,6 +302,16 @@ describe("product launch gates", () => {
 		);
 	});
 
+	it("retains facts when the public launch command creates a product", () => {
+		const result = launchProduct(readyState(), "model_001", "chat");
+
+		expect(result.state.reports.items).toHaveLength(result.facts.length);
+		expect(result.state.reports.items.map((report) => report.fact)).toEqual(
+			result.facts,
+		);
+		expect(result.state.queue.reportIds).toHaveLength(result.facts.length);
+	});
+
 	it("accepts the request-object overload", () => {
 		const result = launchProduct(readyState(), {
 			modelId: "model_001",

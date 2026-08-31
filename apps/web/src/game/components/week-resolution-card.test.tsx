@@ -94,6 +94,12 @@ describe("WeekResolutionCard", () => {
 				channel: "chat",
 				week: 4,
 			},
+			{
+				kind: "product_resumed",
+				productId: "product_001",
+				channel: "chat",
+				week: 4,
+			},
 			{ kind: "model_trained", modelId: "model_001", week: 4 },
 			{ kind: "project_completed", projectId: "project_001", week: 4 },
 		];
@@ -115,6 +121,7 @@ describe("WeekResolutionCard", () => {
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText(/Atlas · Chat/).length).toBeGreaterThan(0);
+		expect(screen.getByText(/Atlas · Chat resumed/)).toBeTruthy();
 		expect(screen.getByText(/Training · Atlas completed/)).toBeTruthy();
 		expect(screen.getByText(/Atlas · Chat serving throttled/)).toBeTruthy();
 		expect(

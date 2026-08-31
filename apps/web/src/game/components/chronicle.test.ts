@@ -44,8 +44,24 @@ describe("company chronicle projections", () => {
 					week: 15,
 				},
 			},
+			{
+				id: "report_004",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "product_resumed",
+					productId: "product_001",
+					channel: "chat",
+					week: 9,
+				},
+			},
 		] satisfies GameState["reports"]["items"];
-		state.queue.reportIds = ["report_001", "report_002", "report_003"];
+		state.queue.reportIds = [
+			"report_001",
+			"report_002",
+			"report_003",
+			"report_004",
+		];
 
 		const quarters = buildChronicleTimeline(state);
 
@@ -62,6 +78,17 @@ describe("company chronicle projections", () => {
 			week: 15,
 		});
 		expect(quarters[0]?.items.some((item) => item.kind === "break")).toBe(true);
+		const resumed = quarters
+			.flatMap((quarter) => quarter.items)
+			.find(
+				(item): item is Extract<typeof item, { kind: "event" }> =>
+					item.kind === "event" && item.title.includes("resumed"),
+			);
+		expect(resumed).toMatchObject({
+			marker: "milestone",
+			title: "Product product_001 resumed",
+		});
+		expect(resumed?.detail).toMatch(/operating again/);
 	});
 
 	it("falls back to the command log when no reports exist", () => {

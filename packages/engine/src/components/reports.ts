@@ -26,6 +26,7 @@ const FACT_KINDS = [
 	"model_trained",
 	"evaluation_completed",
 	"product_launched",
+	"product_resumed",
 	"revenue",
 	"serving_throttled",
 	"training_starved",
@@ -94,6 +95,12 @@ export type Fact =
 	  }
 	| {
 			kind: "product_launched";
+			productId: string;
+			channel: ProductChannel;
+			week: number;
+	  }
+	| {
+			kind: "product_resumed";
 			productId: string;
 			channel: ProductChannel;
 			week: number;
@@ -339,6 +346,16 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertEnum(value.channel, PRODUCT_CHANNELS, "Launched product channel");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "product_resumed":
+			assertExactObject(
+				value,
+				["kind", "productId", "channel", "week"],
+				"product resumed fact",
+			);
+			assertIdentifier(value.productId, "Resumed product id");
+			assertEnum(value.channel, PRODUCT_CHANNELS, "Resumed product channel");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "revenue":
 			assertExactObject(
 				value,
@@ -352,7 +369,14 @@ export function assertFact(value: unknown): asserts value is Fact {
 							"servedShare",
 							"week",
 						]
-					: ["kind", "productId", "channel", "amount", "effectiveQuality", "week"],
+					: [
+							"kind",
+							"productId",
+							"channel",
+							"amount",
+							"effectiveQuality",
+							"week",
+						],
 				"revenue fact",
 			);
 			assertIdentifier(value.productId, "Revenue product id");

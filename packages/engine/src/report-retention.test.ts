@@ -9,7 +9,7 @@ import {
 import { startRun } from "./index.js";
 import { assertGameState } from "./invariants.js";
 import { selectRecentReports } from "./selectors.js";
-import { appendFactsAsReports } from "./systems/reporting.js";
+import { appendFactsAsReports, priorityForFact } from "./systems/reporting.js";
 
 const REPORT_COUNT = 205;
 
@@ -37,6 +37,24 @@ function resourceFacts(count: number): Fact[] {
 }
 
 describe("report retention", () => {
+	it("classifies product resumes as important reports and queues them", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const fact: Fact = {
+			kind: "product_resumed",
+			productId: "product_001",
+			channel: "chat",
+			week: 1,
+		};
+
+		expect(priorityForFact(fact)).toBe("important");
+		const next = appendFactsAsReports(state, [fact]);
+		expect(next.reports.items.at(-1)).toMatchObject({
+			priority: "important",
+			fact,
+		});
+		expect(next.queue.reportIds).toContain(next.reports.items.at(-1)?.id);
+	});
+
 	it("hydrates only the newest reports while retaining the lifetime count", () => {
 		const hydrated = createReportsState(
 			Array.from({ length: REPORT_COUNT }, (_, index) => report(index + 1)),

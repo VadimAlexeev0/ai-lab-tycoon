@@ -11,6 +11,7 @@ import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
 import type { EngineResult, GameState } from "./state.js";
+import { appendFactsAsReports } from "./systems/reporting.js";
 import { assertEnum, assertIdentifier, assertObject } from "./validation.js";
 
 const PRODUCT_CHANNELS = ["chat", "developer_api", "enterprise"] as const;
@@ -38,7 +39,13 @@ export function launchProduct(
 	assertGameState(state);
 	assertRunActive(state);
 	const request = normalizeRequest(modelOrRequest, channel);
-	return applyProductLaunch(state, request, true);
+	const result = applyProductLaunch(state, request, true);
+	const reportedState = appendFactsAsReports(result.state, result.facts);
+	assertGameState(reportedState);
+	return {
+		...result,
+		state: reportedState,
+	};
 }
 
 /** Apply an already validated launch choice without adding another choice log. */
@@ -247,18 +254,18 @@ export function applyProductResume(
 		compute: withRecomputedCompute(nextState),
 	};
 	assertGameState(recomputedState);
-	// `product_resumed` is intentionally returned now, while the report/fact
-	// union and public command-log wiring are outside this worker's file scope.
-	const facts = [
+	const facts: Fact[] = [
 		{
 			kind: "product_resumed",
 			productId: product.id,
 			channel: product.channel,
 			week: state.meta.week,
 		},
-	] as unknown as Fact[];
+	];
+	const reportedState = appendFactsAsReports(recomputedState, facts);
+	assertGameState(reportedState);
 	return {
-		state: recomputedState,
+		state: reportedState,
 		facts,
 		pending: state.decisions.pending.map((decision) => ({ ...decision })),
 	};
