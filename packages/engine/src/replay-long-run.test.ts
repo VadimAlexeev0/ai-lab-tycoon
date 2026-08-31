@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { canonicalEqual, canonicalSerialize } from "./canonical.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	advanceWeek,
@@ -266,18 +267,6 @@ function applyScenarioAction(
 	}
 }
 
-function canonicalize(value: unknown): unknown {
-	if (Array.isArray(value)) return value.map(canonicalize);
-	if (value !== null && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value)
-				.sort(([left], [right]) => left.localeCompare(right))
-				.map(([key, child]) => [key, canonicalize(child)]),
-		);
-	}
-	return value;
-}
-
 describe("long-run command-log replay", () => {
 	it("replays a surviving 100+ week public-command run canonically", {
 		timeout: 400_000,
@@ -307,7 +296,8 @@ describe("long-run command-log replay", () => {
 				"product_resume",
 			]),
 		);
-		expect(canonicalize(replayed)).toEqual(canonicalize(live));
+		expect(canonicalEqual(replayed, live)).toBe(true);
+		expect(canonicalSerialize(replayed)).toBe(canonicalSerialize(live));
 		expect(replayed.reports).toEqual(live.reports);
 		expect(replayed.products).toEqual(live.products);
 		expect(replayed.decisions).toEqual(live.decisions);
@@ -378,7 +368,7 @@ describe("long-run command-log replay", () => {
 			expectedState: live,
 		});
 		assertGameState(replayed, {}, true);
-		expect(canonicalize(replayed)).toEqual(canonicalize(live));
+		expect(canonicalEqual(replayed, live)).toBe(true);
 		expect(replayed.commandLog[resumeIndex]).toEqual(
 			live.commandLog[resumeIndex],
 		);
