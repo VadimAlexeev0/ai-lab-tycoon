@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BALANCE } from "./data/balance.js";
 import {
 	advanceWeek,
 	applyDecision,
@@ -13,11 +14,7 @@ import {
 	selectAvailableProjects,
 	startRun,
 } from "./index.js";
-import {
-	assertGameState,
-	assertionsEnabled,
-	setAssertionsEnabled,
-} from "./invariants.js";
+import { assertGameState } from "./invariants.js";
 import type { GameState } from "./state.js";
 
 type ResearchProject = Extract<
@@ -281,33 +278,20 @@ function canonicalize(value: unknown): unknown {
 	return value;
 }
 
-// The full invariant walk is intentionally quadratic once report retention is
-// saturated. Skip intermediate walks for this 100+ week fixture, then force
-// the same complete validation on both canonical endpoints below.
-function withoutIntermediateAssertions<T>(run: () => T): T {
-	const previous = assertionsEnabled;
-	setAssertionsEnabled(false);
-	try {
-		return run();
-	} finally {
-		setAssertionsEnabled(previous);
-	}
-}
-
 describe("long-run command-log replay", () => {
 	it("replays a surviving 100+ week public-command run canonically", {
 		timeout: 400_000,
 	}, () => {
-		const live = withoutIntermediateAssertions(() => efficiencyFirstRun(43));
+		const live = efficiencyFirstRun(43);
 		assertGameState(live, {}, true);
 
 		expect(live.meta.week).toBeGreaterThanOrEqual(101);
 		expect(live.terminal.status).toBe("active");
 		expect(live.products.items.length).toBeGreaterThan(0);
 		expect(live.reports.totalCount).toBeGreaterThan(200);
-		const replayed = withoutIntermediateAssertions(() =>
-			replayCommandLog(live.commandLog, { expectedState: live }),
-		);
+		const replayed = replayCommandLog(live.commandLog, {
+			expectedState: live,
+		});
 		assertGameState(replayed, {}, true);
 		expect(
 			live.commandLog.some((entry) => entry.kind === "product_resume"),
@@ -335,19 +319,64 @@ describe("long-run command-log replay", () => {
 	it("replays the incident decision and product-resume command seam", {
 		timeout: 120_000,
 	}, () => {
-		const live = withoutIntermediateAssertions(() =>
-			efficiencyFirstRun(43, 30),
-		);
+		const live = efficiencyFirstRun(43, 30);
 		assertGameState(live, {}, true);
 		const resumeIndex = live.commandLog.findIndex(
 			(entry) => entry.kind === "product_resume",
 		);
 		expect(resumeIndex).toBeGreaterThan(0);
 		expect(live.decisions.pending).toEqual([]);
-
-		const replayed = withoutIntermediateAssertions(() =>
-			replayCommandLog(live.commandLog, { expectedState: live }),
+		expect(live.commandLog).toContainEqual(
+			expect.objectContaining({
+				kind: "apply_decision",
+				choice: expect.objectContaining({ kind: "incident" }),
+			}),
 		);
+
+		const resumeCommand = live.commandLog[resumeIndex];
+		if (
+			resumeCommand === undefined ||
+			resumeCommand.kind !== "product_resume"
+		) {
+			throw new Error("Expected a product resume command");
+		}
+		const beforeResume = replayCommandLog(
+			live.commandLog.slice(0, resumeIndex),
+		);
+		const pausedProduct = beforeResume.products.items.find(
+			(product) => product.id === resumeCommand.productId,
+		);
+		if (pausedProduct === undefined) {
+			throw new Error("Expected the resumed product before its resume command");
+		}
+		expect(pausedProduct.status).toBe("paused");
+		expect(resumeCommand).toMatchObject({
+			id: `command_${String(resumeIndex + 1).padStart(3, "0")}`,
+			week: beforeResume.meta.week,
+			productId: pausedProduct.id,
+		});
+
+		const resumedPrefix = replayCommandLog(
+			live.commandLog.slice(0, resumeIndex + 1),
+		);
+		const resumedProduct = resumedPrefix.products.items.find(
+			(product) => product.id === resumeCommand.productId,
+		);
+		if (resumedProduct === undefined) {
+			throw new Error("Expected the resumed product after its resume command");
+		}
+		expect(resumedProduct).toMatchObject({
+			status: "operating",
+			users: pausedProduct.users,
+		});
+		expect(resumedProduct.servingDemand).toBe(
+			(resumedProduct.users ?? 0) *
+				BALANCE.productChannels[resumedProduct.channel].servingComputePerUser,
+		);
+
+		const replayed = replayCommandLog(live.commandLog, {
+			expectedState: live,
+		});
 		assertGameState(replayed, {}, true);
 		expect(canonicalize(replayed)).toEqual(canonicalize(live));
 		expect(replayed.commandLog[resumeIndex]).toEqual(
