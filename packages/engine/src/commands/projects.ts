@@ -1,5 +1,7 @@
+import type { Model } from "../components/models.js";
 import type { Project } from "../components/projects.js";
 import { withRecomputedCompute } from "../compute-reservations.js";
+import { releaseDataAllocations } from "../data-inventory.js";
 import { assertRunActive } from "../guards.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
@@ -236,6 +238,17 @@ export function cancelProject(
 	}
 
 	const commandAllocation = allocateId(state, "command");
+	const cancelledModel =
+		storedProject.kind === "training"
+			? state.models.items.find((model) => model.id === storedProject.modelId)
+			: undefined;
+	const releasedDataInventory =
+		cancelledModel?.dataAllocation === undefined
+			? state.dataInventory
+			: releaseDataAllocations(
+					state.dataInventory,
+					cancelledModel.dataAllocation,
+				);
 	const nextState: GameState = {
 		...commandAllocation.state,
 		teams: {
@@ -252,17 +265,11 @@ export function cancelProject(
 					: { ...item },
 			),
 		},
+		dataInventory: releasedDataInventory,
 		models: {
 			items: state.models.items.map((model) =>
 				storedProject.kind === "training" && model.id === storedProject.modelId
-					? {
-							...model,
-							projectId: null,
-							status:
-								model.status === "designing" || model.status === "training"
-									? "shelved"
-									: model.status,
-						}
+					? shelveCancelledTrainingModel(model)
 					: { ...model },
 			),
 			activeModelId: state.models.activeModelId,
@@ -285,6 +292,21 @@ export function cancelProject(
 	};
 	assertGameState(recomputedState);
 	return { state: recomputedState, facts: [], pending: [] };
+}
+
+function shelveCancelledTrainingModel(model: Model): Model {
+	const nextModel: Model = {
+		...model,
+		projectId: null,
+		status:
+			model.status === "designing" || model.status === "training"
+				? "shelved"
+				: model.status,
+	};
+	if (model.dataAllocation === undefined) return nextModel;
+	const { dataAllocation: _releasedAllocation, ...withoutAllocation } =
+		nextModel;
+	return withoutAllocation;
 }
 
 function isTrainingOrModelProject(

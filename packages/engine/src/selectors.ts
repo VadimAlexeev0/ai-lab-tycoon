@@ -1,3 +1,4 @@
+import type { DataInventoryRecord } from "./components/data-inventory.js";
 import type { PendingDecision } from "./components/decisions.js";
 import type { FundingGateFactors } from "./components/funding.js";
 import type { Model } from "./components/models.js";
@@ -154,6 +155,23 @@ export type VisibleProductSummary = {
 	effectiveQuality?: number;
 };
 
+export type VisibleDataInventoryRecord = {
+	id: string;
+	sourceId: string;
+	provenance: DataInventoryRecord["provenance"];
+	quality: number;
+	freshness: number;
+	modality: DataInventoryRecord["modality"];
+	usageRestrictions: readonly DataInventoryRecord["usageRestrictions"][number][];
+	rightsRisk: number;
+	quantity: number;
+	consumedAmount: number;
+	reservedAmount: number;
+	availableFromWeek: number;
+	available: boolean;
+	derivedFromProductId: string | null;
+};
+
 export type VisibleFundingSummary = {
 	seed: { round: "seed"; status: GameState["funding"]["seed"]["status"] };
 	seriesA: {
@@ -208,6 +226,7 @@ export type VisibleGameState = {
 	models: VisibleModelEstimate[];
 	research: VisibleResearchNode[];
 	products: VisibleProductSummary[];
+	dataInventory: VisibleDataInventoryRecord[];
 	funding: VisibleFundingSummary;
 	pendingDecisions: VisiblePendingDecision[];
 	recentReports: VisibleReport[];
@@ -353,6 +372,29 @@ export function selectProducts(
 	});
 }
 
+export function selectDataInventory(
+	state: DeepReadonly<GameState>,
+): VisibleDataInventoryRecord[] {
+	return state.dataInventory.items.map((record) => ({
+		id: record.id,
+		sourceId: record.sourceId,
+		provenance: record.provenance,
+		quality: record.quality,
+		freshness: record.freshness,
+		modality: record.modality,
+		usageRestrictions: [...record.usageRestrictions],
+		rightsRisk: record.rightsRisk,
+		quantity: record.quantity,
+		consumedAmount: record.consumedAmount,
+		reservedAmount: record.reservedAmount,
+		availableFromWeek: record.availableFromWeek,
+		available:
+			record.availableFromWeek <= state.meta.week &&
+			record.quantity > record.consumedAmount + record.reservedAmount,
+		derivedFromProductId: record.derivedFromProductId,
+	}));
+}
+
 export function selectFunding(
 	state: DeepReadonly<GameState>,
 ): VisibleFundingSummary {
@@ -450,6 +492,7 @@ export function selectVisibleState(
 		models: selectVisibleModels(state),
 		research: selectResearchNodes(state),
 		products: selectProducts(state),
+		dataInventory: selectDataInventory(state),
 		funding: selectFunding(state),
 		pendingDecisions: selectPendingDecisions(state),
 		recentReports: selectRecentReports(state),

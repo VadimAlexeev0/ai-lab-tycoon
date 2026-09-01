@@ -3,6 +3,7 @@ import { applyDecision } from "./apply-decision.js";
 import { canonicalEqual } from "./canonical.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
 import { buyCompute, hireTeam } from "./commands/teams.js";
+import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel } from "./model-design.js";
 import { applyProductResume, launchProduct } from "./products.js";
@@ -195,6 +196,11 @@ function replayCommand(
 			return runEvaluation(state, command.modelId, command.evaluation);
 		case "launch_product":
 			return launchProduct(state, command.modelId, command.channel);
+		case "acquire_data":
+			return acquireData(state, {
+				sourceId: command.sourceId,
+				productId: command.productId,
+			});
 		case "buy_compute":
 			return buyCompute(state);
 		case "hire_team":

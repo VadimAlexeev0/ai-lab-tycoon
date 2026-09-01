@@ -1,9 +1,11 @@
-import type {
-	Model,
-	ModelEstimates,
-	ModelFoundation,
-	ModelTrueScores,
+import {
+	createModelsState,
+	type Model,
+	type ModelEstimates,
+	type ModelFoundation,
+	type ModelTrueScores,
 } from "./components/models.js";
+import type { Fact } from "./components/reports.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
@@ -19,6 +21,7 @@ import {
 	type ModelFamilyId,
 	type ModelTier,
 } from "./data/model-families.js";
+import { reserveDataForMix } from "./data-inventory.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
@@ -29,10 +32,12 @@ import {
 } from "./research-effects.js";
 import { nextInt } from "./rng.js";
 import type { EngineResult, GameState, RngState } from "./state.js";
+import { appendFactsAsReports } from "./systems/reporting.js";
 import {
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
+	assertInteger,
 	assertNonNegativeInteger,
 	assertNullableString,
 	assertObject,
@@ -46,6 +51,16 @@ const DEFAULT_EMPHASIS: ModelEmphasis = {
 	reliability: 2,
 	safety: 1,
 	efficiency: 1,
+};
+
+export type TrainingDataScoreEffects = Readonly<{
+	quality: number;
+	qualityPenalty: number;
+}>;
+
+const DEFAULT_TRAINING_DATA_EFFECTS: TrainingDataScoreEffects = {
+	quality: 100,
+	qualityPenalty: 0,
 };
 
 export type ModelDesignSpec = Readonly<{
@@ -137,8 +152,9 @@ export function designModel(
 			`Insufficient cash for ${normalized.tier} ${normalized.foundation} model design cost ${totalCost}`,
 		);
 	}
+	const dataReservation = reserveDataForMix(state, normalized.dataMix);
 
-	let allocated = allocateId(state, "model");
+	let allocated = allocateId(dataReservation.state, "model");
 	const modelId = allocated.id;
 	allocated = allocateId(allocated.state, "project");
 	const projectId = allocated.id;
@@ -158,6 +174,9 @@ export function designModel(
 			100,
 		),
 		dataMix: { ...normalized.dataMix },
+		dataAllocation: dataReservation.allocations.map((allocation) => ({
+			...allocation,
+		})),
 		emphasis: { ...normalized.emphasis },
 		status: "designing",
 		projectId,
@@ -194,13 +213,10 @@ export function designModel(
 				trainingProject,
 			],
 		},
-		models: {
-			items: [
-				...allocated.state.models.items.map((item) => ({ ...item })),
-				model,
-			],
-			activeModelId: modelId,
-		},
+		models: createModelsState(
+			[...allocated.state.models.items, model],
+			modelId,
+		),
 		commandLog: [
 			...allocated.state.commandLog,
 			{
@@ -225,8 +241,27 @@ export function designModel(
 		...nextState,
 		compute: withRecomputedCompute(nextState),
 	};
-	assertGameState(recomputedState);
-	return { state: recomputedState, facts: [], pending: [] };
+	const staleDataWarning: Fact | undefined =
+		dataReservation.staleRecordIds.length === 0
+			? undefined
+			: {
+					kind: "data_stale_warning",
+					dataIds: [...dataReservation.staleRecordIds],
+					threshold: BALANCE.dataInventory.stalenessThreshold,
+					week: state.meta.week,
+				};
+	const facts: Fact[] =
+		staleDataWarning === undefined ? [] : [staleDataWarning];
+	const warnings = recomputedState.warnings.filter(
+		(warning) => warning.code !== "stale_data",
+	);
+	if (staleDataWarning !== undefined) {
+		warnings.push({ code: "stale_data", severity: "warning" });
+	}
+	const warnedState = { ...recomputedState, warnings };
+	const reportedState = appendFactsAsReports(warnedState, facts);
+	assertGameState(reportedState);
+	return { state: reportedState, facts, pending: [] };
 }
 
 /** Generate hidden scores and separate noisy estimates at training completion. */
@@ -235,12 +270,21 @@ export function generateTrueScores(
 	model: Model,
 	parent?: Model,
 	researchEffects: ActiveResearchEffects = createEmptyResearchEffects(),
+	dataEffects: TrainingDataScoreEffects = DEFAULT_TRAINING_DATA_EFFECTS,
 ): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
 	const scoreCeiling = model.scoreCeiling ?? tier.scoreCeiling;
 	const dataMix = model.dataMix ?? DEFAULT_DATA_MIX;
 	const emphasis = model.emphasis ?? DEFAULT_EMPHASIS;
+	assertInteger(dataEffects.quality, "Training data quality");
+	assertInteger(dataEffects.qualityPenalty, "Training data quality penalty");
+	if (dataEffects.quality < 0 || dataEffects.quality > 100) {
+		throw new Error("Training data quality must be between 0 and 100");
+	}
+	if (dataEffects.qualityPenalty < 0 || dataEffects.qualityPenalty > 100) {
+		throw new Error("Training data quality penalty must be between 0 and 100");
+	}
 	if (
 		model.foundation !== "fresh" &&
 		(parent === undefined ||
@@ -272,8 +316,9 @@ export function generateTrueScores(
 		const profileHint = family.baseScoreProfile[dimension];
 		const dataContribution = Math.trunc(
 			(dataContributionFor(dimension, dataMix) *
-				(100 + researchEffects.dataQualityImpactBonus)) /
-				100,
+				(100 + researchEffects.dataQualityImpactBonus) *
+				dataEffects.quality) /
+				10_000,
 		);
 		const emphasisContribution = emphasisContributionFor(dimension, emphasis);
 		const tierContribution = Math.trunc(
@@ -289,7 +334,8 @@ export function generateTrueScores(
 			emphasisContribution * BALANCE.modelScore.emphasisWeight +
 			tierContribution +
 			researchEffects.modelScoreBonus[dimension] +
-			scoreDraw.value;
+			scoreDraw.value -
+			dataEffects.qualityPenalty;
 		const floor = foundationFloorFor(
 			model.foundation,
 			parent?.trueScores?.[dimension],

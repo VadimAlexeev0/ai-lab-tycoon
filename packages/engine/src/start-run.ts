@@ -1,9 +1,11 @@
 import { createCompanyState } from "./components/company.js";
 import { createComputeState } from "./components/compute.js";
+import { createDataInventoryState } from "./components/data-inventory.js";
 import { createResearchState } from "./components/research.js";
 import { createRivalsState } from "./components/rivals.js";
 import { createTeamsState } from "./components/teams.js";
 import { BALANCE } from "./data/balance.js";
+import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
 	cloneResearchNodes,
 	RESEARCH_NODES,
@@ -39,6 +41,7 @@ export function startRun(setup: RunSetup, seed: number): GameState {
 			hype: BALANCE.startingHype,
 		}),
 		compute: createComputeState(BALANCE.startingComputeCapacity),
+		dataInventory: createDataInventoryState(STARTING_DATA_INVENTORY),
 		research: createResearchState(TEXT_ERA, cloneResearchNodes()),
 		rivals: createRivalsState(),
 	};
@@ -46,6 +49,10 @@ export function startRun(setup: RunSetup, seed: number): GameState {
 	const teamAllocation = allocateId(state, "team");
 	state = {
 		...teamAllocation.state,
+		counters: {
+			...teamAllocation.state.counters,
+			data: STARTING_DATA_INVENTORY.length + 1,
+		},
 		teams: createTeamsState([
 			{
 				id: teamAllocation.id,

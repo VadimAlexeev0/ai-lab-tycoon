@@ -1,3 +1,7 @@
+import {
+	DATA_PROVENANCES,
+	getDataSourceDefinition,
+} from "../data/data-sources.js";
 import type { IncidentCondition } from "../data/incidents.js";
 import type { ResearchParadigmId } from "../data/research/paradigms.js";
 import {
@@ -37,6 +41,9 @@ const FACT_KINDS = [
 	"evaluation_completed",
 	"product_launched",
 	"product_resumed",
+	"data_acquired",
+	"data_stale_warning",
+	"synthetic_data_overuse",
 	"revenue",
 	"serving_throttled",
 	"training_starved",
@@ -134,6 +141,32 @@ export type Fact =
 			kind: "product_resumed";
 			productId: string;
 			channel: ProductChannel;
+			week: number;
+	  }
+	| {
+			kind: "data_acquired";
+			dataId: string;
+			sourceId: string;
+			provenance: (typeof DATA_PROVENANCES)[number];
+			quantity: number;
+			cost: number;
+			availableFromWeek: number;
+			rightsRisk: number;
+			week: number;
+	  }
+	| {
+			kind: "data_stale_warning";
+			dataIds: readonly string[];
+			threshold: number;
+			week: number;
+	  }
+	| {
+			kind: "synthetic_data_overuse";
+			modelId: string;
+			syntheticAmount: number;
+			totalAmount: number;
+			qualityPenalty: number;
+			debtAdded: number;
 			week: number;
 	  }
 	| {
@@ -262,6 +295,8 @@ export function cloneFact(fact: Fact): Fact {
 						...fact,
 						effects: fact.effects.map((effect) => ({ ...effect })),
 					};
+		case "data_stale_warning":
+			return { ...fact, dataIds: [...fact.dataIds] };
 		default:
 			return { ...fact };
 	}
@@ -471,6 +506,126 @@ export function assertFact(value: unknown): asserts value is Fact {
 			);
 			assertIdentifier(value.productId, "Resumed product id");
 			assertEnum(value.channel, PRODUCT_CHANNELS, "Resumed product channel");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "data_acquired": {
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"dataId",
+					"sourceId",
+					"provenance",
+					"quantity",
+					"cost",
+					"availableFromWeek",
+					"rightsRisk",
+					"week",
+				],
+				"data acquired fact",
+			);
+			assertIdentifier(value.dataId, "Acquired data id");
+			assertIdentifier(value.sourceId, "Acquired data source id");
+			assertEnum(
+				value.provenance,
+				DATA_PROVENANCES,
+				"Acquired data provenance",
+			);
+			const source = getDataSourceDefinition(value.sourceId);
+			if (source === undefined) {
+				throw new Error(
+					`Acquired data fact references unknown source: ${value.sourceId}`,
+				);
+			}
+			if (value.provenance !== source.provenance) {
+				throw new Error(
+					"Acquired data fact provenance does not match its source",
+				);
+			}
+			assertPositiveInteger(value.quantity, "Acquired data quantity");
+			assertNonNegativeInteger(value.cost, "Acquired data cost");
+			assertPositiveInteger(
+				value.availableFromWeek,
+				"Acquired data available-from week",
+			);
+			assertNonNegativeInteger(value.rightsRisk, "Acquired data rights risk");
+			if (value.rightsRisk > 100) {
+				throw new Error("Acquired data rights risk must be between 0 and 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			if (
+				value.quantity !== source.quantity ||
+				value.cost !== source.acquisitionCost
+			) {
+				throw new Error(
+					"Acquired data fact does not match its source economics",
+				);
+			}
+			if (value.rightsRisk !== source.rightsRisk) {
+				throw new Error(
+					"Acquired data fact rights risk does not match its source",
+				);
+			}
+			if (value.availableFromWeek !== value.week + source.acquisitionTime) {
+				throw new Error(
+					"Acquired data fact availability does not match source acquisition time",
+				);
+			}
+			return;
+		}
+		case "data_stale_warning": {
+			assertExactObject(
+				value,
+				["kind", "dataIds", "threshold", "week"],
+				"data stale warning fact",
+			);
+			assertArray(value.dataIds, "Stale data ids");
+			const staleIds = new Set<string>();
+			for (const dataId of value.dataIds) {
+				assertIdentifier(dataId, "Stale data id");
+				if (staleIds.has(dataId)) {
+					throw new Error(`Stale data warning repeats id: ${dataId}`);
+				}
+				staleIds.add(dataId);
+			}
+			assertNonNegativeInteger(value.threshold, "Stale data threshold");
+			if (value.threshold > 100) {
+				throw new Error("Stale data threshold must be between 0 and 100");
+			}
+			if (value.dataIds.length === 0) {
+				throw new Error("Stale data warning must identify at least one record");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		}
+		case "synthetic_data_overuse":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"modelId",
+					"syntheticAmount",
+					"totalAmount",
+					"qualityPenalty",
+					"debtAdded",
+					"week",
+				],
+				"synthetic data overuse fact",
+			);
+			assertIdentifier(value.modelId, "Synthetic overuse model id");
+			assertPositiveInteger(value.syntheticAmount, "Synthetic data amount");
+			assertPositiveInteger(value.totalAmount, "Synthetic data total amount");
+			if (value.syntheticAmount > value.totalAmount) {
+				throw new Error("Synthetic data amount cannot exceed total amount");
+			}
+			assertNonNegativeInteger(
+				value.qualityPenalty,
+				"Synthetic quality penalty",
+			);
+			assertNonNegativeInteger(value.debtAdded, "Synthetic data debt");
+			if (value.qualityPenalty > 100 || value.debtAdded > 100) {
+				throw new Error("Synthetic data effects must be between 0 and 100");
+			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "revenue":

@@ -85,6 +85,13 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 			multimodal: { capability: 0, reliability: 0, safety: 0, efficiency: 0 },
 		},
 	},
+	dataInventory: {
+		trainingUnits: 100,
+		stalenessThreshold: 40,
+		syntheticOveruseThreshold: 50,
+		syntheticQualityPenaltyPerUnit: 1,
+		syntheticDebtPerUnit: 1,
+	},
 	modelEmphasisPoints: 6,
 	defaultEstimateBandWidth: 20,
 	productChannels: {
