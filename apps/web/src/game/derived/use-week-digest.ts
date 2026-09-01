@@ -55,6 +55,7 @@ export function useWeekDigest(
 					incidents: [],
 					fundingEvents: [],
 					projectCompletions: [],
+					sparkDiscoveries: [],
 					servingThrottles: [],
 					trainingStarvations: [],
 				},

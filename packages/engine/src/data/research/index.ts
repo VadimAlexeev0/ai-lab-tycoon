@@ -20,6 +20,7 @@ import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	assertResearchEffects,
+	assertResearchSpark,
 	MULTIMODAL_ERA,
 	RESEARCH_BRANCHES,
 	RESEARCH_CATEGORIES,
@@ -47,12 +48,21 @@ const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS = [
 	...RESEARCH_DEFINITION_KEYS,
 	"effects",
 ] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_SPARK = [
+	...RESEARCH_DEFINITION_KEYS,
+	"spark",
+] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK = [
+	...RESEARCH_DEFINITION_KEYS,
+	"effects",
+	"spark",
+] as const;
 
 export * from "./types.js";
 
 /** Ordered content groups keep the public tree deterministic and reviewable. */
-// ponytail: This first slice wires three Text-era effects; Sparks, paradigms,
-// publish/hoard, and broader node coverage remain deferred to later waves.
+// ponytail: Only the typed serving_throttled Spark trigger is implemented;
+// future trigger types belong in the ResearchSpark typed data contract.
 export const RESEARCH_NODES = [
 	...FOUNDATIONS_NODES,
 	...TRANSFORMER_NODES,
@@ -84,17 +94,39 @@ export function getResearchDefinition(
 	return RESEARCH_NODE_BY_ID.get(id);
 }
 
+export function getResearchSparkDefinition(sparkId: string):
+	| Readonly<{
+			node: ResearchDefinition;
+			spark: NonNullable<ResearchDefinition["spark"]>;
+	  }>
+	| undefined {
+	for (const node of RESEARCH_NODES) {
+		const spark = "spark" in node ? node.spark : undefined;
+		if (spark?.id === sparkId) {
+			return { node, spark };
+		}
+	}
+	return undefined;
+}
+
 /** Fail fast if the research DAG contains malformed or dangling content. */
 export function assertResearchDefinitions(
 	definitions: readonly ResearchDefinition[],
 ): void {
 	const ids = new Set<string>();
+	const sparkIds = new Set<string>();
 	for (const definition of definitions) {
+		const hasEffects = Object.hasOwn(definition, "effects");
+		const hasSpark = Object.hasOwn(definition, "spark");
 		assertExactObject(
 			definition,
-			Object.hasOwn(definition, "effects")
-				? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS
-				: RESEARCH_DEFINITION_KEYS,
+			hasEffects && hasSpark
+				? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK
+				: hasEffects
+					? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS
+					: hasSpark
+						? RESEARCH_DEFINITION_KEYS_WITH_SPARK
+						: RESEARCH_DEFINITION_KEYS,
 			"research definition",
 		);
 		assertIdentifier(definition.id, "Research definition id");
@@ -145,6 +177,21 @@ export function assertResearchDefinitions(
 				definition.effects,
 				`Research definition ${definition.id} effects`,
 			);
+		}
+		if (Object.hasOwn(definition, "spark")) {
+			assertResearchSpark(
+				definition.spark,
+				`Research definition ${definition.id} spark`,
+			);
+			if (sparkIds.has(definition.spark.id)) {
+				throw new Error(`Duplicate research Spark id: ${definition.spark.id}`);
+			}
+			sparkIds.add(definition.spark.id);
+			if (definition.spark.discount > definition.insightCost) {
+				throw new Error(
+					`Research definition ${definition.id} Spark discount cannot exceed its base Insight cost`,
+				);
+			}
 		}
 		if (RESEARCH_CATEGORY_LABELS[definition.category] !== definition.eraLabel) {
 			throw new Error(

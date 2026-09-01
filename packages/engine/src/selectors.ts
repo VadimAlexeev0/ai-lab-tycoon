@@ -18,6 +18,7 @@ import {
 	getResearchDefinition,
 	type ResearchCategory,
 	type ResearchEffect,
+	type ResearchSparkTrigger,
 } from "./data/research.js";
 import type { GameState } from "./state.js";
 import { fundingFactors } from "./systems/funding.js";
@@ -119,6 +120,15 @@ export type VisibleResearchNode = {
 	insightCost: number;
 	description: string;
 	effects: readonly ResearchEffect[];
+	spark?: VisibleResearchSpark;
+};
+
+export type VisibleResearchSpark = {
+	id: string;
+	trigger: ResearchSparkTrigger;
+	discount: number;
+	description: string;
+	discovered: boolean;
 };
 
 export type VisibleProductSummary = {
@@ -258,7 +268,7 @@ export function selectResearchNodes(
 				`Save is incompatible with the current research catalog: unknown node "${node.id}". Start a new run.`,
 			);
 		}
-		return {
+		const visible: VisibleResearchNode = {
 			id: node.id,
 			label: definition.label,
 			era: node.era,
@@ -271,6 +281,18 @@ export function selectResearchNodes(
 			description: definition.description,
 			effects: (definition.effects ?? []).map((effect) => ({ ...effect })),
 		};
+		if (definition.spark !== undefined) {
+			visible.spark = {
+				id: definition.spark.id,
+				trigger: definition.spark.trigger,
+				discount: definition.spark.discount,
+				description: definition.spark.description,
+				discovered: state.research.discoveredSparkIds.includes(
+					definition.spark.id,
+				),
+			};
+		}
+		return visible;
 	});
 }
 

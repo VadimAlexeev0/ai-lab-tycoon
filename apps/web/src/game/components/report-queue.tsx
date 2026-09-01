@@ -178,6 +178,7 @@ function QueueReport({
 function advisorForReport(report: VisibleReport) {
 	switch (report.fact.kind) {
 		case "research_completed":
+		case "research_spark_discovered":
 		case "model_trained":
 		case "evaluation_completed":
 			return ADVISOR_ART.maya;
@@ -200,6 +201,8 @@ function factSummary(fact: Fact): string {
 			const effects = summarizeResearchEffects(fact.effects);
 			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
 		}
+		case "research_spark_discovered":
+			return `Research Spark ${fact.sparkId} discovered: ${fact.nodeId} costs ${fact.discount} fewer Insight.`;
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

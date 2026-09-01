@@ -3,6 +3,7 @@ import { assertComputeState } from "./components/compute.js";
 import { assertModelsState } from "./components/models.js";
 import { assertProductsState } from "./components/products.js";
 import { assertProjectsState } from "./components/projects.js";
+import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import {
@@ -27,9 +28,10 @@ export type GameStateUpgradeResult = Readonly<{
 type StateMigration = (value: unknown) => unknown;
 
 const STATE_SCHEMA_VERSION_V1 = 1 as const;
+const STATE_SCHEMA_VERSION_V2 = 2 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
-	[GAME_STATE_SCHEMA_VERSION]: cloneJsonValue,
+	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -72,7 +74,8 @@ export function deserializeGameStateWithMetadata(
  * catalog. V1 persisted the compute reservation fields, but those fields were
  * derived under the pre-effect rules. Its explicit migration recomputes the
  * reservations before the current validator runs; it never treats a stale V1
- * reservation as authoritative. There is no deployed pre-v1 format to support.
+ * reservation as authoritative. State schema v3 adds replay-safe Research
+ * Spark discoveries. There is no deployed pre-v1 format to support.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -105,14 +108,24 @@ export function upgradeGameStateWithMetadata(
 		);
 	}
 
-	const migration = STATE_MIGRATIONS[sourceSchemaVersion];
-	if (migration === undefined) {
-		throw new Error(
-			`Unsupported game state schema version: ${sourceSchemaVersion}`,
-		);
+	let migrated = cloneJsonValue(value);
+	let migratedVersion = sourceSchemaVersion;
+	while (migratedVersion < GAME_STATE_SCHEMA_VERSION) {
+		const migration = STATE_MIGRATIONS[migratedVersion];
+		if (migration === undefined) {
+			throw new Error(
+				`Unsupported game state schema version: ${migratedVersion}`,
+			);
+		}
+		migrated = migration(migrated);
+		const nextVersion = readSchemaVersion(migrated);
+		if (nextVersion !== migratedVersion + 1) {
+			throw new Error(
+				`Invalid game state migration chain from ${migratedVersion} to ${nextVersion}`,
+			);
+		}
+		migratedVersion = nextVersion;
 	}
-
-	const migrated = migration(value);
 	assertGameState(migrated, options, true);
 	return {
 		state: migrated,
@@ -147,10 +160,10 @@ function migrateV1ToV2(value: unknown): unknown {
 	assertComputeState(compute);
 	assertProjectsState(projects);
 	assertModelsState(models);
-	assertResearchState(research);
+	assertLegacyResearchState(research, "v1 game state research");
 	assertProductsState(products);
 
-	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V2;
 	migrated.compute = withRecomputedCompute({
 		compute,
 		projects,
@@ -159,6 +172,38 @@ function migrateV1ToV2(value: unknown): unknown {
 		products,
 	});
 	return migrated;
+}
+
+function migrateV2ToV3(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v2 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v2 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V2) {
+		throw new Error("v2 game state has an invalid schema version");
+	}
+	const research = migrated.research;
+	assertLegacyResearchState(research, "v2 game state research");
+	if (
+		research !== null &&
+		typeof research === "object" &&
+		!Object.hasOwn(research, "discoveredSparkIds")
+	) {
+		research.discoveredSparkIds = [];
+	}
+	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
+	return migrated;
+}
+
+function assertLegacyResearchState(
+	value: unknown,
+	label: string,
+): asserts value is ResearchState {
+	assertObject(value, label);
+	if (Object.hasOwn(value, "discoveredSparkIds")) {
+		throw new Error(`${label} contains unexpected field: discoveredSparkIds`);
+	}
+	assertResearchState(value, { allowMissingDiscoveredSparkIds: true });
 }
 
 function cloneJsonValue(value: unknown): unknown {

@@ -281,6 +281,17 @@ describe("visible selectors", () => {
 					insightCost: node.insightCost,
 					description: definition.description,
 					effects: (definition.effects ?? []).map((effect) => ({ ...effect })),
+					...(definition.spark === undefined
+						? {}
+						: {
+								spark: {
+									id: definition.spark.id,
+									trigger: definition.spark.trigger,
+									discount: definition.spark.discount,
+									description: definition.spark.description,
+									discovered: false,
+								},
+							}),
 				};
 			}),
 		);

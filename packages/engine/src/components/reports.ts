@@ -27,6 +27,7 @@ const FACT_KINDS = [
 	"project_progressed",
 	"project_completed",
 	"research_completed",
+	"research_spark_discovered",
 	"model_trained",
 	"evaluation_completed",
 	"product_launched",
@@ -84,6 +85,14 @@ export type Fact =
 			kind: "research_completed";
 			nodeId: string;
 			effects?: readonly ResearchEffect[];
+			week: number;
+	  }
+	| {
+			kind: "research_spark_discovered";
+			sparkId: string;
+			nodeId: string;
+			discount: number;
+			trigger: "serving_throttled";
 			week: number;
 	  }
 	| {
@@ -342,6 +351,22 @@ export function assertFact(value: unknown): asserts value is Fact {
 			if (Object.hasOwn(value, "effects")) {
 				assertResearchEffects(value.effects, "Research completion effects");
 			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "research_spark_discovered":
+			assertExactObject(
+				value,
+				["kind", "sparkId", "nodeId", "discount", "trigger", "week"],
+				"research Spark discovered fact",
+			);
+			assertIdentifier(value.sparkId, "Discovered research Spark id");
+			assertIdentifier(value.nodeId, "Discovered research Spark node id");
+			assertPositiveInteger(value.discount, "Research Spark discount");
+			assertEnum(
+				value.trigger,
+				["serving_throttled"],
+				"Research Spark trigger",
+			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "model_trained":

@@ -491,7 +491,11 @@ function assertMeta(value: unknown, research: unknown): void {
 	assertIdentifier(value.runId, "Run id");
 	assertPositiveInteger(value.week, "Meta week");
 	assertEnum(value.era, RESEARCH_ERAS, "Meta era");
-	assertExactObject(research, ["currentEra", "nodes"], "research");
+	assertExactObject(
+		research,
+		["currentEra", "nodes", "discoveredSparkIds"],
+		"research",
+	);
 	if (research.currentEra !== value.era) {
 		throw new Error("Meta era must match the research component era");
 	}

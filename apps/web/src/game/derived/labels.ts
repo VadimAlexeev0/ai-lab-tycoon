@@ -99,6 +99,7 @@ export function resolveFactLabels(state: GameState, fact: Fact): FactLabels {
 				projectId: resolveEntityLabel(state, "project", fact.projectId),
 			};
 		case "research_completed":
+		case "research_spark_discovered":
 			return { nodeId: resolveEntityLabel(state, "node", fact.nodeId) };
 		case "model_trained":
 		case "evaluation_completed":

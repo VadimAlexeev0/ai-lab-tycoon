@@ -414,6 +414,12 @@ function resolutionEvent(
 				tone: "positive",
 			};
 		}
+		case "research_spark_discovered":
+			return {
+				id: `research-spark-${fact.sparkId}-${index}`,
+				label: `Research Spark ${humanizeId(fact.sparkId)} discovered — ${humanizeId(fact.nodeId)} costs ${fact.discount} fewer Insight.`,
+				tone: "positive",
+			};
 		case "model_trained":
 			return {
 				id: `model-trained-${fact.modelId}-${index}`,

@@ -141,6 +141,7 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 		case "evaluation_completed":
 			return "training";
 		case "research_completed":
+		case "research_spark_discovered":
 			return "research";
 		case "product_launched":
 		case "product_resumed":
@@ -178,6 +179,8 @@ function factSummary(fact: Fact): string {
 			const effects = summarizeResearchEffects(fact.effects);
 			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
 		}
+		case "research_spark_discovered":
+			return `Research Spark ${fact.sparkId} discovered; ${fact.nodeId} discounted by ${fact.discount} Insight.`;
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

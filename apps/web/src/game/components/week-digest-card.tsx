@@ -31,7 +31,11 @@ export type WeekDigestCardProps = {
 	className?: string;
 };
 
-type DigestRoute = "/game/models" | "/game/products" | "/game/teams";
+type DigestRoute =
+	| "/game/models"
+	| "/game/products"
+	| "/game/research"
+	| "/game/teams";
 
 type DigestRow = {
 	icon: LucideIcon;
@@ -169,6 +173,12 @@ function createDigestRows(digest: WeekDigest): DigestRow[] {
 			id: `project-${fact.projectId}`,
 			label: `${fact.projectId} completed`,
 			to: "/game/teams" as const,
+		})),
+		...digest.sparkDiscoveries.map((fact) => ({
+			icon: FlaskConical,
+			id: `spark-${fact.sparkId}`,
+			label: `${fact.sparkId} discovered · ${fact.nodeId} −${fact.discount} Insight`,
+			to: "/game/research" as const,
 		})),
 	];
 }

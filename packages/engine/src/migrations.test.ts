@@ -32,6 +32,17 @@ function currentV1Fixture(): unknown {
 	return jsonClone(currentV1FixtureJson);
 }
 
+function currentV2Fixture(): unknown {
+	const state = JSON.parse(
+		serializeGameState(startRun({ companyName: "Migration Labs" }, 23)),
+	) as Record<string, unknown>;
+	const meta = asRecord(state.meta);
+	const research = asRecord(state.research);
+	delete research.discoveredSparkIds;
+	meta.schemaVersion = 2;
+	return state;
+}
+
 describe("GameState migration and serialization", () => {
 	it("serializes a startRun state with the current version and stable round trip", () => {
 		const state = startRun({ companyName: "Migration Labs" }, 23);
@@ -60,12 +71,52 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(1);
-		expect(upgraded.currentSchemaVersion).toBe(2);
-		expect(upgraded.state.meta.schemaVersion).toBe(2);
+		expect(upgraded.currentSchemaVersion).toBe(3);
+		expect(upgraded.state.meta.schemaVersion).toBe(3);
+		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
 		expect(upgraded.state.compute.trainingDemand).toBe(4);
 		expect(upgraded.state.compute.allocated).toBe(4);
 		expect(JSON.stringify(fixture)).toBe(before);
 		expect(upgradeGameState(fixture)).toEqual(upgraded.state);
+	});
+
+	it("migrates a v2 state by adding an empty discovered Spark field", () => {
+		const fixture = currentV2Fixture();
+		const before = JSON.stringify(fixture);
+		const source = asRecord(fixture);
+		const sourceMeta = asRecord(source.meta);
+		const sourceResearch = asRecord(source.research);
+		expect(sourceMeta.schemaVersion).toBe(2);
+		expect(Object.hasOwn(sourceResearch, "discoveredSparkIds")).toBe(false);
+
+		const upgraded = upgradeGameStateWithMetadata(fixture);
+
+		expect(upgraded.sourceSchemaVersion).toBe(2);
+		expect(upgraded.currentSchemaVersion).toBe(3);
+		expect(upgraded.state.meta.schemaVersion).toBe(3);
+		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
+		expect(JSON.stringify(fixture)).toBe(before);
+	});
+
+	it("rejects a v2 state that already contains the v3 Spark field", () => {
+		const fixture = currentV2Fixture();
+		const research = asRecord(asRecord(fixture).research);
+		if (!Array.isArray(research.nodes)) {
+			throw new Error("Expected v2 research nodes");
+		}
+		const target = asRecord(
+			research.nodes.find(
+				(node) => asRecord(node).id === "inference_price_war",
+			),
+		);
+		target.insightCost = 1;
+		research.discoveredSparkIds = ["inference_optimization"];
+		const before = JSON.stringify(fixture);
+
+		expect(() => upgradeGameState(fixture)).toThrow(
+			/unexpected.*spark|v2.*spark|unexpected field/i,
+		);
+		expect(JSON.stringify(fixture)).toBe(before);
 	});
 
 	it("reports source and current versions separately at the migration boundary", () => {

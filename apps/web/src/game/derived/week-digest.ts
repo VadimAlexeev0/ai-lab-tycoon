@@ -20,6 +20,10 @@ export type ProjectCompletionFact = Extract<
 	Fact,
 	{ kind: "project_completed" }
 >;
+export type ResearchSparkDiscoveryFact = Extract<
+	Fact,
+	{ kind: "research_spark_discovered" }
+>;
 export type ServingThrottleFact = Extract<Fact, { kind: "serving_throttled" }>;
 export type TrainingStarvationFact = Extract<
 	Fact,
@@ -43,6 +47,7 @@ export type WeekDigest = {
 	incidents: IncidentFact[];
 	fundingEvents: FundingEventFact[];
 	projectCompletions: ProjectCompletionFact[];
+	sparkDiscoveries: ResearchSparkDiscoveryFact[];
 	servingThrottles: ServingThrottleFact[];
 	trainingStarvations: TrainingStarvationFact[];
 };
@@ -71,8 +76,14 @@ export function deriveWeekDigest(
 ): WeekDigest {
 	const week = current.meta.week;
 	const previousWeek = previous?.meta.week;
+	const hasCurrentWeekReports = current.reports.items.some(
+		(report) => report.fact.week === week,
+	);
+	const usePreviousWeekReports =
+		previousWeek !== undefined &&
+		(week === previousWeek + 1 || week < previousWeek);
 	const reportWeek =
-		previousWeek !== undefined && week < previousWeek ? previousWeek : week;
+		!hasCurrentWeekReports && usePreviousWeekReports ? previousWeek : week;
 	const facts = current.reports.items
 		.filter((report) => report.fact.week === reportWeek)
 		.map((report) => report.fact);
@@ -90,6 +101,7 @@ export function deriveWeekDigest(
 		),
 		fundingEvents: factsOfKind(facts, "funding_resolved"),
 		projectCompletions: factsOfKind(facts, "project_completed"),
+		sparkDiscoveries: factsOfKind(facts, "research_spark_discovered"),
 		servingThrottles: factsOfKind(facts, "serving_throttled"),
 		trainingStarvations: factsOfKind(facts, "training_starved"),
 	};
@@ -151,6 +163,10 @@ export function summarizeWeekDigest(
 		),
 		...digest.projectCompletions.map(
 			(fact) => `${factLabel(state, fact, "projectId")} completed`,
+		),
+		...digest.sparkDiscoveries.map(
+			(fact) =>
+				`${humanize(fact.sparkId)} discovered · ${humanize(fact.nodeId)} −${fact.discount} Insight`,
 		),
 	];
 	const visibleEvents = eventLabels.slice(0, 3);

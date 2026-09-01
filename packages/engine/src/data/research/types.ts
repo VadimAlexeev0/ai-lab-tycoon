@@ -7,8 +7,10 @@ import {
 	assertArray,
 	assertEnum,
 	assertExactObject,
+	assertIdentifier,
 	assertObject,
 	assertPositiveInteger,
+	assertString,
 } from "../../validation.js";
 import type { ModelDimension } from "../model-families.js";
 
@@ -25,6 +27,42 @@ export type ResearchCategory =
 	| "convergence";
 
 export type ResearchEvaluationKind = "capability" | "safety_reliability";
+
+export type ResearchSparkTrigger = "serving_throttled";
+
+export type ResearchSpark = Readonly<{
+	id: string;
+	trigger: ResearchSparkTrigger;
+	discount: number;
+	description: string;
+}>;
+
+export const RESEARCH_SPARK_TRIGGERS = [
+	"serving_throttled",
+] as const satisfies readonly ResearchSparkTrigger[];
+export const MAX_RESEARCH_SPARK_DISCOUNT = 100;
+
+export function assertResearchSpark(
+	value: unknown,
+	path = "research spark",
+): asserts value is ResearchSpark {
+	assertExactObject(value, ["id", "trigger", "discount", "description"], path);
+	assertIdentifier(value.id, `${path} id`);
+	assertEnum(value.trigger, RESEARCH_SPARK_TRIGGERS, `${path} trigger`);
+	assertPositiveInteger(value.discount, `${path} discount`);
+	if (value.discount > MAX_RESEARCH_SPARK_DISCOUNT) {
+		throw new Error(
+			`${path} discount must be at most ${MAX_RESEARCH_SPARK_DISCOUNT}`,
+		);
+	}
+	assertString(value.description, `${path} description`);
+	if (value.description.trim().length === 0) {
+		throw new Error(`${path} description must not be empty`);
+	}
+	if (value.description.length >= 160) {
+		throw new Error(`${path} description must be under 160 characters`);
+	}
+}
 
 /**
  * Typed mechanics attached to research content. The active values are derived
@@ -152,6 +190,7 @@ export type ResearchDefinition = Readonly<{
 	prerequisites: readonly string[];
 	description: string;
 	effects?: readonly ResearchEffect[];
+	spark?: ResearchSpark;
 }>;
 
 export const TEXT_ERA = "text" as const;

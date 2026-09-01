@@ -15,6 +15,7 @@ type NotebookFactKind =
 	| "product_launched"
 	| "product_resumed"
 	| "research_completed"
+	| "research_spark_discovered"
 	| "model_trained"
 	| "revenue"
 	| "funding_resolved"
@@ -82,6 +83,12 @@ const NOTEBOOK_SLOTS = [
 		factKind: "research_completed",
 	},
 	{
+		id: "first-research-spark",
+		label: "First research Spark",
+		kind: "first",
+		factKind: "research_spark_discovered",
+	},
+	{
 		id: "first-model-trained",
 		label: "First trained model",
 		kind: "first",
@@ -98,12 +105,6 @@ const NOTEBOOK_SLOTS = [
 		label: "First funding outcome",
 		kind: "first",
 		factKind: "funding_resolved",
-	},
-	{
-		id: "first-rival-signal",
-		label: "First rival signal",
-		kind: "first",
-		factKind: "rival_progressed",
 	},
 	{ id: "era-text", label: "Text era leaf", kind: "era", era: "text" },
 	{
@@ -320,6 +321,8 @@ function notebookFactAnnotation(fact: Fact): string {
 			const effects = summarizeResearchEffects(fact.effects);
 			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
 		}
+		case "research_spark_discovered":
+			return `Research Spark ${fact.sparkId} discounted ${fact.nodeId} by ${fact.discount} Insight.`;
 		case "model_trained":
 			return `Training completed for ${fact.modelId}.`;
 		case "revenue":

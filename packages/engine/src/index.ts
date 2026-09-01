@@ -35,6 +35,8 @@ export type {
 export type {
 	ResearchEffect,
 	ResearchEvaluationKind,
+	ResearchSpark,
+	ResearchSparkTrigger,
 } from "./data/research.js";
 export { assertGameState, setAssertionsEnabled } from "./invariants.js";
 export type { GameStateUpgradeResult } from "./migrations.js";
@@ -68,6 +70,7 @@ export type {
 	VisibleProductSummary,
 	VisibleReport,
 	VisibleResearchNode,
+	VisibleResearchSpark,
 	VisibleRival,
 	VisibleTeam,
 	VisibleTerminalProjection,
