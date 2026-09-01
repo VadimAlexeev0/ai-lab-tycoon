@@ -1,4 +1,8 @@
-import { type GameState, selectResearchNodes } from "@ai-lab-tycoon/engine";
+import {
+	type GameState,
+	type ResearchEffect,
+	selectResearchNodes,
+} from "@ai-lab-tycoon/engine";
 
 import type {
 	createResearchLayout,
@@ -21,6 +25,7 @@ export type ResearchProject = Extract<
 export type ResearchNodeView = PositionedNode & {
 	label: string;
 	description: string;
+	effects: readonly ResearchEffect[];
 	prerequisites: string[];
 	insightCost: number;
 	project: ResearchProject | undefined;
@@ -165,6 +170,7 @@ export function projectResearchNodeViews(
 		return {
 			...positioned,
 			description: visible?.description ?? "Research description unavailable.",
+			effects: visible?.effects ?? [],
 			insightCost: source?.insightCost ?? visible?.insightCost ?? 0,
 			label: visible?.label ?? humanize(positioned.id),
 			prerequisites: [...(source?.prerequisites ?? visible?.prereqs ?? [])],

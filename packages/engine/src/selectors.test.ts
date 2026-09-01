@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { BALANCE } from "./data/balance.js";
-import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
+import {
+	getResearchDefinition,
+	RESEARCH_NODES,
+	TEXT_ERA,
+} from "./data/research.js";
 import { OPENING_RIVALS } from "./data/rivals.js";
 import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
@@ -63,9 +67,7 @@ describe("visible selectors", () => {
 
 		expect(thrown).toBeInstanceOf(Error);
 		expect(thrown).toMatchObject({ name: "IncompatibleSaveError" });
-		expect((thrown as Error).message).toMatch(
-			/save is incompatible.*new run/i,
-		);
+		expect((thrown as Error).message).toMatch(/save is incompatible.*new run/i);
 	});
 
 	it("projects teams with an explicit idle or working status", () => {
@@ -237,6 +239,26 @@ describe("visible selectors", () => {
 		expect(JSON.stringify(visible)).not.toContain("internalCost");
 	});
 
+	it("exposes immutable typed effects for research nodes", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const visible = selectResearchNodes(state).find(
+			(node) => node.id === "text_infrastructure_scaling",
+		);
+
+		expect(visible).toMatchObject({
+			effects: [{ kind: "training_compute_reduction", amount: 1 }],
+		});
+		if (visible === undefined || visible.effects[0] === undefined) {
+			throw new Error("Expected Parallel Training effect");
+		}
+		(visible.effects[0] as { amount: number }).amount = 99;
+		expect(
+			selectResearchNodes(state).find(
+				(node) => node.id === "text_infrastructure_scaling",
+			)?.effects,
+		).toEqual([{ kind: "training_compute_reduction", amount: 1 }]);
+	});
+
 	it("projects the complete public dashboard state", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 		const visible = selectVisibleState(state);
@@ -244,7 +266,7 @@ describe("visible selectors", () => {
 		expect(visible.models).toEqual([]);
 		expect(visible.research).toEqual(
 			state.research.nodes.map((node) => {
-				const definition = RESEARCH_NODES.find((item) => item.id === node.id);
+				const definition = getResearchDefinition(node.id);
 				if (definition === undefined)
 					throw new Error("Expected research definition");
 				return {
@@ -258,6 +280,7 @@ describe("visible selectors", () => {
 					prereqs: [...node.prerequisites],
 					insightCost: node.insightCost,
 					description: definition.description,
+					effects: (definition.effects ?? []).map((effect) => ({ ...effect })),
 				};
 			}),
 		);

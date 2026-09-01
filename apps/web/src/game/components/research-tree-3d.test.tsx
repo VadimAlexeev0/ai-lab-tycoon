@@ -81,6 +81,18 @@ describe("research lattice fallback", () => {
 		expect(document.activeElement).toBe(card);
 	});
 
+	it("explains the typed engine effect in research detail", () => {
+		renderFallback();
+		const card = screen.getAllByRole("button", {
+			name: /Parallel training.*1 Insight/i,
+		})[0];
+		if (card === undefined)
+			throw new Error("Expected the Parallel Training card");
+
+		fireEvent.click(card);
+		expect(screen.getByText("−1 training Compute")).not.toBeNull();
+	});
+
 	it("defaults to the current era and disables locked future eras", () => {
 		renderFallback();
 

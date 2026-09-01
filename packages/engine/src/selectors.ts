@@ -17,6 +17,7 @@ import type {
 import {
 	getResearchDefinition,
 	type ResearchCategory,
+	type ResearchEffect,
 } from "./data/research.js";
 import type { GameState } from "./state.js";
 import { fundingFactors } from "./systems/funding.js";
@@ -117,6 +118,7 @@ export type VisibleResearchNode = {
 	prereqs: string[];
 	insightCost: number;
 	description: string;
+	effects: readonly ResearchEffect[];
 };
 
 export type VisibleProductSummary = {
@@ -267,6 +269,7 @@ export function selectResearchNodes(
 			prereqs: [...node.prerequisites],
 			insightCost: node.insightCost,
 			description: definition.description,
+			effects: (definition.effects ?? []).map((effect) => ({ ...effect })),
 		};
 	});
 }
