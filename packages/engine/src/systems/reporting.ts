@@ -1,4 +1,5 @@
 import {
+	cloneFact,
 	type Fact,
 	REPORT_RETENTION_LIMIT,
 	type ReportPriority,
@@ -21,7 +22,7 @@ export function appendFactsAsReports(
 			{
 				id: allocation.id,
 				priority: priorityForFact(fact),
-				fact: { ...fact },
+				fact: cloneFact(fact),
 				acknowledged: false,
 			},
 		].slice(-REPORT_RETENTION_LIMIT);

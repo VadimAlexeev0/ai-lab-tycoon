@@ -5,6 +5,8 @@ import {
 } from "@ai-lab-tycoon/engine";
 import { BookOpen, LockKeyhole } from "lucide-react";
 
+import { summarizeResearchEffects } from "@/game/derived/labels";
+
 export const NOTEBOOK_TILE_COUNT = 12 as const;
 
 type NotebookFactKind =
@@ -314,8 +316,10 @@ function notebookFactAnnotation(fact: Fact): string {
 			return `${fact.productId} entered the ${humanize(fact.channel)} channel.`;
 		case "product_resumed":
 			return `${fact.productId} resumed on ${humanize(fact.channel)}.`;
-		case "research_completed":
-			return `Research node ${fact.nodeId} completed.`;
+		case "research_completed": {
+			const effects = summarizeResearchEffects(fact.effects);
+			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
+		}
 		case "model_trained":
 			return `Training completed for ${fact.modelId}.`;
 		case "revenue":

@@ -26,7 +26,7 @@ const DECLARATIONS = {
 		writes: ["company.cash", "reports.facts"],
 	},
 	projects: {
-		reads: ["projects.items", "teams.items", "models.items"],
+		reads: ["research", "projects.items", "teams.items", "models.items"],
 		writes: [
 			"projects.items",
 			"teams.items",
@@ -42,10 +42,16 @@ const DECLARATIONS = {
 			"models.items",
 			"products.items",
 		],
-		writes: ["research", "meta.era", "company.insight", "projects.items"],
+		writes: [
+			"research",
+			"meta.era",
+			"company.insight",
+			"projects.items",
+			"compute",
+		],
 	},
 	training: {
-		reads: ["projects.items", "models.items", "compute"],
+		reads: ["research", "projects.items", "models.items", "compute"],
 		writes: ["projects.items", "models.items", "teams.items", "compute"],
 	},
 	products: {

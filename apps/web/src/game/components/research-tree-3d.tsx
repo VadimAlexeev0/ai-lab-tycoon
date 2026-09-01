@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EraBadge, { ERA_LABELS } from "@/game/components/era-badge";
+import { summarizeResearchEffects } from "@/game/derived/labels";
 import {
 	createResearchLayout,
 	type PositionedNode,
@@ -1095,6 +1096,7 @@ function ResearchDetailPane({
 	}
 
 	const visual = getResearchStatusVisual(node.status);
+	const effectSummary = summarizeResearchEffects(node.effects);
 	return (
 		<div
 			aria-labelledby="research-detail-heading"
@@ -1151,7 +1153,10 @@ function ResearchDetailPane({
 						className="mt-0.5 size-3.5 shrink-0 text-primary"
 						aria-hidden="true"
 					/>
-					<p>{effectForNode(node.lane, node.era)}</p>
+					<p>
+						{effectSummary ||
+							"No direct engine modifier; this node is a research milestone."}
+					</p>
 				</div>
 				<p className="text-muted-foreground text-xs leading-5">
 					{node.description}
@@ -1255,7 +1260,9 @@ function ResearchDetailPane({
 					</p>
 				) : node.status === "completed" ? (
 					<p className="border border-[var(--game-positive)]/30 bg-[var(--game-positive)]/5 px-3 py-2 text-muted-foreground text-xs leading-5">
-						This research effect is active in the engine state.
+						{effectSummary
+							? "This research effect is active in the engine state."
+							: "This node is complete; it has no direct engine modifier."}
 					</p>
 				) : node.status === "locked-out" ? (
 					<p className="border border-slate-500/30 bg-slate-500/5 px-3 py-2 text-muted-foreground text-xs leading-5">
@@ -1279,16 +1286,6 @@ function DetailValue({ label, value }: { label: string; value: string }) {
 			<p className="mt-1 text-foreground">{value}</p>
 		</div>
 	);
-}
-
-function effectForNode(branch: string, era: string): string {
-	if (branch === "models") {
-		return `Advances the ${era} model frontier and makes its downstream model work eligible.`;
-	}
-	if (branch === "infrastructure") {
-		return `Improves ${era}-era compute operations, increasing the lab's infrastructure options.`;
-	}
-	return `Improves ${era}-era product safety and market readiness for downstream launches.`;
 }
 
 function humanize(value: string): string {

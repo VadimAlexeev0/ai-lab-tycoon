@@ -1,7 +1,12 @@
 import { type Fact, startRun } from "@ai-lab-tycoon/engine";
 import { describe, expect, it } from "vitest";
 
-import { humanizeId, resolveEntityLabel, resolveFactLabels } from "./labels";
+import {
+	humanizeId,
+	resolveEntityLabel,
+	resolveFactLabels,
+	summarizeResearchEffects,
+} from "./labels";
 
 describe("entity labels", () => {
 	it("resolves current names for every fact entity kind", () => {
@@ -113,6 +118,23 @@ describe("entity labels", () => {
 				week: 2,
 			}),
 		).toEqual({ productId: "Atlas · Developer API" });
+	});
+
+	it("summarizes typed research effects without inventing a second event shape", () => {
+		expect(
+			summarizeResearchEffects([
+				{ kind: "training_compute_reduction", amount: 1 },
+				{ kind: "model_score_bonus", dimension: "reliability", amount: 4 },
+				{
+					kind: "evaluation_coverage_bonus",
+					evaluation: "capability",
+					amount: 15,
+				},
+			]),
+		).toBe(
+			"−1 training Compute; +4 Reliability model score; +15 Capability evaluation coverage",
+		);
+		expect(summarizeResearchEffects(undefined)).toBe("");
 	});
 
 	it("humanizes missing and stale IDs", () => {

@@ -7,6 +7,7 @@ import {
 import { BALANCE } from "../data/balance.js";
 import { completeEvaluationModel } from "../evaluations.js";
 import { assertGameState } from "../invariants.js";
+import { deriveResearchEffects } from "../research-effects.js";
 import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
@@ -21,6 +22,7 @@ export const projectsSystem: GameSystem = (state, context) => {
 	const completedProjectIds = new Set<string>();
 	const completedInfrastructureProjectIds = new Set<string>();
 	const completedModelProjectIds = new Set<string>();
+	const researchEffects = deriveResearchEffects(state.research);
 	const nextModels = state.models.items.map((model) => ({ ...model }));
 	const nextProjects: Project[] = state.projects.items.map((project) => {
 		if (project.status !== "active" || project.kind === "training") {
@@ -65,7 +67,11 @@ export const projectsSystem: GameSystem = (state, context) => {
 					`Evaluation project ${project.id} references an unknown model`,
 				);
 			}
-			const completed = completeEvaluationModel(model, project.evaluation);
+			const completed = completeEvaluationModel(
+				model,
+				project.evaluation,
+				researchEffects,
+			);
 			nextModels[modelIndex] = { ...completed.model, projectId: null };
 			facts.push({
 				kind: "evaluation_completed",

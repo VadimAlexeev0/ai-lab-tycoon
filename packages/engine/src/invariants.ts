@@ -34,6 +34,7 @@ import {
 	hasCompletedModelFamilyUnlock,
 	hasRequiredShippedModelProof,
 } from "./era-proof.js";
+import { deriveResearchEffects } from "./research-effects.js";
 import {
 	assertRunSetup,
 	GAME_STATE_SCHEMA_VERSION,
@@ -135,6 +136,9 @@ export function assertGameState(
 	assertComputeState(state.compute);
 	assertResearchState(state.research);
 	assertResearchNodeDefinitions(state);
+	// Effects are a derived view of completed node ids; validating the view here
+	// rejects any catalog/state contract drift before a system consumes it.
+	deriveResearchEffects(state.research);
 	assertModelsState(state.models);
 	assertProductsState(state.products);
 	assertRivalsState(state.rivals);

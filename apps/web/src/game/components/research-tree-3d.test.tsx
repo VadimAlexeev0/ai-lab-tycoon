@@ -81,6 +81,41 @@ describe("research lattice fallback", () => {
 		expect(document.activeElement).toBe(card);
 	});
 
+	it("explains the typed engine effect in research detail", () => {
+		renderFallback();
+		const card = screen.getAllByRole("button", {
+			name: /Parallel training.*1 Insight/i,
+		})[0];
+		if (card === undefined)
+			throw new Error("Expected the Parallel Training card");
+
+		fireEvent.click(card);
+		expect(screen.getByText("−1 training Compute")).not.toBeNull();
+	});
+
+	it("uses truthful copy for completed nodes without direct effects", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.era = "multimodal";
+		state.research.currentEra = "multimodal";
+		state.research.nodes = state.research.nodes.map((node) =>
+			node.id === "long_horizon_autonomy"
+				? { ...node, status: "completed" as const }
+				: node,
+		);
+		renderFallback({ state, selectedNodeId: "long_horizon_autonomy" });
+
+		expect(
+			screen.getByText(
+				"No direct engine modifier; this node is a research milestone.",
+			),
+		).not.toBeNull();
+		expect(
+			screen.getByText(
+				"This node is complete; it has no direct engine modifier.",
+			),
+		).not.toBeNull();
+	});
+
 	it("defaults to the current era and disables locked future eras", () => {
 		renderFallback();
 

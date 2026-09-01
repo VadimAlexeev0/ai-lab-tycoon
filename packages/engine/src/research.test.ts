@@ -22,6 +22,7 @@ import {
 	startRun,
 } from "./index.js";
 import { launchProduct } from "./products.js";
+import { researchEffectsForNode } from "./research-effects.js";
 import { projectsSystem } from "./systems/projects.js";
 import { researchSystem } from "./systems/research.js";
 
@@ -128,6 +129,9 @@ function completeResearchNode(
 	expect(result.facts).toContainEqual({
 		kind: "research_completed",
 		nodeId,
+		...(researchEffectsForNode(nodeId).length === 0
+			? {}
+			: { effects: researchEffectsForNode(nodeId) }),
 		week,
 	});
 	return result.state;

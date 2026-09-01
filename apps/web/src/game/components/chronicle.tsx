@@ -7,6 +7,8 @@ import {
 import { BookOpen, CircleDot, GitFork } from "lucide-react";
 import { toast } from "sonner";
 
+import { summarizeResearchEffects } from "@/game/derived/labels";
+
 export type ChronicleMarker = "record" | "milestone" | "warning";
 
 export type ChronicleEvent = {
@@ -487,8 +489,10 @@ function detailForFact(fact: Fact): string {
 			return `The engine advanced ${fact.projectId} by ${fact.amount} progress points.`;
 		case "project_completed":
 			return `The engine marked ${fact.projectId} complete.`;
-		case "research_completed":
-			return `The completed node is recorded as ${fact.nodeId}; this is a real research milestone.`;
+		case "research_completed": {
+			const effects = summarizeResearchEffects(fact.effects);
+			return `The completed node is recorded as ${fact.nodeId}; this is a real research milestone${effects ? ` with ${effects}.` : "."}`;
+		}
 		case "model_trained":
 			return `The engine recorded completed training for ${fact.modelId}.`;
 		case "evaluation_completed":

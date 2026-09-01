@@ -1,4 +1,10 @@
 import { canonicalSerialize } from "./canonical.js";
+import { assertComputeState } from "./components/compute.js";
+import { assertModelsState } from "./components/models.js";
+import { assertProductsState } from "./components/products.js";
+import { assertProjectsState } from "./components/projects.js";
+import { assertResearchState } from "./components/research.js";
+import { withRecomputedCompute } from "./compute-reservations.js";
 import {
 	assertGameState,
 	type GameStateValidationOptions,
@@ -20,7 +26,9 @@ export type GameStateUpgradeResult = Readonly<{
 
 type StateMigration = (value: unknown) => unknown;
 
+const STATE_SCHEMA_VERSION_V1 = 1 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
+	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[GAME_STATE_SCHEMA_VERSION]: cloneJsonValue,
 };
 
@@ -60,16 +68,15 @@ export function deserializeGameStateWithMetadata(
 /**
  * Upgrade a JSON-compatible value to the current validated GameState.
  *
- * The current dispatcher only has an identity migration because v1 is the
- * first accepted persisted format. The returned value is a JSON clone, so
- * future migrations can build new state without mutating their input.
+ * State schema v2 is the first contract that includes the research effect
+ * catalog. V1 persisted the compute reservation fields, but those fields were
+ * derived under the pre-effect rules. Its explicit migration recomputes the
+ * reservations before the current validator runs; it never treats a stale V1
+ * reservation as authoritative. There is no deployed pre-v1 format to support.
  *
- * When a second structural schema version is introduced, replace this
- * direct-to-current lookup with explicit stepwise chaining through each
- * intermediate version; do not skip migrations.
- *
- * ponytail: Historical pre-v1 data is intentionally not modeled; add each
- * structural version here with a real fixture and deterministic migration.
+ * The returned value is a JSON clone, so migrations never mutate their input.
+ * When another structural schema version is introduced, add a real migration
+ * and fixture here and chain each intermediate version rather than skipping it.
  */
 export function upgradeGameState(
 	value: unknown,
@@ -125,6 +132,33 @@ function readSchemaVersion(value: unknown): number {
 	}
 	assertSafeInteger(value.meta.schemaVersion, "Game state schema version");
 	return value.meta.schemaVersion;
+}
+
+function migrateV1ToV2(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v1 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v1 game state meta");
+	const compute = migrated.compute;
+	const projects = migrated.projects;
+	const models = migrated.models;
+	const research = migrated.research;
+	const products = migrated.products;
+	assertComputeState(compute);
+	assertProjectsState(projects);
+	assertModelsState(models);
+	assertResearchState(research);
+	assertProductsState(products);
+
+	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
+	migrated.compute = withRecomputedCompute({
+		compute,
+		projects,
+		models,
+		research,
+		products,
+	});
+	return migrated;
 }
 
 function cloneJsonValue(value: unknown): unknown {

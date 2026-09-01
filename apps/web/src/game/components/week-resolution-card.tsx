@@ -6,6 +6,7 @@ import {
 	humanizeId,
 	resolveEntityLabel,
 	resolveFactLabels,
+	summarizeResearchEffects,
 } from "@/game/derived/labels";
 import type { ResourceDeltas, WeekDigest } from "@/game/derived/week-digest";
 
@@ -405,12 +406,14 @@ function resolutionEvent(
 				label: `${labels.projectId ?? humanizeId(fact.projectId)} completed.`,
 				tone: "positive",
 			};
-		case "research_completed":
+		case "research_completed": {
+			const effectSummary = summarizeResearchEffects(fact.effects);
 			return {
 				id: `research-${fact.nodeId}-${index}`,
-				label: `${labels.nodeId ?? humanizeId(fact.nodeId)} research completed.`,
+				label: `${labels.nodeId ?? humanizeId(fact.nodeId)} research completed${effectSummary ? ` — ${effectSummary}.` : "."}`,
 				tone: "positive",
 			};
+		}
 		case "model_trained":
 			return {
 				id: `model-trained-${fact.modelId}-${index}`,

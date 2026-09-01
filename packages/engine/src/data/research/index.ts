@@ -19,6 +19,7 @@ import { TREE_SPLIT_NODES } from "./tree_split.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
+	assertResearchEffects,
 	MULTIMODAL_ERA,
 	RESEARCH_BRANCHES,
 	RESEARCH_CATEGORIES,
@@ -30,9 +31,28 @@ import {
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./types.js";
 
+const RESEARCH_DEFINITION_KEYS = [
+	"id",
+	"label",
+	"era",
+	"eraLabel",
+	"category",
+	"branch",
+	"status",
+	"insightCost",
+	"prerequisites",
+	"description",
+] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS = [
+	...RESEARCH_DEFINITION_KEYS,
+	"effects",
+] as const;
+
 export * from "./types.js";
 
 /** Ordered content groups keep the public tree deterministic and reviewable. */
+// ponytail: This first slice wires three Text-era effects; Sparks, paradigms,
+// publish/hoard, and broader node coverage remain deferred to later waves.
 export const RESEARCH_NODES = [
 	...FOUNDATIONS_NODES,
 	...TRANSFORMER_NODES,
@@ -72,18 +92,9 @@ export function assertResearchDefinitions(
 	for (const definition of definitions) {
 		assertExactObject(
 			definition,
-			[
-				"id",
-				"label",
-				"era",
-				"eraLabel",
-				"category",
-				"branch",
-				"status",
-				"insightCost",
-				"prerequisites",
-				"description",
-			],
+			Object.hasOwn(definition, "effects")
+				? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS
+				: RESEARCH_DEFINITION_KEYS,
 			"research definition",
 		);
 		assertIdentifier(definition.id, "Research definition id");
@@ -127,6 +138,12 @@ export function assertResearchDefinitions(
 		if (definition.description.length >= 160) {
 			throw new Error(
 				`Research definition ${definition.id} description must be under 160 characters`,
+			);
+		}
+		if (Object.hasOwn(definition, "effects")) {
+			assertResearchEffects(
+				definition.effects,
+				`Research definition ${definition.id} effects`,
 			);
 		}
 		if (RESEARCH_CATEGORY_LABELS[definition.category] !== definition.eraLabel) {
