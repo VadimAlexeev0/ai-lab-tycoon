@@ -111,4 +111,47 @@ describe("simulation calendar", () => {
 			pendingDecisionId: "decision_001",
 		});
 	});
+
+	it("places a resolved publication report on the research calendar", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.reports.items = [
+			{
+				id: "publication_report",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "research_publication_resolved",
+					nodeId: "text_infrastructure_compute",
+					outcome: "publish",
+					week: 1,
+				},
+			},
+		];
+		state.queue.reportIds = ["publication_report"];
+		const nodeLabel = resolveEntityLabel(
+			state,
+			"node",
+			"text_infrastructure_compute",
+		);
+
+		const event = buildCalendarEvents(state).find(
+			(candidate) => candidate.id === "calendar-report-publication_report",
+		);
+
+		expect(event).toMatchObject({
+			kind: "research",
+			status: "recorded",
+			title: `Research publication · ${nodeLabel}`,
+			summary: expect.stringContaining(`${nodeLabel} published`),
+			destination: "/game/research",
+		});
+		expect(event?.sources).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: "reports.items",
+					id: "publication_report",
+				}),
+			]),
+		);
+	});
 });

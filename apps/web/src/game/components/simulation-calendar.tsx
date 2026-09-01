@@ -27,7 +27,10 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import Pane from "@/game/components/pane";
-import { resolveEntityLabel } from "@/game/derived/labels";
+import {
+	resolveEntityLabel,
+	summarizeResearchPublicationResolution,
+} from "@/game/derived/labels";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -749,6 +752,25 @@ function reportToCalendarEvent(
 				kind: "research",
 				title: `Research complete · ${node?.label ?? fact.nodeId}`,
 				summary: `Research node ${fact.nodeId} completed in the engine on week ${fact.week}.`,
+				destination: "/game/research",
+				sources: appendSource(
+					base.sources,
+					state.research.nodes.find(
+						(candidate) => candidate.id === fact.nodeId,
+					),
+					"research.nodes",
+					fact.nodeId,
+				),
+			};
+		}
+		case "research_publication_resolved": {
+			const nodeLabel = resolveEntityLabel(state, "node", fact.nodeId);
+			return {
+				...base,
+				id: `calendar-report-${report.id}`,
+				kind: "research",
+				title: `Research publication · ${nodeLabel}`,
+				summary: summarizeResearchPublicationResolution(state, fact),
 				destination: "/game/research",
 				sources: appendSource(
 					base.sources,
