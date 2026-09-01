@@ -3,6 +3,7 @@ import type { ModelDimension } from "./data/model-families.js";
 import {
 	assertResearchEffects,
 	getResearchDefinition,
+	getResearchParadigm,
 	type ResearchEffect,
 	type ResearchEvaluationKind,
 } from "./data/research.js";
@@ -13,6 +14,10 @@ export type ActiveResearchEffects = Readonly<{
 	trainingComputeReduction: number;
 	modelScoreBonus: Readonly<Record<ModelDimension, number>>;
 	evaluationCoverageBonus: Readonly<Record<ResearchEvaluationKind, number>>;
+	modelScoreCeilingBonus: number;
+	trainingComputeSurcharge: number;
+	dataQualityImpactBonus: number;
+	trainingVarianceBonus: number;
 }>;
 
 /**
@@ -34,6 +39,10 @@ export function createEmptyResearchEffects(): ActiveResearchEffects {
 			capability: 0,
 			safety_reliability: 0,
 		},
+		modelScoreCeilingBonus: 0,
+		trainingComputeSurcharge: 0,
+		dataQualityImpactBonus: 0,
+		trainingVarianceBonus: 0,
 	};
 }
 
@@ -43,10 +52,15 @@ export function createEmptyResearchEffects(): ActiveResearchEffects {
  * save/load round-trips cannot duplicate an effect.
  */
 export function deriveResearchEffects(
-	research: Pick<ResearchState, "nodes">,
+	research: Pick<ResearchState, "nodes"> &
+		Partial<Pick<ResearchState, "paradigmId">>,
 ): ActiveResearchEffects {
 	const empty = createEmptyResearchEffects();
 	let trainingComputeReduction = empty.trainingComputeReduction;
+	let modelScoreCeilingBonus = empty.modelScoreCeilingBonus;
+	let trainingComputeSurcharge = empty.trainingComputeSurcharge;
+	let dataQualityImpactBonus = empty.dataQualityImpactBonus;
+	let trainingVarianceBonus = empty.trainingVarianceBonus;
 	const modelScoreBonus = { ...empty.modelScoreBonus };
 	const evaluationCoverageBonus = { ...empty.evaluationCoverageBonus };
 
@@ -85,10 +99,57 @@ export function deriveResearchEffects(
 		}
 	}
 
+	if (research.paradigmId !== undefined && research.paradigmId !== null) {
+		const paradigm = getResearchParadigm(research.paradigmId);
+		for (const effect of paradigm.effects) {
+			switch (effect.kind) {
+				case "model_score_ceiling_bonus":
+					modelScoreCeilingBonus = addAmount(
+						modelScoreCeilingBonus,
+						effect.amount,
+						`model score ceiling bonus from ${paradigm.id}`,
+					);
+					break;
+				case "model_score_ceiling_penalty":
+					modelScoreCeilingBonus = addAmount(
+						modelScoreCeilingBonus,
+						-effect.amount,
+						`model score ceiling penalty from ${paradigm.id}`,
+					);
+					break;
+				case "training_compute_surcharge":
+					trainingComputeSurcharge = addAmount(
+						trainingComputeSurcharge,
+						effect.amount,
+						`training compute surcharge from ${paradigm.id}`,
+					);
+					break;
+				case "data_quality_impact_bonus":
+					dataQualityImpactBonus = addAmount(
+						dataQualityImpactBonus,
+						effect.amount,
+						`data quality impact bonus from ${paradigm.id}`,
+					);
+					break;
+				case "training_variance_bonus":
+					trainingVarianceBonus = addAmount(
+						trainingVarianceBonus,
+						effect.amount,
+						`training variance bonus from ${paradigm.id}`,
+					);
+					break;
+			}
+		}
+	}
+
 	return {
 		trainingComputeReduction,
 		modelScoreBonus,
 		evaluationCoverageBonus,
+		modelScoreCeilingBonus,
+		trainingComputeSurcharge,
+		dataQualityImpactBonus,
+		trainingVarianceBonus,
 	};
 }
 

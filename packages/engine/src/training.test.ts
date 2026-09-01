@@ -20,9 +20,12 @@ const SPEC: ModelDesignSpec = {
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 };
 
-function designableState(seed = 42): GameState {
+function designableState(
+	seed = 42,
+	paradigmId: GameState["research"]["paradigmId"] = null,
+): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, seed);
-	state.research.paradigmId = "scale_maximalism";
+	state.research.paradigmId = paradigmId;
 	const node = state.research.nodes.find(
 		(item) => item.id === "text_models_principles",
 	);
@@ -34,7 +37,10 @@ function designableState(seed = 42): GameState {
 }
 
 function completedRun(seed = 42): { state: GameState; facts: unknown[] } {
-	let state = designModel(designableState(seed), SPEC).state;
+	let state = designModel(
+		designableState(seed, "scale_maximalism"),
+		SPEC,
+	).state;
 	const facts: unknown[] = [];
 	const duration = BALANCE.modelTiers.standard.duration;
 	for (let index = 0; index < duration; index += 1) {

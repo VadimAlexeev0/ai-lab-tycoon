@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
+import type { Model } from "./components/models.js";
+import { computeReservations } from "./compute-reservations.js";
+import { BALANCE } from "./data/balance.js";
 import { RESEARCH_PARADIGMS } from "./data/research/paradigms.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
+import {
+	designModel,
+	generateTrueScores,
+	type ModelDesignSpec,
+} from "./model-design.js";
+import { deriveResearchEffects } from "./research-effects.js";
+
+const SCALE_MODEL_SPEC: ModelDesignSpec = {
+	name: "Scale-1",
+	family: "text",
+	foundation: "fresh",
+	tier: "standard",
+	dataMix: { general: 60, code: 30, multimodal: 10 },
+	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+};
 
 describe("Era-1 paradigm decision", () => {
 	it("exposes one blocking decision with the three Era-1 paradigm choices", () => {
@@ -125,5 +143,103 @@ describe("Era-1 paradigm decision", () => {
 		expect(
 			RESEARCH_PARADIGMS.every((definition) => definition.effects.length >= 2),
 		).toBe(true);
+	});
+
+	it("applies selected Scale Maximalism to model ceiling and training compute", () => {
+		const state = startRun({ companyName: "Scale Lab" }, 42);
+		state.research.paradigmId = "scale_maximalism";
+		const textModels = state.research.nodes.find(
+			(node) => node.id === "text_models_principles",
+		);
+		if (textModels === undefined) {
+			throw new Error("Expected the Text model research node");
+		}
+		textModels.status = "completed";
+
+		const designed = designModel(state, SCALE_MODEL_SPEC).state;
+
+		expect(designed.models.items.at(-1)?.scoreCeiling).toBe(96);
+		expect(computeReservations(designed).trainingDemand).toBe(
+			BALANCE.modelTiers.standard.trainingCompute + 2,
+		);
+	});
+
+	it("increases the existing data-mix contribution under Data Curation", () => {
+		const state = startRun({ companyName: "Curation Lab" }, 42);
+		const model: Model = {
+			id: "model_001",
+			name: "Curation-1",
+			foundation: "fresh",
+			status: "designing",
+			projectId: null,
+			family: "text",
+			tier: "standard",
+			scoreCeiling: 100,
+			dataMix: { general: 60, code: 30, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+		};
+		const baseline = generateTrueScores(
+			state.rng,
+			model,
+			undefined,
+			deriveResearchEffects(state.research),
+		);
+
+		state.research.paradigmId = "data_curation_doctrine";
+		const curatedEffects = deriveResearchEffects(state.research);
+		const curated = generateTrueScores(
+			state.rng,
+			model,
+			undefined,
+			curatedEffects,
+		);
+
+		expect(curatedEffects.dataQualityImpactBonus).toBe(20);
+		expect(curated.trueScores.capability).toBeGreaterThan(
+			baseline.trueScores.capability,
+		);
+	});
+
+	it("widens Architecture Tinkering uncertainty without changing RNG progression", () => {
+		const state = startRun({ companyName: "Architecture Lab" }, 42);
+		const model: Model = {
+			id: "model_001",
+			name: "Architecture-1",
+			foundation: "fresh",
+			status: "designing",
+			projectId: null,
+			family: "text",
+			tier: "standard",
+			scoreCeiling: 100,
+			dataMix: { general: 60, code: 30, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+		};
+		const baselineEffects = deriveResearchEffects(state.research);
+		const baseline = generateTrueScores(
+			state.rng,
+			model,
+			undefined,
+			baselineEffects,
+		);
+
+		state.research.paradigmId = "architecture_tinkering";
+		const tinkeringEffects = deriveResearchEffects(state.research);
+		const tinkering = generateTrueScores(
+			state.rng,
+			model,
+			undefined,
+			tinkeringEffects,
+		);
+		const repeated = generateTrueScores(
+			state.rng,
+			model,
+			undefined,
+			tinkeringEffects,
+		);
+
+		expect(tinkeringEffects.trainingVarianceBonus).toBe(3);
+		expect(tinkering.rng).toEqual(baseline.rng);
+		expect(tinkering).toEqual(repeated);
+		expect(tinkering.estimates).not.toEqual(baseline.estimates);
 	});
 });

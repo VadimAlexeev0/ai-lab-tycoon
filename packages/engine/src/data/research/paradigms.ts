@@ -6,6 +6,7 @@ import {
 	assertPositiveInteger,
 	assertString,
 } from "../../validation.js";
+import { RESEARCH_PARADIGM_BALANCE } from "./paradigm-balance.js";
 
 // Era 1 only: the catalog must not grow past this ceiling without an explicit contract change.
 // ponytail: keep Era 2+ paradigms out of this catalog until their decision contract exists.
@@ -20,32 +21,27 @@ export type ResearchParadigmEffect =
 			readonly kind: "model_score_ceiling_bonus";
 			readonly amount: number;
 			readonly polarity: "benefit";
-		}
+	  }
 	| {
 			readonly kind: "model_score_ceiling_penalty";
 			readonly amount: number;
 			readonly polarity: "liability";
-		}
+	  }
 	| {
 			readonly kind: "training_compute_surcharge";
 			readonly amount: number;
 			readonly polarity: "liability";
-		}
+	  }
 	| {
 			readonly kind: "data_quality_impact_bonus";
 			readonly amount: number;
 			readonly polarity: "benefit";
-		}
+	  }
 	| {
 			readonly kind: "training_variance_bonus";
 			readonly amount: number;
 			readonly polarity: "liability";
-		}
-	| {
-			readonly kind: "breakthrough_chance_bonus";
-			readonly amount: number;
-			readonly polarity: "benefit";
-		};
+	  };
 
 export type ResearchParadigmDefinition = {
 	readonly id: ResearchParadigmId;
@@ -69,12 +65,14 @@ export const RESEARCH_PARADIGMS = [
 		effects: [
 			{
 				kind: "model_score_ceiling_bonus",
-				amount: 8,
+				amount:
+					RESEARCH_PARADIGM_BALANCE.scale_maximalism.modelScoreCeilingBonus,
 				polarity: "benefit",
 			},
 			{
 				kind: "training_compute_surcharge",
-				amount: 2,
+				amount:
+					RESEARCH_PARADIGM_BALANCE.scale_maximalism.trainingComputeSurcharge,
 				polarity: "liability",
 			},
 		],
@@ -87,12 +85,16 @@ export const RESEARCH_PARADIGMS = [
 		effects: [
 			{
 				kind: "data_quality_impact_bonus",
-				amount: 4,
+				amount:
+					RESEARCH_PARADIGM_BALANCE.data_curation_doctrine
+						.dataQualityImpactBonus,
 				polarity: "benefit",
 			},
 			{
 				kind: "model_score_ceiling_penalty",
-				amount: 4,
+				amount:
+					RESEARCH_PARADIGM_BALANCE.data_curation_doctrine
+						.modelScoreCeilingPenalty,
 				polarity: "liability",
 			},
 		],
@@ -104,13 +106,17 @@ export const RESEARCH_PARADIGMS = [
 			"Chase unusual breakthroughs through bolder architecture changes, with less predictable outcomes.",
 		effects: [
 			{
-				kind: "breakthrough_chance_bonus",
-				amount: 3,
+				kind: "model_score_ceiling_bonus",
+				amount:
+					RESEARCH_PARADIGM_BALANCE.architecture_tinkering
+						.modelScoreCeilingBonus,
 				polarity: "benefit",
 			},
 			{
 				kind: "training_variance_bonus",
-				amount: 3,
+				amount:
+					RESEARCH_PARADIGM_BALANCE.architecture_tinkering
+						.trainingVarianceBonus,
 				polarity: "liability",
 			},
 		],
@@ -124,7 +130,6 @@ const PARADIGM_EFFECT_KINDS = [
 	"training_compute_surcharge",
 	"data_quality_impact_bonus",
 	"training_variance_bonus",
-	"breakthrough_chance_bonus",
 ] as const;
 const PARADIGM_POLARITIES = ["benefit", "liability"] as const;
 
@@ -154,7 +159,20 @@ export function assertResearchParadigmEffect(
 	);
 	assertEnum(value.kind, PARADIGM_EFFECT_KINDS, "Paradigm effect kind");
 	assertPositiveInteger(value.amount, "Paradigm effect amount");
+	if (value.amount > 100) {
+		throw new Error("Paradigm effect amount must be at most 100");
+	}
 	assertEnum(value.polarity, PARADIGM_POLARITIES, "Paradigm effect polarity");
+	const expectedPolarity =
+		value.kind === "model_score_ceiling_bonus" ||
+		value.kind === "data_quality_impact_bonus"
+			? "benefit"
+			: "liability";
+	if (value.polarity !== expectedPolarity) {
+		throw new Error(
+			`Paradigm effect ${value.kind} must be a ${expectedPolarity}`,
+		);
+	}
 }
 
 export function assertResearchParadigmDefinition(

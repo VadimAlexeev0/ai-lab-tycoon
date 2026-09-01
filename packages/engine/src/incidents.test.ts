@@ -464,6 +464,7 @@ describe("incidents", () => {
 
 	it("fires training overload at the exact capacity boundary", () => {
 		const state = forcedState("compute_cost_overrun");
+		state.research.paradigmId = null;
 		const firstModel = state.models.items[0];
 		const secondModel = state.models.items[1];
 		if (firstModel === undefined || secondModel === undefined) {
