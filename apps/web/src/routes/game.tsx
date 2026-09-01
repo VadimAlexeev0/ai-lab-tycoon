@@ -4,6 +4,7 @@ import {
 	type FundingRound,
 	type PendingDecision,
 	selectPendingDecisions,
+	selectResearchParadigm,
 	selectVisibleModels,
 } from "@ai-lab-tycoon/engine";
 import { Button } from "@ai-lab-tycoon/ui/components/button";
@@ -35,6 +36,7 @@ import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
+import { summarizeResearchParadigmEffects } from "@/game/derived/labels";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { summarizeWeekDigest } from "@/game/derived/week-digest";
 import { GameStateProvider, useRunState } from "@/game/game-state-context";
@@ -542,6 +544,13 @@ function DecisionOverlay({
 					modelName={modelName ?? decision.modelId}
 					onResolve={(choice) => void resolve(choice)}
 				/>
+			) : decision.kind === "paradigm" ? (
+				<ParadigmDecision
+					decision={decision}
+					disabled={false}
+					onResolve={(choice) => void resolve(choice)}
+					state={state}
+				/>
 			) : (
 				<FundingDecision
 					decision={decision}
@@ -608,6 +617,100 @@ function EvaluationDecision({
 					}
 				/>
 			</div>
+		</section>
+	);
+}
+
+function ParadigmDecision({
+	decision,
+	disabled,
+	onResolve,
+	state,
+}: {
+	decision: Extract<PendingDecision, { kind: "paradigm" }>;
+	disabled: boolean;
+	onResolve: (choice: DecisionChoice) => void;
+	state: GameState;
+}) {
+	const choices = decision.choices.map((paradigmId) => ({
+		paradigmId,
+		paradigm: selectResearchParadigm({
+			...state,
+			research: { ...state.research, paradigmId },
+		}),
+	}));
+
+	return (
+		<section aria-label="Research paradigm decision" className="space-y-4">
+			<div>
+				<p className="font-semibold text-primary text-xs">Research direction</p>
+				<h3 className="mt-1 font-medium text-foreground text-sm">
+					Choose a research paradigm
+				</h3>
+				<p className="mt-1 text-muted-foreground text-xs leading-5">
+					This selection is irreversible for this run. Once you commit to a
+					paradigm, it cannot be changed.
+				</p>
+			</div>
+
+			<ul
+				aria-label="Research paradigm choices"
+				className="grid gap-3 sm:grid-cols-3"
+			>
+				{choices.map(({ paradigm, paradigmId }) => {
+					if (paradigm === null) return null;
+					const detailsId = `paradigm-choice-${paradigmId}-details`;
+					return (
+						<li className="min-w-0" key={paradigmId}>
+							<Button
+								aria-describedby={detailsId}
+								aria-label={`Select ${paradigm.label}`}
+								className="h-auto min-h-full w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-3 text-left"
+								disabled={disabled}
+								onClick={() =>
+									onResolve({
+										kind: "paradigm",
+										decisionId: decision.id,
+										paradigmId,
+									})
+								}
+								type="button"
+								variant="outline"
+							>
+								<span className="block w-full">
+									<span className="block font-semibold text-foreground text-sm">
+										{paradigm.label}
+									</span>
+									<span
+										className="mt-2 block text-muted-foreground text-xs leading-5"
+										id={detailsId}
+									>
+										{paradigm.description}
+									</span>
+									<span className="mt-3 grid w-full gap-2 border-border/70 border-t pt-3 text-xs sm:grid-cols-2">
+										<span className="min-w-0">
+											<span className="block font-semibold text-[var(--game-positive)]">
+												Benefit
+											</span>
+											<span className="mt-1 block text-foreground leading-5">
+												{summarizeResearchParadigmEffects(paradigm.benefits)}
+											</span>
+										</span>
+										<span className="min-w-0">
+											<span className="block font-semibold text-[var(--game-amber)]">
+												Liability
+											</span>
+											<span className="mt-1 block text-foreground leading-5">
+												{summarizeResearchParadigmEffects(paradigm.liabilities)}
+											</span>
+										</span>
+									</span>
+								</span>
+							</Button>
+						</li>
+					);
+				})}
+			</ul>
 		</section>
 	);
 }
@@ -701,6 +804,8 @@ function decisionTitle(
 			return `Launch / ${modelName ?? decision.modelId}`;
 		case "evaluation":
 			return `Evaluation / ${modelName ?? decision.modelId}`;
+		case "paradigm":
+			return `Research paradigm / ${humanize(decision.era)} era`;
 		case "funding":
 			return `Funding / ${decision.round === "series_a" ? "Series A" : "Seed"}`;
 	}

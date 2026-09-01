@@ -20,6 +20,62 @@ describe("applyCommand input contract", () => {
 		expect(applyCommandInput.parse(validStart)).toEqual(validStart);
 	});
 
+	it("accepts a paradigm decision choice", () => {
+		const paradigmDecision = {
+			requestId: "paradigm-1",
+			expectedRevision: 2,
+			command: {
+				kind: "apply_decision" as const,
+				choice: {
+					kind: "paradigm" as const,
+					decisionId: "decision_001",
+					paradigmId: "scale_maximalism" as const,
+				},
+			},
+		};
+
+		expect(applyCommandInput.parse(paradigmDecision)).toEqual(paradigmDecision);
+	});
+
+	it("rejects unknown paradigm ids and fields", () => {
+		const paradigmCommand = {
+			requestId: "paradigm-2",
+			expectedRevision: 2,
+			command: {
+				kind: "apply_decision" as const,
+				choice: {
+					kind: "paradigm" as const,
+					decisionId: "decision_001",
+					paradigmId: "scale_maximalism" as const,
+				},
+			},
+		};
+		expect(() =>
+			applyCommandInput.parse({
+				...paradigmCommand,
+				command: {
+					...paradigmCommand.command,
+					choice: {
+						...paradigmCommand.command.choice,
+						paradigmId: "future_paradigm",
+					},
+				},
+			}),
+		).toThrow();
+		expect(() =>
+			applyCommandInput.parse({
+				...paradigmCommand,
+				command: {
+					...paradigmCommand.command,
+					choice: {
+						...paradigmCommand.command.choice,
+						unexpected: true,
+					},
+				},
+			}),
+		).toThrow();
+	});
+
 	it("accepts an explicit replacement command but not an implicit start flag", () => {
 		const replacement = {
 			requestId: "replace-1",

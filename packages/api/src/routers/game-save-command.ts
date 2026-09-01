@@ -47,6 +47,17 @@ const decisionChoiceInput = z.discriminatedUnion("kind", [
 		.strict(),
 	z
 		.object({
+			kind: z.literal("paradigm"),
+			decisionId: identifier,
+			paradigmId: z.enum([
+				"scale_maximalism",
+				"data_curation_doctrine",
+				"architecture_tinkering",
+			]),
+		})
+		.strict(),
+	z
+		.object({
 			kind: z.literal("shelve"),
 			decisionId: identifier,
 		})
