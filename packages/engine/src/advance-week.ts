@@ -8,7 +8,7 @@ import { incidentsSystem } from "./systems/incidents.js";
 import { productsSystem } from "./systems/products.js";
 import { projectsSystem } from "./systems/projects.js";
 import { reportingSystem } from "./systems/reporting.js";
-import { researchSystem } from "./systems/research.js";
+import { discoverResearchSparks, researchSystem } from "./systems/research.js";
 import { rivalsSystem } from "./systems/rivals.js";
 import { terminalSystem } from "./systems/terminal.js";
 import { trainingSystem } from "./systems/training.js";
@@ -118,6 +118,11 @@ export function advanceWeek(
 	const pending = state.decisions.pending.map((decision) => ({ ...decision }));
 
 	for (const { phase, system } of WEEKLY_SYSTEMS) {
+		if (phase === "reporting") {
+			const discovery = discoverResearchSparks(nextState, facts, week);
+			nextState = discovery.state;
+			facts.push(...discovery.facts);
+		}
 		const result = system(nextState, {
 			phase,
 			week,

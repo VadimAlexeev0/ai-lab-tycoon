@@ -428,6 +428,7 @@ function commandToEvent(command: CommandLogEntry): ChronicleEvent {
 function markerForFact(fact: Fact): ChronicleMarker {
 	switch (fact.kind) {
 		case "research_completed":
+		case "research_spark_discovered":
 		case "product_launched":
 		case "product_resumed":
 		case "milestone_reached":
@@ -450,6 +451,8 @@ function titleForFact(fact: Fact): string {
 			return `Project ${fact.projectId} completed`;
 		case "research_completed":
 			return `Research node ${fact.nodeId} completed`;
+		case "research_spark_discovered":
+			return `Research Spark ${fact.sparkId} discovered`;
 		case "model_trained":
 			return `Model ${fact.modelId} training completed`;
 		case "evaluation_completed":
@@ -493,6 +496,8 @@ function detailForFact(fact: Fact): string {
 			const effects = summarizeResearchEffects(fact.effects);
 			return `The completed node is recorded as ${fact.nodeId}; this is a real research milestone${effects ? ` with ${effects}.` : "."}`;
 		}
+		case "research_spark_discovered":
+			return `The ${fact.sparkId} Spark discounted ${fact.nodeId} by ${fact.discount} Insight after a ${fact.trigger} fact.`;
 		case "model_trained":
 			return `The engine recorded completed training for ${fact.modelId}.`;
 		case "evaluation_completed":

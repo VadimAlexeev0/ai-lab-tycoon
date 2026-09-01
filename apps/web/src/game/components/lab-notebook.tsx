@@ -15,6 +15,7 @@ type NotebookFactKind =
 	| "product_launched"
 	| "product_resumed"
 	| "research_completed"
+	| "research_spark_discovered"
 	| "model_trained"
 	| "revenue"
 	| "funding_resolved"
@@ -320,6 +321,8 @@ function notebookFactAnnotation(fact: Fact): string {
 			const effects = summarizeResearchEffects(fact.effects);
 			return `Research node ${fact.nodeId} completed${effects ? `; effects: ${effects}.` : "."}`;
 		}
+		case "research_spark_discovered":
+			return `Research Spark ${fact.sparkId} discounted ${fact.nodeId} by ${fact.discount} Insight.`;
 		case "model_trained":
 			return `Training completed for ${fact.modelId}.`;
 		case "revenue":

@@ -132,6 +132,24 @@ function ResearchCard({
 			<p className="mt-3 flex-1 text-muted-foreground text-xs leading-5">
 				{detail}
 			</p>
+			{node.spark !== undefined ? (
+				<fieldset
+					aria-label={`Research Spark ${node.spark.id}`}
+					className="mt-3 border-primary/30 border-l-2 bg-primary/5 px-2.5 py-2 text-xs"
+				>
+					<p className="font-semibold text-primary">
+						Spark · {humanize(node.spark.id)}
+					</p>
+					<p className="mt-1 text-muted-foreground leading-5">
+						{node.spark.description}
+					</p>
+					<p className="mt-1 text-muted-foreground">
+						{node.spark.discovered
+							? `Discovered — ${node.spark.discount} Insight discount active.`
+							: `Trigger: ${humanize(node.spark.trigger)}.`}
+					</p>
+				</fieldset>
+			) : null}
 			{source.prerequisites.length > 0 ? (
 				<p className="mt-2 flex items-start gap-1.5 text-muted-foreground text-xs leading-4">
 					<Lightbulb className="mt-0.5 size-3 shrink-0" aria-hidden="true" />

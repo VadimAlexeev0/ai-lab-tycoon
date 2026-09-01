@@ -91,6 +91,13 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		],
 		description:
 			"Every rival cuts the token price; efficiency stops being a research brag and becomes the company's runway.",
+		spark: {
+			id: "inference_optimization",
+			trigger: "serving_throttled",
+			discount: 1,
+			description:
+				"A serving crunch reveals a cheaper inference path, making the next price war easier to enter.",
+		},
 	},
 	{
 		id: "open_weight_ecosystem",

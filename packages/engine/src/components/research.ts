@@ -1,4 +1,8 @@
 import {
+	getResearchDefinition,
+	getResearchSparkDefinition,
+} from "../data/research.js";
+import {
 	assertArray,
 	assertEnum,
 	assertExactObject,
@@ -9,6 +13,7 @@ import {
 export type ResearchEra = "text" | "assistant" | "multimodal";
 export type ResearchBranch = "models" | "infrastructure" | "products_safety";
 export type ResearchNodeStatus = "locked" | "available" | "completed";
+export type ResearchSparkTrigger = "serving_throttled";
 
 const RESEARCH_ERAS = ["text", "assistant", "multimodal"] as const;
 const RESEARCH_BRANCHES = [
@@ -30,11 +35,17 @@ export type ResearchNode = {
 export type ResearchState = {
 	currentEra: ResearchEra;
 	nodes: ResearchNode[];
+	discoveredSparkIds: string[];
 };
+
+export type ResearchStateValidationOptions = Readonly<{
+	allowMissingDiscoveredSparkIds?: boolean;
+}>;
 
 export function createResearchState(
 	currentEra: ResearchEra = "text",
 	nodes: ResearchNode[] = [],
+	discoveredSparkIds: string[] = [],
 ): ResearchState {
 	return {
 		currentEra,
@@ -42,15 +53,60 @@ export function createResearchState(
 			...node,
 			prerequisites: [...node.prerequisites],
 		})),
+		discoveredSparkIds: [...discoveredSparkIds],
 	};
 }
 
 export function assertResearchState(
 	value: unknown,
+	options: ResearchStateValidationOptions = {},
 ): asserts value is ResearchState {
-	assertExactObject(value, ["currentEra", "nodes"], "research");
+	const missingDiscoveredSparkIds =
+		options.allowMissingDiscoveredSparkIds === true &&
+		value !== null &&
+		typeof value === "object" &&
+		!Object.hasOwn(value, "discoveredSparkIds");
+	assertExactObject(
+		value,
+		missingDiscoveredSparkIds
+			? ["currentEra", "nodes"]
+			: ["currentEra", "nodes", "discoveredSparkIds"],
+		"research",
+	);
 	assertEnum(value.currentEra, RESEARCH_ERAS, "Research current era");
 	assertArray(value.nodes, "Research nodes");
+	const nodeIds = new Set<string>();
+	for (const node of value.nodes as unknown[]) {
+		if (
+			node !== null &&
+			typeof node === "object" &&
+			"id" in node &&
+			typeof node.id === "string"
+		) {
+			nodeIds.add(node.id);
+		}
+	}
+	const rawDiscoveredSparkIds = missingDiscoveredSparkIds
+		? []
+		: value.discoveredSparkIds;
+	assertArray(rawDiscoveredSparkIds, "Discovered research Spark ids");
+	const discoveredSparkIds = new Set<string>();
+	for (const sparkId of rawDiscoveredSparkIds) {
+		assertIdentifier(sparkId, "Discovered research Spark id");
+		if (discoveredSparkIds.has(sparkId)) {
+			throw new Error(`Duplicate discovered research Spark id: ${sparkId}`);
+		}
+		discoveredSparkIds.add(sparkId);
+		const sparkDefinition = getResearchSparkDefinition(sparkId);
+		if (sparkDefinition === undefined) {
+			throw new Error(`Unknown discovered research Spark id: ${sparkId}`);
+		}
+		if (!nodeIds.has(sparkDefinition.node.id)) {
+			throw new Error(
+				`Discovered research Spark ${sparkId} references a missing node`,
+			);
+		}
+	}
 
 	const ids = new Set<string>();
 	for (const item of value.nodes) {
@@ -71,6 +127,20 @@ export function assertResearchState(
 			item.insightCost,
 			`Research node ${item.id} insight cost`,
 		);
+		const definition = getResearchDefinition(item.id);
+		if (definition === undefined) {
+			throw new Error(`Unknown research node id: ${item.id}`);
+		}
+		const spark = definition.spark;
+		const expectedCost =
+			spark !== undefined && discoveredSparkIds.has(spark.id)
+				? Math.max(1, definition.insightCost - spark.discount)
+				: definition.insightCost;
+		if (item.insightCost !== expectedCost) {
+			throw new Error(
+				`Research node ${item.id} insight cost does not match its catalog base cost and discovered Spark discount`,
+			);
+		}
 		assertArray(item.prerequisites, "Research node prerequisites");
 		const prerequisites = new Set<string>();
 		for (const prerequisite of item.prerequisites) {

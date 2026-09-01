@@ -7,6 +7,7 @@ import {
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	MULTIMODAL_ERA,
 	RESEARCH_ERAS,
+	RESEARCH_NODES,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "../data/research.js";
 import { hasShippedModelProof } from "../era-proof.js";
@@ -136,6 +137,7 @@ export const researchSystem: GameSystem = (state, context) => {
 		research: {
 			currentEra,
 			nodes: nextNodes,
+			discoveredSparkIds: [...state.research.discoveredSparkIds],
 		},
 	};
 	// Research effects become active before the next project allocation is
@@ -177,6 +179,55 @@ export const researchSystem: GameSystem = (state, context) => {
 	assertGameState(nextState, { allowNegativeCash: nextState.company.cash < 0 });
 	return { state: nextState, facts, pending: [] };
 };
+
+export function discoverResearchSparks(
+	state: GameState,
+	facts: readonly Fact[],
+	week: number,
+): { state: GameState; facts: Fact[] } {
+	const hasServingShortage = facts.some(
+		(fact) => fact.kind === "serving_throttled" && fact.week === week,
+	);
+	if (!hasServingShortage) return { state, facts: [] };
+
+	let nextState = state;
+	const discoveredFacts: Fact[] = [];
+	for (const definition of RESEARCH_NODES) {
+		const spark = "spark" in definition ? definition.spark : undefined;
+		if (spark === undefined || spark.trigger !== "serving_throttled") continue;
+		if (nextState.research.discoveredSparkIds.includes(spark.id)) continue;
+		const nodeIndex = nextState.research.nodes.findIndex(
+			(node) => node.id === definition.id,
+		);
+		const node = nextState.research.nodes[nodeIndex];
+		if (node === undefined) continue;
+		const nextCost = Math.max(1, node.insightCost - spark.discount);
+		nextState = {
+			...nextState,
+			research: {
+				...nextState.research,
+				nodes: nextState.research.nodes.map((candidate, index) =>
+					index === nodeIndex
+						? { ...candidate, insightCost: nextCost }
+						: { ...candidate, prerequisites: [...candidate.prerequisites] },
+				),
+				discoveredSparkIds: [
+					...nextState.research.discoveredSparkIds,
+					spark.id,
+				],
+			},
+		};
+		discoveredFacts.push({
+			kind: "research_spark_discovered",
+			sparkId: spark.id,
+			nodeId: definition.id,
+			discount: spark.discount,
+			trigger: spark.trigger,
+			week,
+		});
+	}
+	return { state: nextState, facts: discoveredFacts };
+}
 
 function isResearchNodeEraUnlocked(
 	research: ResearchState,
