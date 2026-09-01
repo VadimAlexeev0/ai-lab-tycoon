@@ -21,6 +21,7 @@ const INCIDENTS: readonly IncidentType[] = [
 
 function forcedState(incident: IncidentType): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	state.research.paradigmId = "scale_maximalism";
 	const familyUnlock = state.research.nodes.find(
 		(node) => node.id === "text_models_principles",
 	);
@@ -463,6 +464,7 @@ describe("incidents", () => {
 
 	it("fires training overload at the exact capacity boundary", () => {
 		const state = forcedState("compute_cost_overrun");
+		state.research.paradigmId = null;
 		const firstModel = state.models.items[0];
 		const secondModel = state.models.items[1];
 		if (firstModel === undefined || secondModel === undefined) {

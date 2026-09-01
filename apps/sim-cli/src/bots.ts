@@ -165,6 +165,15 @@ function chooseDecision(
 	}
 
 	switch (decision.kind) {
+		case "paradigm": {
+			const paradigmId = decision.choices[0];
+			if (paradigmId === undefined) return null;
+			return {
+				kind: "paradigm",
+				decisionId: decision.id,
+				paradigmId,
+			};
+		}
 		case "launch": {
 			const channel = launchChannelForDecision(
 				state,

@@ -58,6 +58,20 @@ const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK = [
 	"spark",
 ] as const;
 
+export type {
+	ResearchParadigmDefinition,
+	ResearchParadigmEffect,
+	ResearchParadigmId,
+} from "./paradigms.js";
+export {
+	assertResearchParadigmDefinition,
+	assertResearchParadigmEffect,
+	assertResearchParadigms,
+	getResearchParadigm,
+	isResearchParadigmId,
+	PARADIGM_IDS,
+	RESEARCH_PARADIGMS,
+} from "./paradigms.js";
 export * from "./types.js";
 
 /** Ordered content groups keep the public tree deterministic and reviewable. */

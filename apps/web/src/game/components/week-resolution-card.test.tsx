@@ -131,4 +131,27 @@ describe("WeekResolutionCard", () => {
 		expect(container.textContent).not.toContain("model_001");
 		expect(container.textContent).not.toContain("project_001");
 	});
+
+	it("shows the selected paradigm tradeoff in recorded outcomes", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.week = 2;
+		state.research.paradigmId = "scale_maximalism";
+		state.reports.items = [
+			report("paradigm_report", {
+				kind: "paradigm_selected",
+				paradigmId: "scale_maximalism",
+				era: "text",
+				week: 2,
+			}),
+		];
+
+		const digest = deriveWeekDigest(null, state);
+		render(<WeekResolutionCard digest={digest} state={state} />);
+
+		expect(
+			screen.getByText(
+				"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+			),
+		).toBeTruthy();
+	});
 });

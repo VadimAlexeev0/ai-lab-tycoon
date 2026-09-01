@@ -25,8 +25,12 @@ const TEXT_SPEC: ModelDesignSpec = {
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 };
 
-function designableState(seed = 42): GameState {
+function designableState(
+	seed = 42,
+	paradigmId: GameState["research"]["paradigmId"] = null,
+): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, seed);
+	state.research.paradigmId = paradigmId;
 	const node = state.research.nodes.find(
 		(item) => item.id === "text_models_principles",
 	);
@@ -430,7 +434,7 @@ describe("Task 6 review regressions", () => {
 	});
 
 	it("replays every logged design_model and advance_week command byte-for-byte", () => {
-		const originalStart = designableState(42);
+		const originalStart = designableState(42, "scale_maximalism");
 		let original = designModel(originalStart, TEXT_SPEC).state;
 		for (let index = 0; index < 3; index += 1) {
 			original = advanceWeek(original).state;
@@ -441,6 +445,7 @@ describe("Task 6 review regressions", () => {
 			throw new Error("Expected start_run replay anchor");
 		}
 		let replayed = startRun(startCommand.setup, startCommand.seed);
+		replayed.research.paradigmId = "scale_maximalism";
 		const replayNode = replayed.research.nodes.find(
 			(node) => node.id === "text_models_principles",
 		);

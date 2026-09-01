@@ -1,3 +1,4 @@
+import type { GameState } from "@ai-lab-tycoon/engine";
 import {
 	Accordion,
 	AccordionContent,
@@ -16,7 +17,7 @@ import {
 	WalletCards,
 } from "lucide-react";
 import type { ReactNode } from "react";
-
+import { summarizeResearchParadigmSelection } from "@/game/derived/labels";
 import {
 	type ResourceDeltas,
 	summarizeWeekDigest,
@@ -27,6 +28,7 @@ export type WeekDigestCardProps = {
 	advanceControl?: ReactNode;
 	digest: WeekDigest;
 	deltas?: ResourceDeltas;
+	state?: GameState;
 	marketPulse?: ReactNode;
 	className?: string;
 };
@@ -51,9 +53,10 @@ export default function WeekDigestCard({
 	deltas,
 	digest,
 	marketPulse,
+	state,
 }: WeekDigestCardProps) {
-	const rows = createDigestRows(digest);
-	const summary = summarizeWeekDigest(digest, deltas);
+	const rows = createDigestRows(digest, state);
+	const summary = summarizeWeekDigest(digest, deltas, state);
 
 	return (
 		<section
@@ -124,7 +127,10 @@ export default function WeekDigestCard({
 	);
 }
 
-function createDigestRows(digest: WeekDigest): DigestRow[] {
+function createDigestRows(
+	digest: WeekDigest,
+	state: GameState | undefined,
+): DigestRow[] {
 	return [
 		...digest.launches.map((fact) => ({
 			icon: Rocket,
@@ -178,6 +184,14 @@ function createDigestRows(digest: WeekDigest): DigestRow[] {
 			icon: FlaskConical,
 			id: `spark-${fact.sparkId}`,
 			label: `${fact.sparkId} discovered · ${fact.nodeId} −${fact.discount} Insight`,
+			to: "/game/research" as const,
+		})),
+		...digest.paradigmSelections.map((fact) => ({
+			icon: FlaskConical,
+			id: `paradigm-${fact.paradigmId}-${fact.week}`,
+			label: state
+				? summarizeResearchParadigmSelection(state, fact)
+				: `${humanize(fact.paradigmId)} selected`,
 			to: "/game/research" as const,
 		})),
 	];

@@ -106,6 +106,39 @@ describe("deriveWeekDigest", () => {
 		expect(digest.launches[0]?.productId).toBe("product_001");
 	});
 
+	it("exposes selected paradigms without losing current-week precedence", () => {
+		const previous = startRun({ companyName: "Acme Labs" }, 42);
+		previous.meta.week = 3;
+		const current = startRun({ companyName: "Acme Labs" }, 42);
+		current.meta.week = 4;
+		current.research.paradigmId = "scale_maximalism";
+		current.reports.items = [
+			report("previous", {
+				kind: "paradigm_selected",
+				paradigmId: "data_curation_doctrine",
+				era: "text",
+				week: 3,
+			}),
+			report("current", {
+				kind: "paradigm_selected",
+				paradigmId: "scale_maximalism",
+				era: "text",
+				week: 4,
+			}),
+		];
+
+		const digest = deriveWeekDigest(previous, current);
+
+		expect(digest.paradigmSelections).toHaveLength(1);
+		expect(digest.paradigmSelections[0]).toMatchObject({
+			paradigmId: "scale_maximalism",
+			week: 4,
+		});
+		expect(summarizeWeekDigest(digest, undefined, current)).toBe(
+			"Week 4: Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+		);
+	});
+
 	it("includes completed-week facts after the state week advances", () => {
 		const previous = startRun({ companyName: "Acme Labs" }, 42);
 		previous.meta.week = 7;

@@ -378,6 +378,22 @@ const PENDING_DECISION_CASES: readonly PendingDecisionContractCase[] = [
 		required: ["kind", "id", "incident", "blocking"],
 		wrong: ["incident", "unknown_incident"],
 	},
+	{
+		name: "paradigm",
+		value: {
+			kind: "paradigm",
+			id: "decision_001",
+			era: "text",
+			choices: [
+				"scale_maximalism",
+				"data_curation_doctrine",
+				"architecture_tinkering",
+			],
+			blocking: true,
+		},
+		required: ["kind", "id", "era", "choices", "blocking"],
+		wrong: ["era", "assistant"],
+	},
 ];
 
 type DecisionChoiceContractCase = {
@@ -438,6 +454,16 @@ const CHOICE_CASES: readonly DecisionChoiceContractCase[] = [
 		required: ["kind", "decisionId"],
 		wrong: ["decisionId", ""],
 	},
+	{
+		name: "paradigm",
+		value: {
+			kind: "paradigm",
+			decisionId: "decision_001",
+			paradigmId: "scale_maximalism",
+		},
+		required: ["kind", "decisionId", "paradigmId"],
+		wrong: ["paradigmId", "unknown_paradigm"],
+	},
 ];
 
 type DecisionRoundTripCase = {
@@ -479,6 +505,11 @@ const DECISION_ROUND_TRIP_CASES: readonly DecisionRoundTripCase[] = [
 		name: "shelve",
 		decision: requireAt(PENDING_DECISION_CASES, 0).value,
 		choice: requireAt(CHOICE_CASES, 4).value,
+	},
+	{
+		name: "paradigm",
+		decision: requireAt(PENDING_DECISION_CASES, 4).value,
+		choice: requireAt(CHOICE_CASES, 5).value,
 	},
 ];
 

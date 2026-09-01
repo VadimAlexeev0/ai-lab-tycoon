@@ -16,8 +16,11 @@ import type {
 } from "./components/terminal.js";
 import {
 	getResearchDefinition,
+	getResearchParadigm,
 	type ResearchCategory,
 	type ResearchEffect,
+	type ResearchParadigmEffect,
+	type ResearchParadigmId,
 	type ResearchSparkTrigger,
 } from "./data/research.js";
 import type { GameState } from "./state.js";
@@ -129,6 +132,14 @@ export type VisibleResearchSpark = {
 	discount: number;
 	description: string;
 	discovered: boolean;
+};
+
+export type VisibleResearchParadigm = {
+	id: ResearchParadigmId;
+	label: string;
+	description: string;
+	benefits: readonly ResearchParadigmEffect[];
+	liabilities: readonly ResearchParadigmEffect[];
 };
 
 export type VisibleProductSummary = {
@@ -294,6 +305,25 @@ export function selectResearchNodes(
 		}
 		return visible;
 	});
+}
+
+export function selectResearchParadigm(
+	state: DeepReadonly<GameState>,
+): VisibleResearchParadigm | null {
+	const paradigmId = state.research.paradigmId;
+	if (paradigmId === null) return null;
+	const definition = getResearchParadigm(paradigmId);
+	return {
+		id: definition.id,
+		label: definition.label,
+		description: definition.description,
+		benefits: definition.effects
+			.filter((effect) => effect.polarity === "benefit")
+			.map((effect) => ({ ...effect })),
+		liabilities: definition.effects
+			.filter((effect) => effect.polarity === "liability")
+			.map((effect) => ({ ...effect })),
+	};
 }
 
 export function selectProducts(

@@ -177,6 +177,29 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 			safetyEmphasisBonus: 5,
 		},
 	},
+	researchParadigms: {
+		scale_maximalism: {
+			modelScoreCeilingBonus: 8,
+			modelScoreCeilingPenalty: 0,
+			trainingComputeSurcharge: 2,
+			dataQualityImpactBonus: 0,
+			trainingVarianceBonus: 0,
+		},
+		data_curation_doctrine: {
+			modelScoreCeilingBonus: 0,
+			modelScoreCeilingPenalty: 4,
+			trainingComputeSurcharge: 0,
+			dataQualityImpactBonus: 20,
+			trainingVarianceBonus: 0,
+		},
+		architecture_tinkering: {
+			modelScoreCeilingBonus: 4,
+			modelScoreCeilingPenalty: 0,
+			trainingComputeSurcharge: 0,
+			dataQualityImpactBonus: 0,
+			trainingVarianceBonus: 3,
+		},
+	},
 };
 
 describe("V1 economy constants", () => {

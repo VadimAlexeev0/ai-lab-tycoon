@@ -19,6 +19,7 @@ import type { GameState } from "./state.js";
 
 function shortageState(): GameState {
 	const state = startRun({ companyName: "Spark Lab" }, 42);
+	state.research.paradigmId = "scale_maximalism";
 	const familyUnlock = state.research.nodes.find(
 		(node) => node.id === "text_models_principles",
 	);

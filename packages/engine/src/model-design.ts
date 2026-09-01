@@ -25,6 +25,7 @@ import { assertGameState } from "./invariants.js";
 import {
 	type ActiveResearchEffects,
 	createEmptyResearchEffects,
+	deriveResearchEffects,
 } from "./research-effects.js";
 import { nextInt } from "./rng.js";
 import type { EngineResult, GameState, RngState } from "./state.js";
@@ -92,6 +93,7 @@ export function designModel(
 	const normalized = normalizeModelDesignSpec(spec);
 	const family = getFamily(normalized.family);
 	const tier = BALANCE.modelTiers[normalized.tier];
+	const researchEffects = deriveResearchEffects(state.research);
 
 	if (!family.allowedEras.includes(state.meta.era)) {
 		throw new Error(
@@ -150,7 +152,11 @@ export function designModel(
 		foundation: normalized.foundation,
 		parentModelId: normalized.parentModelId,
 		tier: normalized.tier,
-		scoreCeiling: tier.scoreCeiling,
+		scoreCeiling: clamp(
+			tier.scoreCeiling + researchEffects.modelScoreCeilingBonus,
+			0,
+			100,
+		),
 		dataMix: { ...normalized.dataMix },
 		emphasis: { ...normalized.emphasis },
 		status: "designing",
@@ -232,6 +238,7 @@ export function generateTrueScores(
 ): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
+	const scoreCeiling = model.scoreCeiling ?? tier.scoreCeiling;
 	const dataMix = model.dataMix ?? DEFAULT_DATA_MIX;
 	const emphasis = model.emphasis ?? DEFAULT_EMPHASIS;
 	if (
@@ -256,12 +263,18 @@ export function generateTrueScores(
 		const scoreDraw = nextInt(
 			nextRng,
 			"training",
-			BALANCE.modelScore.trainingJitterMin,
-			BALANCE.modelScore.trainingJitterMax,
+			BALANCE.modelScore.trainingJitterMin -
+				researchEffects.trainingVarianceBonus,
+			BALANCE.modelScore.trainingJitterMax +
+				researchEffects.trainingVarianceBonus,
 		);
 		nextRng = scoreDraw.rng;
 		const profileHint = family.baseScoreProfile[dimension];
-		const dataContribution = dataContributionFor(dimension, dataMix);
+		const dataContribution = Math.trunc(
+			(dataContributionFor(dimension, dataMix) *
+				(100 + researchEffects.dataQualityImpactBonus)) /
+				100,
+		);
 		const emphasisContribution = emphasisContributionFor(dimension, emphasis);
 		const tierContribution = Math.trunc(
 			(tier.scoreCeiling - BALANCE.modelScore.tierBaseline) /
@@ -281,17 +294,15 @@ export function generateTrueScores(
 			model.foundation,
 			parent?.trueScores?.[dimension],
 		);
-		trueScores[dimension] = clamp(
-			Math.max(rawScore, floor),
-			0,
-			tier.scoreCeiling,
-		);
+		trueScores[dimension] = clamp(Math.max(rawScore, floor), 0, scoreCeiling);
 
 		const estimateDraw = nextInt(
 			nextRng,
 			"training",
-			BALANCE.modelScore.estimateNoiseMin,
-			BALANCE.modelScore.estimateNoiseMax,
+			BALANCE.modelScore.estimateNoiseMin -
+				researchEffects.trainingVarianceBonus,
+			BALANCE.modelScore.estimateNoiseMax +
+				researchEffects.trainingVarianceBonus,
 		);
 		nextRng = estimateDraw.rng;
 		const noisyEstimate = clamp(

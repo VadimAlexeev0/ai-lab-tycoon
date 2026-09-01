@@ -35,4 +35,31 @@ describe("report history", () => {
 			screen.getByRole("list", { name: "product report facts" }),
 		).toBeTruthy();
 	});
+
+	it("names a selected paradigm and its benefit and liability", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.research.paradigmId = "scale_maximalism";
+		state.reports.items = [
+			{
+				id: "paradigm_report",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "paradigm_selected",
+					paradigmId: "scale_maximalism",
+					era: "text",
+					week: 2,
+				},
+			},
+		];
+		state.queue.reportIds = ["paradigm_report"];
+
+		render(<ReportHistory state={state} />);
+
+		expect(
+			screen.getByText(
+				"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+			),
+		).toBeTruthy();
+	});
 });

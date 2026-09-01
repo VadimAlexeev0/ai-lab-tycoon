@@ -1,7 +1,9 @@
+import type { PendingDecision } from "../components/decisions.js";
 import type { Fact } from "../components/reports.js";
 import type { ResearchEra, ResearchState } from "../components/research.js";
 import { withRecomputedCompute } from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
+import { PARADIGM_IDS } from "../data/research/paradigms.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
@@ -138,6 +140,7 @@ export const researchSystem: GameSystem = (state, context) => {
 			currentEra,
 			nodes: nextNodes,
 			discoveredSparkIds: [...state.research.discoveredSparkIds],
+			paradigmId: state.research.paradigmId,
 		},
 	};
 	// Research effects become active before the next project allocation is
@@ -176,8 +179,29 @@ export const researchSystem: GameSystem = (state, context) => {
 		};
 	}
 
+	const pending: PendingDecision[] = state.decisions.pending.map(
+		(decision) => ({
+			...decision,
+		}),
+	);
+	if (
+		state.research.currentEra === "text" &&
+		state.research.paradigmId === null &&
+		!pending.some((decision) => decision.kind === "paradigm")
+	) {
+		const allocation = allocateId(nextState, "decision");
+		nextState = allocation.state;
+		pending.push({
+			kind: "paradigm",
+			id: allocation.id,
+			era: "text",
+			choices: [...PARADIGM_IDS],
+			blocking: true,
+		});
+	}
+
 	assertGameState(nextState, { allowNegativeCash: nextState.company.cash < 0 });
-	return { state: nextState, facts, pending: [] };
+	return { state: nextState, facts, pending };
 };
 
 export function discoverResearchSparks(

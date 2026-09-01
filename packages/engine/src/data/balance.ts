@@ -25,6 +25,9 @@ import {
 	type ModelEmphasisDimension,
 	type ModelTier,
 } from "./model-families.js";
+import type { ResearchParadigmBalance } from "./research/paradigm-balance.js";
+import { RESEARCH_PARADIGM_BALANCE } from "./research/paradigm-balance.js";
+import type { ResearchParadigmId } from "./research/paradigms.js";
 
 export type ModelTierBalance = Readonly<{
 	duration: number;
@@ -127,6 +130,9 @@ export type BalanceConstants = Readonly<{
 	rivalClocks: Readonly<Record<RivalArchetype, RivalClockBalance>>;
 	funding: Readonly<Record<"seed" | "series_a", FundingRoundBalance>>;
 	evaluations: Readonly<Record<EvaluationKind, EvaluationBalance>>;
+	researchParadigms: Readonly<
+		Record<ResearchParadigmId, ResearchParadigmBalance>
+	>;
 }>;
 
 /** Cash available when a new V1 run opens. */
@@ -340,12 +346,6 @@ export const EVALUATION_BALANCE = {
 	},
 } as const satisfies Readonly<Record<EvaluationKind, EvaluationBalance>>;
 
-/**
- * Canonical typed balance table for V1.
- *
- * Keep opening-state and future weekly-system values here rather than
- * repeating economy numbers in systems or surfaces.
- */
 const LEGACY_BALANCE = {
 	startingCash: STARTING_CASH,
 	startingComputeCapacity: STARTING_COMPUTE_CAPACITY,
@@ -392,6 +392,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
 	funding: { value: FUNDING_BALANCE, enumerable: false },
 	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
+	researchParadigms: {
+		value: RESEARCH_PARADIGM_BALANCE,
+		enumerable: false,
+	},
 }) as unknown as typeof LEGACY_BALANCE & {
 	readonly infrastructureCapacityGain: typeof INFRASTRUCTURE_CAPACITY_GAIN;
 	readonly computePurchaseCost: typeof COMPUTE_PURCHASE_COST;
@@ -401,6 +405,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
+	readonly researchParadigms: typeof RESEARCH_PARADIGM_BALANCE;
 } satisfies BalanceConstants;
 
 assertBalanceConstants(BALANCE);
@@ -434,6 +439,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"rivalClocks",
 			"funding",
 			"evaluations",
+			"researchParadigms",
 		],
 		"balance",
 	);
@@ -549,6 +555,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	assertRivalClockBalance(value.rivalClocks);
 	assertFundingBalance(value.funding);
 	assertEvaluationBalance(value.evaluations);
+	assertResearchParadigmBalance(value.researchParadigms);
 }
 
 function assertProductChannelBalance(
@@ -622,6 +629,35 @@ function assertRivalClockBalance(
 			tuning.progressPerWeek,
 			`Rival clock ${archetype} progress`,
 		);
+	}
+}
+
+function assertResearchParadigmBalance(
+	value: Readonly<Record<ResearchParadigmId, ResearchParadigmBalance>>,
+): void {
+	assertExactObject(
+		value,
+		["scale_maximalism", "data_curation_doctrine", "architecture_tinkering"],
+		"Research paradigm balance",
+	);
+	for (const [id, tuning] of Object.entries(value)) {
+		assertExactObject(
+			tuning,
+			[
+				"modelScoreCeilingBonus",
+				"modelScoreCeilingPenalty",
+				"trainingComputeSurcharge",
+				"dataQualityImpactBonus",
+				"trainingVarianceBonus",
+			],
+			`Research paradigm ${id} balance`,
+		);
+		for (const [field, amount] of Object.entries(tuning)) {
+			assertNonNegativeInteger(amount, `Research paradigm ${id} ${field}`);
+			if (amount > 100) {
+				throw new Error(`Research paradigm ${id} ${field} must be at most 100`);
+			}
+		}
 	}
 }
 

@@ -19,6 +19,7 @@ const FACT_KINDS: readonly Fact["kind"][] = [
 	"project_progressed",
 	"project_completed",
 	"research_completed",
+	"paradigm_selected",
 	"model_trained",
 	"evaluation_completed",
 	"product_launched",

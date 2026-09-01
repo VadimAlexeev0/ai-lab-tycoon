@@ -7,6 +7,7 @@ import {
 	resolveEntityLabel,
 	resolveFactLabels,
 	summarizeResearchEffects,
+	summarizeResearchParadigmSelection,
 } from "@/game/derived/labels";
 import type { ResourceDeltas, WeekDigest } from "@/game/derived/week-digest";
 
@@ -418,6 +419,12 @@ function resolutionEvent(
 			return {
 				id: `research-spark-${fact.sparkId}-${index}`,
 				label: `Research Spark ${humanizeId(fact.sparkId)} discovered — ${humanizeId(fact.nodeId)} costs ${fact.discount} fewer Insight.`,
+				tone: "positive",
+			};
+		case "paradigm_selected":
+			return {
+				id: `paradigm-${fact.paradigmId}-${index}`,
+				label: summarizeResearchParadigmSelection(state, fact),
 				tone: "positive",
 			};
 		case "model_trained":

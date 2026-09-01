@@ -19,6 +19,7 @@ import {
 } from "./data/research.js";
 import { runEvaluation } from "./evaluations.js";
 import {
+	applyDecision,
 	deserializeGameState,
 	replayCommandLog,
 	serializeGameState,
@@ -73,6 +74,25 @@ function completeResearchNodeThroughCommands(
 ): { state: GameState; facts: Fact[] } {
 	let state = initial;
 	const facts: Fact[] = [];
+	if (state.research.paradigmId === null) {
+		const offered = advanceWeek(state);
+		const paradigm = offered.state.decisions.pending.find(
+			(decision) => decision.kind === "paradigm",
+		);
+		if (paradigm?.kind !== "paradigm") {
+			throw new Error("Expected the Era-1 paradigm decision");
+		}
+		const paradigmId = paradigm.choices[0];
+		if (paradigmId === undefined) {
+			throw new Error("Expected an Era-1 paradigm choice");
+		}
+		state = applyDecision(offered.state, {
+			kind: "paradigm",
+			decisionId: paradigm.id,
+			paradigmId,
+		}).state;
+		facts.push(...offered.facts);
+	}
 	for (let attempt = 0; attempt < 40; attempt += 1) {
 		const node = getResearchNode(state, nodeId);
 		if (node.status === "completed") return { state, facts };

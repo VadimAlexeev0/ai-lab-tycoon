@@ -3,6 +3,8 @@ import {
 	type GameState,
 	type ResearchEffect,
 	selectResearchNodes,
+	selectResearchParadigm,
+	type VisibleResearchParadigm,
 } from "@ai-lab-tycoon/engine";
 
 export type EntityKind = "project" | "model" | "product" | "rival" | "node";
@@ -12,7 +14,8 @@ export type FactEntityField =
 	| "modelId"
 	| "productId"
 	| "rivalId"
-	| "nodeId";
+	| "nodeId"
+	| "paradigmId";
 
 export type FactLabels = Partial<Record<FactEntityField, string>>;
 
@@ -34,6 +37,51 @@ export function summarizeResearchEffects(
 ): string {
 	if (effects === undefined || effects.length === 0) return "";
 	return effects.map(summarizeResearchEffect).join("; ");
+}
+
+export type ParadigmSelectedFact = Extract<Fact, { kind: "paradigm_selected" }>;
+
+type ResearchParadigmEffect = VisibleResearchParadigm["benefits"][number];
+
+/** Render the engine-owned paradigm projection without duplicating its catalog. */
+export function summarizeResearchParadigmSelection(
+	state: GameState | undefined,
+	fact: ParadigmSelectedFact,
+): string {
+	const paradigm = state === undefined ? null : selectResearchParadigm(state);
+	const selected = paradigm?.id === fact.paradigmId ? paradigm : undefined;
+	const label = selected?.label ?? humanizeId(fact.paradigmId);
+	const benefit = selected
+		? summarizeResearchParadigmEffects(selected.benefits)
+		: "not available in the current projection";
+	const liability = selected
+		? summarizeResearchParadigmEffects(selected.liabilities)
+		: "not available in the current projection";
+	return `${label} selected — Benefit: ${benefit}; Liability: ${liability}.`;
+}
+
+/** Return readable effect copy for the selected-paradigm player card. */
+export function summarizeResearchParadigmEffects(
+	effects: readonly ResearchParadigmEffect[],
+): string {
+	return effects.map(summarizeResearchParadigmEffect).join("; ");
+}
+
+function summarizeResearchParadigmEffect(
+	effect: ResearchParadigmEffect,
+): string {
+	switch (effect.kind) {
+		case "model_score_ceiling_bonus":
+			return `+${effect.amount} model score ceiling`;
+		case "model_score_ceiling_penalty":
+			return `−${effect.amount} model score ceiling`;
+		case "training_compute_surcharge":
+			return `+${effect.amount} training Compute`;
+		case "data_quality_impact_bonus":
+			return `+${effect.amount} data quality impact`;
+		case "training_variance_bonus":
+			return `+${effect.amount} training variance`;
+	}
 }
 
 function summarizeResearchEffect(effect: ResearchEffect): string {
@@ -101,6 +149,15 @@ export function resolveFactLabels(state: GameState, fact: Fact): FactLabels {
 		case "research_completed":
 		case "research_spark_discovered":
 			return { nodeId: resolveEntityLabel(state, "node", fact.nodeId) };
+		case "paradigm_selected": {
+			const paradigm = selectResearchParadigm(state);
+			return {
+				paradigmId:
+					paradigm?.id === fact.paradigmId
+						? paradigm.label
+						: humanizeId(fact.paradigmId),
+			};
+		}
 		case "model_trained":
 		case "evaluation_completed":
 			return { modelId: resolveEntityLabel(state, "model", fact.modelId) };

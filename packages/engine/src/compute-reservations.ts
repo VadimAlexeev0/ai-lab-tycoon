@@ -38,7 +38,9 @@ export function computeReservations(
 			total +
 			Math.max(
 				MIN_TRAINING_COMPUTE_DEMAND,
-				baseDemand - researchEffects.trainingComputeReduction,
+				baseDemand +
+					researchEffects.trainingComputeSurcharge -
+					researchEffects.trainingComputeReduction,
 			)
 		);
 	}, 0);
