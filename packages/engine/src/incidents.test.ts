@@ -21,6 +21,7 @@ const INCIDENTS: readonly IncidentType[] = [
 
 function forcedState(incident: IncidentType): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, 42);
+	state.research.paradigmId = "scale_maximalism";
 	const familyUnlock = state.research.nodes.find(
 		(node) => node.id === "text_models_principles",
 	);

@@ -78,6 +78,16 @@ function advance(input: GameState): GameState {
 
 function completePrinciples(state: GameState): GameState {
 	let nextState = state;
+	if (nextState.research.paradigmId === null) {
+		const offered = advanceWeek(nextState, { incidentRolls: MISS_ROLLS });
+		const paradigm = offered.state.decisions.pending.find(
+			(decision) => decision.kind === "paradigm",
+		);
+		if (paradigm === undefined) {
+			throw new Error("Expected the Era-1 paradigm decision");
+		}
+		nextState = applyDecision(offered.state, choiceFor(paradigm)).state;
+	}
 	for (let guard = 0; guard < 5; guard += 1) {
 		const node = nextState.research.nodes.find(
 			(item) => item.id === "text_models_principles",
@@ -242,6 +252,7 @@ function fundableState(): GameState {
 	familyUnlock.status = "completed";
 	state.company.hype = BALANCE.funding.seed.minimumHype;
 	state.company.trust = BALANCE.funding.seed.minimumTrust;
+	state.research.paradigmId = "scale_maximalism";
 	state.models.items = [
 		{
 			id: "model_001",

@@ -81,6 +81,7 @@ describe("startRun", () => {
 			research: {
 				currentEra: "text",
 				discoveredSparkIds: [],
+				paradigmId: null,
 				nodes: EXPECTED_OPENING_NODES,
 			},
 			models: { items: [], activeModelId: null },

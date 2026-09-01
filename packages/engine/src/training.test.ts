@@ -22,6 +22,7 @@ const SPEC: ModelDesignSpec = {
 
 function designableState(seed = 42): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, seed);
+	state.research.paradigmId = "scale_maximalism";
 	const node = state.research.nodes.find(
 		(item) => item.id === "text_models_principles",
 	);

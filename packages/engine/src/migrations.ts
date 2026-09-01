@@ -29,9 +29,11 @@ type StateMigration = (value: unknown) => unknown;
 
 const STATE_SCHEMA_VERSION_V1 = 1 as const;
 const STATE_SCHEMA_VERSION_V2 = 2 as const;
+const STATE_SCHEMA_VERSION_V3 = 3 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
+	[STATE_SCHEMA_VERSION_V3]: migrateV3ToV4,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -75,7 +77,8 @@ export function deserializeGameStateWithMetadata(
  * derived under the pre-effect rules. Its explicit migration recomputes the
  * reservations before the current validator runs; it never treats a stale V1
  * reservation as authoritative. State schema v3 adds replay-safe Research
- * Spark discoveries. There is no deployed pre-v1 format to support.
+ * Spark discoveries. State schema v4 adds the unresolved/selected Era-1
+ * research paradigm. There is no deployed pre-v1 format to support.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -191,6 +194,27 @@ function migrateV2ToV3(value: unknown): unknown {
 	) {
 		research.discoveredSparkIds = [];
 	}
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V3;
+	return migrated;
+}
+
+function migrateV3ToV4(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v3 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v3 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V3) {
+		throw new Error("v3 game state has an invalid schema version");
+	}
+	const research = migrated.research;
+	assertObject(research, "v3 game state research");
+	if (Object.hasOwn(research, "paradigmId")) {
+		throw new Error(
+			"v3 game state research contains unexpected field: paradigmId",
+		);
+	}
+	assertResearchState(research, { allowMissingParadigmId: true });
+	research.paradigmId = null;
 	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
 	return migrated;
 }
@@ -203,7 +227,13 @@ function assertLegacyResearchState(
 	if (Object.hasOwn(value, "discoveredSparkIds")) {
 		throw new Error(`${label} contains unexpected field: discoveredSparkIds`);
 	}
-	assertResearchState(value, { allowMissingDiscoveredSparkIds: true });
+	if (Object.hasOwn(value, "paradigmId")) {
+		throw new Error(`${label} contains unexpected field: paradigmId`);
+	}
+	assertResearchState(value, {
+		allowMissingDiscoveredSparkIds: true,
+		allowMissingParadigmId: true,
+	});
 }
 
 function cloneJsonValue(value: unknown): unknown {

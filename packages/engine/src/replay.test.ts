@@ -34,7 +34,17 @@ function resolveNonModelBlockers(state: GameState): GameState {
 		guard += 1;
 		const decision = current.decisions.pending[0];
 		if (decision === undefined) break;
-		if (decision.kind === "funding") {
+		if (decision.kind === "paradigm") {
+			const paradigmId = decision.choices[0];
+			if (paradigmId === undefined) {
+				throw new Error("Expected a paradigm choice");
+			}
+			current = applyDecision(current, {
+				kind: "paradigm",
+				decisionId: decision.id,
+				paradigmId,
+			}).state;
+		} else if (decision.kind === "funding") {
 			current = applyDecision(current, {
 				kind: "funding",
 				decisionId: decision.id,
@@ -61,6 +71,7 @@ function directCommandRun(): GameState {
 	// Gain the first Insight, then exercise both project command forms before
 	// taking the model path through design, training, evaluation, and launch.
 	state = advanceWeek(state).state;
+	state = resolveNonModelBlockers(state);
 	const team = state.teams.items[0];
 	const infrastructure = selectAvailableProjects(state).find(
 		(project) =>
@@ -124,6 +135,7 @@ function directCommandRun(): GameState {
 function evaluationDecisionRun(): GameState {
 	let state = startRun({ companyName: "Shelve Labs" }, 9);
 	state = advanceWeek(state).state;
+	state = resolveNonModelBlockers(state);
 	const team = state.teams.items[0];
 	const project = selectAvailableProjects(state).find(
 		(item) =>
@@ -176,6 +188,7 @@ describe("command-log replay", () => {
 			new Set([
 				"start_run",
 				"advance_week",
+				"apply_decision",
 				"assign_project",
 				"cancel_project",
 				"design_model",
@@ -284,7 +297,17 @@ describe("command-log replay", () => {
 		const drifted: CommandLogEntry[] = [
 			anchor,
 			{ id: "command_002", kind: "advance_week", week: 1 },
-			{ id: "command_003", kind: "advance_week", week: 1 },
+			{
+				id: "command_003",
+				kind: "apply_decision",
+				week: 1,
+				choice: {
+					kind: "paradigm",
+					decisionId: "decision_001",
+					paradigmId: "scale_maximalism",
+				},
+			},
+			{ id: "command_004", kind: "advance_week", week: 1 },
 		];
 		expect(() => replayCommandLog(drifted)).toThrow(/mismatch/i);
 	});

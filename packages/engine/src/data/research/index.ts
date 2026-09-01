@@ -59,6 +59,20 @@ const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK = [
 ] as const;
 
 export * from "./types.js";
+export {
+	assertResearchParadigmDefinition,
+	assertResearchParadigmEffect,
+	assertResearchParadigms,
+	getResearchParadigm,
+	isResearchParadigmId,
+	PARADIGM_IDS,
+	RESEARCH_PARADIGMS,
+} from "./paradigms.js";
+export type {
+	ResearchParadigmDefinition,
+	ResearchParadigmEffect,
+	ResearchParadigmId,
+} from "./paradigms.js";
 
 /** Ordered content groups keep the public tree deterministic and reviewable. */
 // ponytail: Only the typed serving_throttled Spark trigger is implemented;

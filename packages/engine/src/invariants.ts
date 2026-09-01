@@ -493,7 +493,7 @@ function assertMeta(value: unknown, research: unknown): void {
 	assertEnum(value.era, RESEARCH_ERAS, "Meta era");
 	assertExactObject(
 		research,
-		["currentEra", "nodes", "discoveredSparkIds"],
+		["currentEra", "nodes", "discoveredSparkIds", "paradigmId"],
 		"research",
 	);
 	if (research.currentEra !== value.era) {

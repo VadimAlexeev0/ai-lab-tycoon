@@ -27,6 +27,7 @@ const TEXT_SPEC: ModelDesignSpec = {
 
 function designableState(seed = 42): GameState {
 	const state = startRun({ companyName: "Acme Labs" }, seed);
+	state.research.paradigmId = "scale_maximalism";
 	const node = state.research.nodes.find(
 		(item) => item.id === "text_models_principles",
 	);
@@ -441,6 +442,7 @@ describe("Task 6 review regressions", () => {
 			throw new Error("Expected start_run replay anchor");
 		}
 		let replayed = startRun(startCommand.setup, startCommand.seed);
+		replayed.research.paradigmId = "scale_maximalism";
 		const replayNode = replayed.research.nodes.find(
 			(node) => node.id === "text_models_principles",
 		);

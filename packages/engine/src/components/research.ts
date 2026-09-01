@@ -3,6 +3,10 @@ import {
 	getResearchSparkDefinition,
 } from "../data/research.js";
 import {
+	isResearchParadigmId,
+	type ResearchParadigmId,
+} from "../data/research/paradigms.js";
+import {
 	assertArray,
 	assertEnum,
 	assertExactObject,
@@ -36,16 +40,19 @@ export type ResearchState = {
 	currentEra: ResearchEra;
 	nodes: ResearchNode[];
 	discoveredSparkIds: string[];
+	paradigmId: ResearchParadigmId | null;
 };
 
 export type ResearchStateValidationOptions = Readonly<{
 	allowMissingDiscoveredSparkIds?: boolean;
+	allowMissingParadigmId?: boolean;
 }>;
 
 export function createResearchState(
 	currentEra: ResearchEra = "text",
 	nodes: ResearchNode[] = [],
 	discoveredSparkIds: string[] = [],
+	paradigmId: ResearchParadigmId | null = null,
 ): ResearchState {
 	return {
 		currentEra,
@@ -54,6 +61,7 @@ export function createResearchState(
 			prerequisites: [...node.prerequisites],
 		})),
 		discoveredSparkIds: [...discoveredSparkIds],
+		paradigmId,
 	};
 }
 
@@ -61,18 +69,20 @@ export function assertResearchState(
 	value: unknown,
 	options: ResearchStateValidationOptions = {},
 ): asserts value is ResearchState {
+	const missingParadigmId =
+		options.allowMissingParadigmId === true &&
+		value !== null &&
+		typeof value === "object" &&
+		!Object.hasOwn(value, "paradigmId");
 	const missingDiscoveredSparkIds =
 		options.allowMissingDiscoveredSparkIds === true &&
 		value !== null &&
 		typeof value === "object" &&
 		!Object.hasOwn(value, "discoveredSparkIds");
-	assertExactObject(
-		value,
-		missingDiscoveredSparkIds
-			? ["currentEra", "nodes"]
-			: ["currentEra", "nodes", "discoveredSparkIds"],
-		"research",
-	);
+	const requiredKeys = ["currentEra", "nodes"];
+	if (!missingDiscoveredSparkIds) requiredKeys.push("discoveredSparkIds");
+	if (!missingParadigmId) requiredKeys.push("paradigmId");
+	assertExactObject(value, requiredKeys, "research");
 	assertEnum(value.currentEra, RESEARCH_ERAS, "Research current era");
 	assertArray(value.nodes, "Research nodes");
 	const nodeIds = new Set<string>();
@@ -106,6 +116,11 @@ export function assertResearchState(
 				`Discovered research Spark ${sparkId} references a missing node`,
 			);
 		}
+	}
+
+	const rawParadigmId = missingParadigmId ? null : value.paradigmId;
+	if (rawParadigmId !== null && !isResearchParadigmId(rawParadigmId)) {
+		throw new Error(`Unknown research paradigm id: ${String(rawParadigmId)}`);
 	}
 
 	const ids = new Set<string>();
