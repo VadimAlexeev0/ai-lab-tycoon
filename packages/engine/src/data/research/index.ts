@@ -57,6 +57,26 @@ const RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK = [
 	"effects",
 	"spark",
 ] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE = [
+	...RESEARCH_DEFINITION_KEYS,
+	"publishable",
+] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_AND_EFFECTS = [
+	...RESEARCH_DEFINITION_KEYS,
+	"publishable",
+	"effects",
+] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_AND_SPARK = [
+	...RESEARCH_DEFINITION_KEYS,
+	"publishable",
+	"spark",
+] as const;
+const RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_EFFECTS_AND_SPARK = [
+	...RESEARCH_DEFINITION_KEYS,
+	"publishable",
+	"effects",
+	"spark",
+] as const;
 
 export type {
 	ResearchParadigmDefinition,
@@ -132,17 +152,23 @@ export function assertResearchDefinitions(
 	for (const definition of definitions) {
 		const hasEffects = Object.hasOwn(definition, "effects");
 		const hasSpark = Object.hasOwn(definition, "spark");
-		assertExactObject(
-			definition,
-			hasEffects && hasSpark
+		const hasPublishable = Object.hasOwn(definition, "publishable");
+		const definitionKeys = hasPublishable
+			? hasEffects && hasSpark
+				? RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_EFFECTS_AND_SPARK
+				: hasEffects
+					? RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_AND_EFFECTS
+					: hasSpark
+						? RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE_AND_SPARK
+						: RESEARCH_DEFINITION_KEYS_WITH_PUBLISHABLE
+			: hasEffects && hasSpark
 				? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS_AND_SPARK
 				: hasEffects
 					? RESEARCH_DEFINITION_KEYS_WITH_EFFECTS
 					: hasSpark
 						? RESEARCH_DEFINITION_KEYS_WITH_SPARK
-						: RESEARCH_DEFINITION_KEYS,
-			"research definition",
-		);
+						: RESEARCH_DEFINITION_KEYS;
+		assertExactObject(definition, definitionKeys, "research definition");
 		assertIdentifier(definition.id, "Research definition id");
 		if (ids.has(definition.id)) {
 			throw new Error(`Duplicate research definition id: ${definition.id}`);
@@ -184,6 +210,11 @@ export function assertResearchDefinitions(
 		if (definition.description.length >= 160) {
 			throw new Error(
 				`Research definition ${definition.id} description must be under 160 characters`,
+			);
+		}
+		if (hasPublishable && typeof definition.publishable !== "boolean") {
+			throw new Error(
+				`Research definition ${definition.id} publishable must be a boolean`,
 			);
 		}
 		if (Object.hasOwn(definition, "effects")) {

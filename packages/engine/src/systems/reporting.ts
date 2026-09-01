@@ -85,6 +85,7 @@ export function priorityForFact(fact: Fact): ReportPriority {
 		case "milestone_reached":
 		case "paradigm_selected":
 		case "research_spark_discovered":
+		case "research_publication_resolved":
 		case "model_trained":
 		case "evaluation_completed":
 		case "product_launched":

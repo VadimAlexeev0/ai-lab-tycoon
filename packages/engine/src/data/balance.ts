@@ -133,6 +133,7 @@ export type BalanceConstants = Readonly<{
 	researchParadigms: Readonly<
 		Record<ResearchParadigmId, ResearchParadigmBalance>
 	>;
+	publication: PublicationBalance;
 }>;
 
 /** Cash available when a new V1 run opens. */
@@ -346,6 +347,20 @@ export const EVALUATION_BALANCE = {
 	},
 } as const satisfies Readonly<Record<EvaluationKind, EvaluationBalance>>;
 
+export type PublicationBalance = Readonly<{
+	publishHypeGain: number;
+	publishTrustGain: number;
+	publishRivalProgressGain: number;
+	hoardTrustPenalty: number;
+}>;
+
+export const PUBLICATION_BALANCE = {
+	publishHypeGain: 8,
+	publishTrustGain: 4,
+	publishRivalProgressGain: 3,
+	hoardTrustPenalty: 4,
+} as const satisfies PublicationBalance;
+
 const LEGACY_BALANCE = {
 	startingCash: STARTING_CASH,
 	startingComputeCapacity: STARTING_COMPUTE_CAPACITY,
@@ -396,6 +411,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 		value: RESEARCH_PARADIGM_BALANCE,
 		enumerable: false,
 	},
+	publication: {
+		value: PUBLICATION_BALANCE,
+		enumerable: false,
+	},
 }) as unknown as typeof LEGACY_BALANCE & {
 	readonly infrastructureCapacityGain: typeof INFRASTRUCTURE_CAPACITY_GAIN;
 	readonly computePurchaseCost: typeof COMPUTE_PURCHASE_COST;
@@ -406,6 +425,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
 	readonly researchParadigms: typeof RESEARCH_PARADIGM_BALANCE;
+	readonly publication: typeof PUBLICATION_BALANCE;
 } satisfies BalanceConstants;
 
 assertBalanceConstants(BALANCE);
@@ -440,6 +460,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"funding",
 			"evaluations",
 			"researchParadigms",
+			"publication",
 		],
 		"balance",
 	);
@@ -556,6 +577,27 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	assertFundingBalance(value.funding);
 	assertEvaluationBalance(value.evaluations);
 	assertResearchParadigmBalance(value.researchParadigms);
+	assertPublicationBalance(value.publication);
+}
+
+function assertPublicationBalance(value: PublicationBalance): void {
+	assertExactObject(
+		value,
+		[
+			"publishHypeGain",
+			"publishTrustGain",
+			"publishRivalProgressGain",
+			"hoardTrustPenalty",
+		],
+		"Publication balance",
+	);
+	assertPositiveInteger(value.publishHypeGain, "Publication hype gain");
+	assertPositiveInteger(value.publishTrustGain, "Publication trust gain");
+	assertPositiveInteger(
+		value.publishRivalProgressGain,
+		"Publication rival progress gain",
+	);
+	assertPositiveInteger(value.hoardTrustPenalty, "Hoard trust penalty");
 }
 
 function assertProductChannelBalance(

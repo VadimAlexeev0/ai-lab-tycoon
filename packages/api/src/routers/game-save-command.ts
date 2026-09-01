@@ -62,6 +62,14 @@ const decisionChoiceInput = z.discriminatedUnion("kind", [
 			decisionId: identifier,
 		})
 		.strict(),
+	z
+		.object({
+			kind: z.literal("publication"),
+			decisionId: identifier,
+			nodeId: z.literal("text_infrastructure_compute"),
+			outcome: z.enum(["publish", "hoard"]),
+		})
+		.strict(),
 ]);
 
 const modelDesignInput = z

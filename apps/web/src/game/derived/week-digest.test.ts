@@ -106,6 +106,30 @@ describe("deriveWeekDigest", () => {
 		expect(digest.launches[0]?.productId).toBe("product_001");
 	});
 
+	it("extracts and summarizes publication resolution facts", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.week = 4;
+		state.reports.items = [
+			report("publication", {
+				kind: "research_publication_resolved",
+				nodeId: "text_infrastructure_compute",
+				outcome: "publish",
+				week: 4,
+			}),
+		];
+
+		const digest = deriveWeekDigest(null, state);
+
+		expect(digest.publicationResolutions).toHaveLength(1);
+		expect(digest.publicationResolutions[0]).toMatchObject({
+			nodeId: "text_infrastructure_compute",
+			outcome: "publish",
+		});
+		expect(summarizeWeekDigest(digest, undefined, state)).toContain(
+			"Public credit and visibility",
+		);
+	});
+
 	it("exposes selected paradigms without losing current-week precedence", () => {
 		const previous = startRun({ companyName: "Acme Labs" }, 42);
 		previous.meta.week = 3;

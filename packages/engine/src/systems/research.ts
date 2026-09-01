@@ -7,6 +7,7 @@ import { PARADIGM_IDS } from "../data/research/paradigms.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
+	getResearchDefinition,
 	MULTIMODAL_ERA,
 	RESEARCH_ERAS,
 	RESEARCH_NODES,
@@ -78,6 +79,7 @@ export const researchSystem: GameSystem = (state, context) => {
 			.filter((node) => node.status === "completed")
 			.map((node) => node.id),
 	);
+	const newlyCompletedPublishableNodeIds: string[] = [];
 	const nextNodes = state.research.nodes.map((node) => ({
 		...node,
 		prerequisites: [...node.prerequisites],
@@ -110,6 +112,10 @@ export const researchSystem: GameSystem = (state, context) => {
 				: { effects: effects.map(cloneResearchEffect) }),
 			week: context.week,
 		});
+		const definition = getResearchDefinition(node.id);
+		if (definition?.publishable === true) {
+			newlyCompletedPublishableNodeIds.push(node.id);
+		}
 	}
 
 	const currentEra = advanceEraIfUnlocked(
@@ -184,6 +190,24 @@ export const researchSystem: GameSystem = (state, context) => {
 			...decision,
 		}),
 	);
+	for (const nodeId of newlyCompletedPublishableNodeIds) {
+		if (
+			pending.some(
+				(decision) =>
+					decision.kind === "publication" && decision.nodeId === nodeId,
+			)
+		) {
+			continue;
+		}
+		const allocation = allocateId(nextState, "decision");
+		nextState = allocation.state;
+		pending.push({
+			kind: "publication",
+			id: allocation.id,
+			nodeId,
+			blocking: true,
+		});
+	}
 	if (
 		state.research.currentEra === "text" &&
 		state.research.paradigmId === null &&

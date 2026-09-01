@@ -1,6 +1,7 @@
 import { type GameState, startRun } from "@ai-lab-tycoon/engine";
 import { describe, expect, it } from "vitest";
 
+import { resolveEntityLabel } from "@/game/derived/labels";
 import {
 	buildChronicleTimeline,
 	getChronicleDeathCertificate,
@@ -117,6 +118,38 @@ describe("company chronicle projections", () => {
 			title: "Scale Maximalism selected",
 			detail:
 				"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+		});
+	});
+
+	it("records publication outcomes with a readable node and tradeoff", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.reports.items = [
+			{
+				id: "publication_report",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "research_publication_resolved",
+					nodeId: "text_infrastructure_compute",
+					outcome: "publish",
+					week: 4,
+				},
+			},
+		];
+		state.queue.reportIds = ["publication_report"];
+		const nodeLabel = resolveEntityLabel(
+			state,
+			"node",
+			"text_infrastructure_compute",
+		);
+
+		const event = buildChronicleTimeline(state)[0]?.items[0];
+
+		expect(event).toMatchObject({
+			kind: "event",
+			marker: "milestone",
+			title: "Research publication resolved",
+			detail: `${nodeLabel} published — Public credit and visibility build trust and hype while active rivals receive a visible clue.`,
 		});
 	});
 

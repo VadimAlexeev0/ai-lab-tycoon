@@ -3,6 +3,7 @@ import type {
 	PendingDecision,
 } from "./components/decisions.js";
 import { assertDecisionChoice } from "./components/decisions.js";
+import { BALANCE } from "./data/balance.js";
 import { applyEvaluation } from "./evaluations.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
@@ -98,6 +99,9 @@ export function applyDecision(
 	} else if (choice.kind === "paradigm") {
 		resolved = applyParadigmChoice(state, pending, choice);
 		remaining = withoutDecision(state.decisions.pending, pending.id);
+	} else if (choice.kind === "publication") {
+		resolved = applyPublicationDecision(state, pending, choice);
+		remaining = withoutDecision(state.decisions.pending, pending.id);
 	} else {
 		resolved = shelveDecision(state, pending);
 		remaining = withoutModelDecisions(
@@ -168,7 +172,85 @@ function isChoiceCompatible(
 				choice.kind === "paradigm" &&
 				decision.choices.includes(choice.paradigmId)
 			);
+		case "publication":
+			return choice.kind === "publication" && choice.nodeId === decision.nodeId;
 	}
+}
+
+function applyPublicationDecision(
+	state: GameState,
+	decision: PendingDecision,
+	choice: Extract<DecisionChoice, { kind: "publication" }>,
+): EngineResult {
+	if (decision.kind !== "publication") {
+		throw new Error("This decision is not a research publication decision");
+	}
+	if (decision.nodeId !== choice.nodeId) {
+		throw new Error(
+			`Publication choice node ${choice.nodeId} does not match decision node ${decision.nodeId}`,
+		);
+	}
+	const node = state.research.nodes.find(
+		(candidate) => candidate.id === decision.nodeId,
+	);
+	if (node === undefined) {
+		throw new Error(
+			`Publication decision references an unknown research node: ${decision.nodeId}`,
+		);
+	}
+	if (node.status !== "completed") {
+		throw new Error(
+			`Research publication node ${decision.nodeId} must be completed before resolution`,
+		);
+	}
+
+	const isPublish = choice.outcome === "publish";
+	const nextState: GameState = {
+		...state,
+		company: {
+			...state.company,
+			hype: isPublish
+				? state.company.hype + BALANCE.publication.publishHypeGain
+				: state.company.hype,
+			trust: isPublish
+				? Math.min(
+						100,
+						state.company.trust + BALANCE.publication.publishTrustGain,
+					)
+				: Math.max(
+						0,
+						state.company.trust - BALANCE.publication.hoardTrustPenalty,
+					),
+		},
+		rivals: {
+			items: state.rivals.items.map((rival) =>
+				isPublish && rival.active
+					? {
+							...rival,
+							progress: Math.min(
+								100,
+								rival.progress + BALANCE.publication.publishRivalProgressGain,
+							),
+						}
+					: { ...rival },
+			),
+		},
+	};
+	assertGameState(nextState, {
+		allowNegativeCash: nextState.company.cash < 0,
+	});
+	return {
+		state: nextState,
+		facts: [
+			{
+				kind: "research_publication_resolved",
+				nodeId: decision.nodeId,
+				outcome: choice.outcome,
+				week: state.meta.week,
+			},
+		],
+		pending: [],
+	};
 }
 
 function applyParadigmChoice(

@@ -10,6 +10,7 @@ import { AlertTriangle, Bell, Info } from "lucide-react";
 import {
 	summarizeResearchEffects,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "@/game/derived/labels";
 
 export type ReportQueueProps = {
@@ -185,6 +186,7 @@ function advisorForReport(report: VisibleReport) {
 	switch (report.fact.kind) {
 		case "research_completed":
 		case "research_spark_discovered":
+		case "research_publication_resolved":
 		case "paradigm_selected":
 		case "model_trained":
 		case "evaluation_completed":
@@ -212,6 +214,8 @@ function factSummary(state: GameState, fact: Fact): string {
 			return `Research Spark ${fact.sparkId} discovered: ${fact.nodeId} costs ${fact.discount} fewer Insight.`;
 		case "paradigm_selected":
 			return summarizeResearchParadigmSelection(state, fact);
+		case "research_publication_resolved":
+			return summarizeResearchPublicationResolution(state, fact);
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

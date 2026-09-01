@@ -37,6 +37,79 @@ describe("applyCommand input contract", () => {
 		expect(applyCommandInput.parse(paradigmDecision)).toEqual(paradigmDecision);
 	});
 
+	it("accepts a publication decision choice", () => {
+		const publicationDecision = {
+			requestId: "publication-1",
+			expectedRevision: 2,
+			command: {
+				kind: "apply_decision" as const,
+				choice: {
+					kind: "publication" as const,
+					decisionId: "decision_001",
+					nodeId: "text_infrastructure_compute" as const,
+					outcome: "publish" as const,
+				},
+			},
+		};
+
+		expect(applyCommandInput.parse(publicationDecision)).toEqual(
+			publicationDecision,
+		);
+	});
+
+	it("rejects unknown publication nodes, outcomes, and fields", () => {
+		const publicationCommand = {
+			requestId: "publication-2",
+			expectedRevision: 2,
+			command: {
+				kind: "apply_decision" as const,
+				choice: {
+					kind: "publication" as const,
+					decisionId: "decision_001",
+					nodeId: "text_infrastructure_compute" as const,
+					outcome: "publish" as const,
+				},
+			},
+		};
+
+		expect(() =>
+			applyCommandInput.parse({
+				...publicationCommand,
+				command: {
+					...publicationCommand.command,
+					choice: {
+						...publicationCommand.command.choice,
+						nodeId: "unknown_research_node",
+					},
+				},
+			}),
+		).toThrow();
+		expect(() =>
+			applyCommandInput.parse({
+				...publicationCommand,
+				command: {
+					...publicationCommand.command,
+					choice: {
+						...publicationCommand.command.choice,
+						outcome: "release",
+					},
+				},
+			}),
+		).toThrow();
+		expect(() =>
+			applyCommandInput.parse({
+				...publicationCommand,
+				command: {
+					...publicationCommand.command,
+					choice: {
+						...publicationCommand.command.choice,
+						extra: true,
+					},
+				},
+			}),
+		).toThrow();
+	});
+
 	it("rejects unknown paradigm ids and fields", () => {
 		const paradigmCommand = {
 			requestId: "paradigm-2",

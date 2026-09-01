@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { type Fact, startRun } from "@ai-lab-tycoon/engine";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { resolveEntityLabel } from "../derived/labels";
 import { deriveWeekDigest } from "../derived/week-digest";
 import WeekResolutionCard from "./week-resolution-card";
 
@@ -130,6 +131,35 @@ describe("WeekResolutionCard", () => {
 		expect(container.textContent).not.toContain("product_001");
 		expect(container.textContent).not.toContain("model_001");
 		expect(container.textContent).not.toContain("project_001");
+	});
+
+	it("shows the publication outcome and its tradeoff in recorded outcomes", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.week = 4;
+		state.reports.items = [
+			report("publication_report", {
+				kind: "research_publication_resolved",
+				nodeId: "text_infrastructure_compute",
+				outcome: "publish",
+				week: 4,
+			}),
+		];
+
+		const digest = deriveWeekDigest(null, state);
+		const { container } = render(
+			<WeekResolutionCard digest={digest} state={state} />,
+		);
+		const nodeLabel = resolveEntityLabel(
+			state,
+			"node",
+			"text_infrastructure_compute",
+		);
+
+		expect(
+			within(container).getByText(
+				`${nodeLabel} published — Public credit and visibility build trust and hype while active rivals receive a visible clue.`,
+			),
+		).toBeTruthy();
 	});
 
 	it("shows the selected paradigm tradeoff in recorded outcomes", () => {

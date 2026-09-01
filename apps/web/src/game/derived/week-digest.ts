@@ -9,6 +9,7 @@ import {
 	type FactEntityField,
 	resolveFactLabels,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "./labels";
 
 export type LaunchFact = Extract<Fact, { kind: "product_launched" }>;
@@ -31,6 +32,10 @@ export type ResearchSparkDiscoveryFact = Extract<
 export type ParadigmSelectionFact = Extract<
 	Fact,
 	{ kind: "paradigm_selected" }
+>;
+export type ResearchPublicationResolutionFact = Extract<
+	Fact,
+	{ kind: "research_publication_resolved" }
 >;
 export type ServingThrottleFact = Extract<Fact, { kind: "serving_throttled" }>;
 export type TrainingStarvationFact = Extract<
@@ -57,6 +62,7 @@ export type WeekDigest = {
 	projectCompletions: ProjectCompletionFact[];
 	sparkDiscoveries: ResearchSparkDiscoveryFact[];
 	paradigmSelections: ParadigmSelectionFact[];
+	publicationResolutions: ResearchPublicationResolutionFact[];
 	servingThrottles: ServingThrottleFact[];
 	trainingStarvations: TrainingStarvationFact[];
 };
@@ -112,6 +118,7 @@ export function deriveWeekDigest(
 		projectCompletions: factsOfKind(facts, "project_completed"),
 		sparkDiscoveries: factsOfKind(facts, "research_spark_discovered"),
 		paradigmSelections: factsOfKind(facts, "paradigm_selected"),
+		publicationResolutions: factsOfKind(facts, "research_publication_resolved"),
 		servingThrottles: factsOfKind(facts, "serving_throttled"),
 		trainingStarvations: factsOfKind(facts, "training_starved"),
 	};
@@ -180,6 +187,9 @@ export function summarizeWeekDigest(
 		),
 		...digest.paradigmSelections.map((fact) =>
 			summarizeResearchParadigmSelection(state, fact),
+		),
+		...digest.publicationResolutions.map((fact) =>
+			summarizeResearchPublicationResolution(state, fact),
 		),
 	];
 	const visibleEvents = eventLabels.slice(0, 3);

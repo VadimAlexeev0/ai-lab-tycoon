@@ -17,7 +17,10 @@ import {
 	WalletCards,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { summarizeResearchParadigmSelection } from "@/game/derived/labels";
+import {
+	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
+} from "@/game/derived/labels";
 import {
 	type ResourceDeltas,
 	summarizeWeekDigest,
@@ -192,6 +195,12 @@ function createDigestRows(
 			label: state
 				? summarizeResearchParadigmSelection(state, fact)
 				: `${humanize(fact.paradigmId)} selected`,
+			to: "/game/research" as const,
+		})),
+		...digest.publicationResolutions.map((fact) => ({
+			icon: FlaskConical,
+			id: `publication-${fact.nodeId}-${fact.week}`,
+			label: summarizeResearchPublicationResolution(state, fact),
 			to: "/game/research" as const,
 		})),
 	];

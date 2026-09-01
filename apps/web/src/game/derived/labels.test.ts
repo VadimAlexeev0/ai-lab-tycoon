@@ -5,8 +5,10 @@ import {
 	humanizeId,
 	resolveEntityLabel,
 	resolveFactLabels,
+	resolveResearchPublicationNodeLabel,
 	summarizeResearchEffects,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "./labels";
 
 describe("entity labels", () => {
@@ -168,6 +170,22 @@ describe("entity labels", () => {
 		});
 		expect(summarizeResearchParadigmSelection(state, fact)).toBe(
 			"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+		);
+	});
+
+	it("summarizes publication outcomes with a readable node and consequence", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		const fact: Extract<Fact, { kind: "research_publication_resolved" }> = {
+			kind: "research_publication_resolved",
+			nodeId: "text_infrastructure_compute",
+			outcome: "publish",
+			week: 4,
+		};
+		const nodeLabel = resolveEntityLabel(state, "node", fact.nodeId);
+
+		expect(resolveResearchPublicationNodeLabel(state, fact)).toBe(nodeLabel);
+		expect(summarizeResearchPublicationResolution(state, fact)).toBe(
+			`${nodeLabel} published — Public credit and visibility build trust and hype while active rivals receive a visible clue.`,
 		);
 	});
 });

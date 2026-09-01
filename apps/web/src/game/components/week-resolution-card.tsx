@@ -8,6 +8,7 @@ import {
 	resolveFactLabels,
 	summarizeResearchEffects,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "@/game/derived/labels";
 import type { ResourceDeltas, WeekDigest } from "@/game/derived/week-digest";
 
@@ -426,6 +427,12 @@ function resolutionEvent(
 				id: `paradigm-${fact.paradigmId}-${index}`,
 				label: summarizeResearchParadigmSelection(state, fact),
 				tone: "positive",
+			};
+		case "research_publication_resolved":
+			return {
+				id: `publication-${fact.nodeId}-${index}`,
+				label: summarizeResearchPublicationResolution(state, fact),
+				tone: fact.outcome === "publish" ? "positive" : "negative",
 			};
 		case "model_trained":
 			return {

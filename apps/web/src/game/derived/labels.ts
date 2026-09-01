@@ -40,6 +40,10 @@ export function summarizeResearchEffects(
 }
 
 export type ParadigmSelectedFact = Extract<Fact, { kind: "paradigm_selected" }>;
+export type ResearchPublicationResolutionFact = Extract<
+	Fact,
+	{ kind: "research_publication_resolved" }
+>;
 
 type ResearchParadigmEffect = VisibleResearchParadigm["benefits"][number];
 
@@ -58,6 +62,27 @@ export function summarizeResearchParadigmSelection(
 		? summarizeResearchParadigmEffects(selected.liabilities)
 		: "not available in the current projection";
 	return `${label} selected — Benefit: ${benefit}; Liability: ${liability}.`;
+}
+
+/** Resolve the research node named by a publication-resolution fact. */
+export function resolveResearchPublicationNodeLabel(
+	state: GameState | undefined,
+	fact: ResearchPublicationResolutionFact,
+): string {
+	return state === undefined
+		? humanizeId(fact.nodeId)
+		: resolveEntityLabel(state, "node", fact.nodeId);
+}
+
+/** Render the irreversible publication outcome and its player-facing tradeoff. */
+export function summarizeResearchPublicationResolution(
+	state: GameState | undefined,
+	fact: ResearchPublicationResolutionFact,
+): string {
+	const nodeLabel = resolveResearchPublicationNodeLabel(state, fact);
+	return fact.outcome === "publish"
+		? `${nodeLabel} published — Public credit and visibility build trust and hype while active rivals receive a visible clue.`
+		: `${nodeLabel} kept proprietary — Keeping the lead preserves your advantage, but carries an openness/trust cost.`;
 }
 
 /** Return readable effect copy for the selected-paradigm player card. */
@@ -148,6 +173,7 @@ export function resolveFactLabels(state: GameState, fact: Fact): FactLabels {
 			};
 		case "research_completed":
 		case "research_spark_discovered":
+		case "research_publication_resolved":
 			return { nodeId: resolveEntityLabel(state, "node", fact.nodeId) };
 		case "paradigm_selected": {
 			const paradigm = selectResearchParadigm(state);

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
 	summarizeResearchEffects,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "@/game/derived/labels";
 
 export type ChronicleMarker = "record" | "milestone" | "warning";
@@ -438,6 +439,7 @@ function markerForFact(fact: Fact): ChronicleMarker {
 		case "research_completed":
 		case "research_spark_discovered":
 		case "paradigm_selected":
+		case "research_publication_resolved":
 		case "product_launched":
 		case "product_resumed":
 		case "milestone_reached":
@@ -464,6 +466,8 @@ function titleForFact(fact: Fact): string {
 			return `Research Spark ${fact.sparkId} discovered`;
 		case "paradigm_selected":
 			return `${humanize(fact.paradigmId)} selected`;
+		case "research_publication_resolved":
+			return "Research publication resolved";
 		case "model_trained":
 			return `Model ${fact.modelId} training completed`;
 		case "evaluation_completed":
@@ -511,6 +515,8 @@ function detailForFact(state: GameState, fact: Fact): string {
 			return `The ${fact.sparkId} Spark discounted ${fact.nodeId} by ${fact.discount} Insight after a ${fact.trigger} fact.`;
 		case "paradigm_selected":
 			return summarizeResearchParadigmSelection(state, fact);
+		case "research_publication_resolved":
+			return summarizeResearchPublicationResolution(state, fact);
 		case "model_trained":
 			return `The engine recorded completed training for ${fact.modelId}.`;
 		case "evaluation_completed":

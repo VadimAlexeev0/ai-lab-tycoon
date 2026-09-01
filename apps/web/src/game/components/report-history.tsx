@@ -10,6 +10,7 @@ import { useState } from "react";
 import {
 	summarizeResearchEffects,
 	summarizeResearchParadigmSelection,
+	summarizeResearchPublicationResolution,
 } from "@/game/derived/labels";
 
 export type ReportFilter =
@@ -145,6 +146,7 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 			return "training";
 		case "research_completed":
 		case "research_spark_discovered":
+		case "research_publication_resolved":
 			return "research";
 		case "paradigm_selected":
 			return "research";
@@ -188,6 +190,8 @@ function factSummary(state: GameState, fact: Fact): string {
 			return `Research Spark ${fact.sparkId} discovered; ${fact.nodeId} discounted by ${fact.discount} Insight.`;
 		case "paradigm_selected":
 			return summarizeResearchParadigmSelection(state, fact);
+		case "research_publication_resolved":
+			return summarizeResearchPublicationResolution(state, fact);
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

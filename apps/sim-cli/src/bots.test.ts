@@ -21,4 +21,23 @@ describe("deterministic bot decisions", () => {
 			paradigmId: decision.choices[0],
 		});
 	});
+
+	it("resolves a publication offer with its exact node id", () => {
+		const state = startRun({ companyName: "Bot Labs" }, 42);
+		state.decisions.pending = [
+			{
+				kind: "publication",
+				id: "decision_001",
+				nodeId: "text_infrastructure_compute",
+				blocking: true,
+			},
+		];
+
+		expect(createBot("evaluator", 42).chooseDecision(state)).toEqual({
+			kind: "publication",
+			decisionId: "decision_001",
+			nodeId: "text_infrastructure_compute",
+			outcome: "publish",
+		});
+	});
 });
