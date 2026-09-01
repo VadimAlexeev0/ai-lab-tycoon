@@ -1,11 +1,11 @@
 import {
-	getResearchDefinition,
-	getResearchSparkDefinition,
-} from "../data/research.js";
-import {
 	isResearchParadigmId,
 	type ResearchParadigmId,
 } from "../data/research/paradigms.js";
+import {
+	getResearchDefinition,
+	getResearchSparkDefinition,
+} from "../data/research.js";
 import {
 	assertArray,
 	assertEnum,
