@@ -7,7 +7,10 @@ import {
 import { History } from "lucide-react";
 import { useState } from "react";
 
-import { summarizeResearchEffects } from "@/game/derived/labels";
+import {
+	summarizeResearchEffects,
+	summarizeResearchParadigmSelection,
+} from "@/game/derived/labels";
 
 export type ReportFilter =
 	| "all"
@@ -93,7 +96,7 @@ export default function ReportHistory({
 								</span>
 							</div>
 							<p className="mt-1 text-foreground text-xs leading-5">
-								{factSummary(report.fact)}
+								{factSummary(state, report.fact)}
 							</p>
 							{report.acknowledged || acknowledgedIds.has(report.id) ? (
 								<p className="mt-1 text-[var(--game-positive)] text-xs">
@@ -143,6 +146,8 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 		case "research_completed":
 		case "research_spark_discovered":
 			return "research";
+		case "paradigm_selected":
+			return "research";
 		case "product_launched":
 		case "product_resumed":
 		case "revenue":
@@ -167,7 +172,7 @@ function categoryForFact(fact: Fact): Exclude<ReportFilter, "all"> | null {
 	}
 }
 
-function factSummary(fact: Fact): string {
+function factSummary(state: GameState, fact: Fact): string {
 	switch (fact.kind) {
 		case "resource_changed":
 			return `${fact.resource} changed by ${signed(fact.amount)}.`;
@@ -181,6 +186,8 @@ function factSummary(fact: Fact): string {
 		}
 		case "research_spark_discovered":
 			return `Research Spark ${fact.sparkId} discovered; ${fact.nodeId} discounted by ${fact.discount} Insight.`;
+		case "paradigm_selected":
+			return summarizeResearchParadigmSelection(state, fact);
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

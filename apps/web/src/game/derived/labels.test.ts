@@ -6,6 +6,7 @@ import {
 	resolveEntityLabel,
 	resolveFactLabels,
 	summarizeResearchEffects,
+	summarizeResearchParadigmSelection,
 } from "./labels";
 
 describe("entity labels", () => {
@@ -150,5 +151,23 @@ describe("entity labels", () => {
 			"Product 001",
 		);
 		expect(humanizeId("node_safety_review")).toBe("Node Safety Review");
+	});
+
+	it("projects a selected paradigm fact through the public selector", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.research.paradigmId = "scale_maximalism";
+		const fact: Fact = {
+			kind: "paradigm_selected",
+			paradigmId: "scale_maximalism",
+			era: "text",
+			week: 2,
+		};
+
+		expect(resolveFactLabels(state, fact)).toEqual({
+			paradigmId: "Scale Maximalism",
+		});
+		expect(summarizeResearchParadigmSelection(state, fact)).toBe(
+			"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+		);
 	});
 });

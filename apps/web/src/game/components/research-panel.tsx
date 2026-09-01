@@ -1,9 +1,13 @@
 import {
 	type GameState,
 	selectResearchNodes,
+	selectResearchParadigm,
 	type VisibleResearchNode,
+	type VisibleResearchParadigm,
 } from "@ai-lab-tycoon/engine";
 import { Check, Lightbulb, Lock, Play } from "lucide-react";
+
+import { summarizeResearchParadigmEffects } from "@/game/derived/labels";
 
 const ERA_ORDER = ["text", "assistant", "multimodal"] as const;
 
@@ -14,6 +18,7 @@ export type ResearchPanelProps = {
 /** A readable horizontal research catalogue; availability never relies on color alone. */
 export default function ResearchPanel({ state }: ResearchPanelProps) {
 	const visibleNodes = selectResearchNodes(state);
+	const selectedParadigm = selectResearchParadigm(state);
 	const nodeById = new Map(state.research.nodes.map((node) => [node.id, node]));
 	const availableProjects = new Map(
 		state.projects.items
@@ -40,6 +45,8 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 				</span>
 			</div>
 
+			<SelectedParadigmCard paradigm={selectedParadigm} />
+
 			<ul
 				aria-label="Research nodes"
 				className="grid auto-cols-[minmax(15rem,19rem)] grid-flow-col gap-3 overflow-x-auto pb-2"
@@ -64,6 +71,68 @@ export default function ResearchPanel({ state }: ResearchPanelProps) {
 				this catalogue.
 			</p>
 		</section>
+	);
+}
+
+function SelectedParadigmCard({
+	paradigm,
+}: {
+	paradigm: VisibleResearchParadigm | null;
+}) {
+	if (paradigm === null) {
+		return (
+			<aside
+				aria-label="Selected research paradigm"
+				aria-live="polite"
+				className="glass-pane border-primary/30 bg-primary/5 p-3"
+			>
+				<p className="font-semibold text-primary text-xs">
+					Research paradigm / direction
+				</p>
+				<h3 className="mt-1 font-semibold text-foreground text-sm">
+					Selection pending
+				</h3>
+				<p
+					className="mt-2 text-muted-foreground text-xs leading-5"
+					role="status"
+				>
+					No text-era research paradigm has been selected yet. The active
+					benefit and liability will appear here after selection resolves.
+				</p>
+			</aside>
+		);
+	}
+
+	return (
+		<aside
+			aria-label="Selected research paradigm"
+			aria-live="polite"
+			className="glass-pane border-primary/30 bg-primary/5 p-3"
+		>
+			<p className="font-semibold text-primary text-xs">
+				Research paradigm / direction
+			</p>
+			<h3 className="mt-1 font-semibold text-foreground text-sm">
+				{paradigm.label}
+			</h3>
+			<p className="mt-2 text-muted-foreground text-xs leading-5">
+				{paradigm.description}
+			</p>
+			<dl className="mt-3 grid gap-2 border-border/70 border-t pt-3 text-xs sm:grid-cols-2">
+				<div>
+					<dt className="font-semibold text-[var(--game-positive)]">Benefit</dt>
+					<dd className="mt-1 text-foreground leading-5">
+						{summarizeResearchParadigmEffects(paradigm.benefits)}
+					</dd>
+				</div>
+				<div>
+					<dt className="font-semibold text-[var(--game-amber)]">Liability</dt>
+					<dd className="mt-1 text-foreground leading-5">
+						{summarizeResearchParadigmEffects(paradigm.liabilities)}
+					</dd>
+				</div>
+			</dl>
+		</aside>
 	);
 }
 

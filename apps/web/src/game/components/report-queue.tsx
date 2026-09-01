@@ -7,7 +7,10 @@ import {
 import { Button } from "@ai-lab-tycoon/ui/components/button";
 import { AlertTriangle, Bell, Info } from "lucide-react";
 
-import { summarizeResearchEffects } from "@/game/derived/labels";
+import {
+	summarizeResearchEffects,
+	summarizeResearchParadigmSelection,
+} from "@/game/derived/labels";
 
 export type ReportQueueProps = {
 	state: GameState;
@@ -75,6 +78,7 @@ export default function ReportQueue({
 							key={report.id}
 							onAcknowledge={onAcknowledge}
 							report={report}
+							state={state}
 						/>
 					))}
 				</div>
@@ -103,9 +107,11 @@ export default function ReportQueue({
 function QueueReport({
 	onAcknowledge,
 	report,
+	state,
 }: {
 	onAcknowledge?: (reportId: string) => void;
 	report: VisibleReport;
+	state: GameState;
 }) {
 	const blocking = report.priority === "blocking";
 	const important = report.priority === "important";
@@ -147,7 +153,7 @@ function QueueReport({
 						<span className="text-muted-foreground text-xs">{report.id}</span>
 					</div>
 					<p className="mt-1 text-foreground text-xs leading-5">
-						{factSummary(report.fact)}
+						{factSummary(state, report.fact)}
 					</p>
 					<p className="mt-1 text-muted-foreground text-xs">
 						Week {report.fact.week}
@@ -179,6 +185,7 @@ function advisorForReport(report: VisibleReport) {
 	switch (report.fact.kind) {
 		case "research_completed":
 		case "research_spark_discovered":
+		case "paradigm_selected":
 		case "model_trained":
 		case "evaluation_completed":
 			return ADVISOR_ART.maya;
@@ -189,7 +196,7 @@ function advisorForReport(report: VisibleReport) {
 	}
 }
 
-function factSummary(fact: Fact): string {
+function factSummary(state: GameState, fact: Fact): string {
 	switch (fact.kind) {
 		case "resource_changed":
 			return `${fact.resource} changed by ${signed(fact.amount)}.`;
@@ -203,6 +210,8 @@ function factSummary(fact: Fact): string {
 		}
 		case "research_spark_discovered":
 			return `Research Spark ${fact.sparkId} discovered: ${fact.nodeId} costs ${fact.discount} fewer Insight.`;
+		case "paradigm_selected":
+			return summarizeResearchParadigmSelection(state, fact);
 		case "model_trained":
 			return `Model ${fact.modelId} training completed.`;
 		case "evaluation_completed":

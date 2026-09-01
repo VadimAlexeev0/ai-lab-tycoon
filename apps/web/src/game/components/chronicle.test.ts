@@ -91,6 +91,35 @@ describe("company chronicle projections", () => {
 		expect(resumed?.detail).toMatch(/operating again/);
 	});
 
+	it("records selected paradigm identity and tradeoffs in the timeline", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.research.paradigmId = "scale_maximalism";
+		state.reports.items = [
+			{
+				id: "paradigm_report",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "paradigm_selected",
+					paradigmId: "scale_maximalism",
+					era: "text",
+					week: 2,
+				},
+			},
+		];
+		state.queue.reportIds = ["paradigm_report"];
+
+		const event = buildChronicleTimeline(state)[0]?.items[0];
+
+		expect(event).toMatchObject({
+			kind: "event",
+			marker: "milestone",
+			title: "Scale Maximalism selected",
+			detail:
+				"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+		});
+	});
+
 	it("falls back to the command log when no reports exist", () => {
 		const state = startRun({ companyName: "Acme Labs" }, 42);
 

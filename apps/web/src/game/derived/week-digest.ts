@@ -5,7 +5,11 @@ import {
 	selectResourceBar,
 } from "@ai-lab-tycoon/engine";
 
-import { type FactEntityField, resolveFactLabels } from "./labels";
+import {
+	type FactEntityField,
+	resolveFactLabels,
+	summarizeResearchParadigmSelection,
+} from "./labels";
 
 export type LaunchFact = Extract<Fact, { kind: "product_launched" }>;
 export type ProductResumeFact = Extract<Fact, { kind: "product_resumed" }>;
@@ -23,6 +27,10 @@ export type ProjectCompletionFact = Extract<
 export type ResearchSparkDiscoveryFact = Extract<
 	Fact,
 	{ kind: "research_spark_discovered" }
+>;
+export type ParadigmSelectionFact = Extract<
+	Fact,
+	{ kind: "paradigm_selected" }
 >;
 export type ServingThrottleFact = Extract<Fact, { kind: "serving_throttled" }>;
 export type TrainingStarvationFact = Extract<
@@ -48,6 +56,7 @@ export type WeekDigest = {
 	fundingEvents: FundingEventFact[];
 	projectCompletions: ProjectCompletionFact[];
 	sparkDiscoveries: ResearchSparkDiscoveryFact[];
+	paradigmSelections: ParadigmSelectionFact[];
 	servingThrottles: ServingThrottleFact[];
 	trainingStarvations: TrainingStarvationFact[];
 };
@@ -102,6 +111,7 @@ export function deriveWeekDigest(
 		fundingEvents: factsOfKind(facts, "funding_resolved"),
 		projectCompletions: factsOfKind(facts, "project_completed"),
 		sparkDiscoveries: factsOfKind(facts, "research_spark_discovered"),
+		paradigmSelections: factsOfKind(facts, "paradigm_selected"),
 		servingThrottles: factsOfKind(facts, "serving_throttled"),
 		trainingStarvations: factsOfKind(facts, "training_starved"),
 	};
@@ -167,6 +177,9 @@ export function summarizeWeekDigest(
 		...digest.sparkDiscoveries.map(
 			(fact) =>
 				`${humanize(fact.sparkId)} discovered · ${humanize(fact.nodeId)} −${fact.discount} Insight`,
+		),
+		...digest.paradigmSelections.map((fact) =>
+			summarizeResearchParadigmSelection(state, fact),
 		),
 	];
 	const visibleEvents = eventLabels.slice(0, 3);

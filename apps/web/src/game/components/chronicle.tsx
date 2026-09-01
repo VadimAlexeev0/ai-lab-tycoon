@@ -7,7 +7,10 @@ import {
 import { BookOpen, CircleDot, GitFork } from "lucide-react";
 import { toast } from "sonner";
 
-import { summarizeResearchEffects } from "@/game/derived/labels";
+import {
+	summarizeResearchEffects,
+	summarizeResearchParadigmSelection,
+} from "@/game/derived/labels";
 
 export type ChronicleMarker = "record" | "milestone" | "warning";
 
@@ -394,11 +397,16 @@ function orderedReportEvents(state: GameState): ChronicleEvent[] {
 		if (!seen.has(report.id)) ordered.push(report);
 	}
 	return ordered.map((report) =>
-		factToEvent(report.id, report.priority, report.fact),
+		factToEvent(state, report.id, report.priority, report.fact),
 	);
 }
 
-function factToEvent(id: string, priority: string, fact: Fact): ChronicleEvent {
+function factToEvent(
+	state: GameState,
+	id: string,
+	priority: string,
+	fact: Fact,
+): ChronicleEvent {
 	const marker = markerForFact(fact);
 	return {
 		kind: "event",
@@ -407,7 +415,7 @@ function factToEvent(id: string, priority: string, fact: Fact): ChronicleEvent {
 		quarter: quarterForWeek(fact.week),
 		marker,
 		title: titleForFact(fact),
-		detail: detailForFact(fact),
+		detail: detailForFact(state, fact),
 		source: `${priority} report · engine fact`,
 	};
 }
@@ -429,6 +437,7 @@ function markerForFact(fact: Fact): ChronicleMarker {
 	switch (fact.kind) {
 		case "research_completed":
 		case "research_spark_discovered":
+		case "paradigm_selected":
 		case "product_launched":
 		case "product_resumed":
 		case "milestone_reached":
@@ -453,6 +462,8 @@ function titleForFact(fact: Fact): string {
 			return `Research node ${fact.nodeId} completed`;
 		case "research_spark_discovered":
 			return `Research Spark ${fact.sparkId} discovered`;
+		case "paradigm_selected":
+			return `${humanize(fact.paradigmId)} selected`;
 		case "model_trained":
 			return `Model ${fact.modelId} training completed`;
 		case "evaluation_completed":
@@ -484,7 +495,7 @@ function titleForFact(fact: Fact): string {
 	}
 }
 
-function detailForFact(fact: Fact): string {
+function detailForFact(state: GameState, fact: Fact): string {
 	switch (fact.kind) {
 		case "resource_changed":
 			return `${humanize(fact.resource)} changed by ${signed(fact.amount)} in the engine ledger.`;
@@ -498,6 +509,8 @@ function detailForFact(fact: Fact): string {
 		}
 		case "research_spark_discovered":
 			return `The ${fact.sparkId} Spark discounted ${fact.nodeId} by ${fact.discount} Insight after a ${fact.trigger} fact.`;
+		case "paradigm_selected":
+			return summarizeResearchParadigmSelection(state, fact);
 		case "model_trained":
 			return `The engine recorded completed training for ${fact.modelId}.`;
 		case "evaluation_completed":
