@@ -1,4 +1,8 @@
 import {
+	PARADIGM_IDS,
+	type ResearchParadigmId,
+} from "../data/research/paradigms.js";
+import {
 	assertArray,
 	assertBoolean,
 	assertEnum,
@@ -19,13 +23,20 @@ export type IncidentType =
 	| "data_privacy_incident";
 export type IncidentResponse = "repair" | "reduce_scope" | "disclose";
 
-const DECISION_KINDS = ["launch", "evaluation", "funding", "incident"] as const;
+const DECISION_KINDS = [
+	"launch",
+	"evaluation",
+	"funding",
+	"incident",
+	"paradigm",
+] as const;
 const CHOICE_KINDS = [
 	"launch",
 	"evaluate",
 	"funding",
 	"incident",
 	"shelve",
+	"paradigm",
 ] as const;
 const EVALUATION_KINDS = ["capability", "safety_reliability"] as const;
 const INCIDENT_TYPES = [
@@ -68,6 +79,13 @@ export type PendingDecision =
 			incidentId?: string;
 			incident: IncidentType;
 			blocking: true;
+	  }
+	| {
+			kind: "paradigm";
+			id: string;
+			era: "text";
+			choices: readonly ResearchParadigmId[];
+			blocking: true;
 	  };
 
 export type DecisionChoice =
@@ -95,6 +113,11 @@ export type DecisionChoice =
 	| {
 			kind: "shelve";
 			decisionId: string;
+	  }
+	| {
+			kind: "paradigm";
+			decisionId: string;
+			paradigmId: ResearchParadigmId;
 	  };
 
 export type DecisionsState = {
@@ -176,6 +199,14 @@ export function assertDecisionChoice(
 				"shelve decision choice",
 			);
 			return;
+		case "paradigm":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "paradigmId"],
+				"paradigm decision choice",
+			);
+			assertEnum(value.paradigmId, PARADIGM_IDS, "Research paradigm id");
+			return;
 	}
 }
 
@@ -237,6 +268,33 @@ function assertPendingDecision(value: Record<string, unknown>): void {
 			assertBoolean(value.blocking, "Incident decision blocking");
 			if (value.blocking !== true) {
 				throw new Error("Incident decisions must be blocking");
+			}
+			return;
+		}
+		case "paradigm": {
+			assertExactObject(
+				value,
+				["kind", "id", "era", "choices", "blocking"],
+				"paradigm decision",
+			);
+			assertEnum(value.era, ["text"] as const, "Paradigm decision era");
+			assertArray(value.choices, "Paradigm decision choices");
+			if (value.choices.length !== PARADIGM_IDS.length) {
+				throw new Error(
+					"Paradigm decisions must contain exactly three choices",
+				);
+			}
+			const choices = new Set<string>();
+			for (const choice of value.choices) {
+				assertEnum(choice, PARADIGM_IDS, "Research paradigm id");
+				if (choices.has(choice)) {
+					throw new Error(`Duplicate paradigm choice: ${choice}`);
+				}
+				choices.add(choice);
+			}
+			assertBoolean(value.blocking, "Paradigm decision blocking");
+			if (value.blocking !== true) {
+				throw new Error("Paradigm decisions must be blocking");
 			}
 			return;
 		}

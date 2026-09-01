@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import type { Model } from "./components/models.js";
 import { BALANCE } from "./data/balance.js";
 import {
@@ -19,6 +18,7 @@ import {
 	advanceWeek,
 	assertGameState,
 	assignProject,
+	applyDecision as resolveDecisionForFixture,
 	startRun,
 } from "./index.js";
 import { launchProduct } from "./products.js";
@@ -809,6 +809,22 @@ describe("LLM-history research data", () => {
 			}
 			state.company.insight = getInsightCost(node);
 			state = assignProject(state, team.id, project).state;
+			const offered = advanceWeek(state);
+			const paradigm = offered.pending.find(
+				(decision) => decision.kind === "paradigm",
+			);
+			if (paradigm?.kind !== "paradigm") {
+				throw new Error("Expected a paradigm decision");
+			}
+			const paradigmId = paradigm.choices[0];
+			if (paradigmId === undefined) {
+				throw new Error("Expected a paradigm choice");
+			}
+			state = resolveDecisionForFixture(offered.state, {
+				kind: "paradigm",
+				decisionId: paradigm.id,
+				paradigmId,
+			}).state;
 			const facts = [] as ReturnType<typeof advanceWeek>["facts"];
 			for (const _week of [1, 2, 3, 4]) {
 				const result = advanceWeek(state);
@@ -822,10 +838,12 @@ describe("LLM-history research data", () => {
 		const second = run();
 
 		expect(JSON.stringify(second)).toBe(JSON.stringify(first));
-		expect(first.state.meta.week).toBe(5);
-		expect(first.state.commandLog).toHaveLength(6);
+		expect(first.state.meta.week).toBe(6);
+		expect(first.state.commandLog).toHaveLength(8);
 		expect(first.state.commandLog.slice(1).map((entry) => entry.kind)).toEqual([
 			"assign_project",
+			"advance_week",
+			"apply_decision",
 			"advance_week",
 			"advance_week",
 			"advance_week",

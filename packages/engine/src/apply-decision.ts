@@ -95,6 +95,9 @@ export function applyDecision(
 			pending: terminalResult.pending,
 		};
 		remaining = terminalResult.pending.map((decision) => ({ ...decision }));
+	} else if (choice.kind === "paradigm") {
+		resolved = applyParadigmChoice(state, pending, choice);
+		remaining = withoutDecision(state.decisions.pending, pending.id);
 	} else {
 		resolved = shelveDecision(state, pending);
 		remaining = withoutModelDecisions(
@@ -160,7 +163,41 @@ function isChoiceCompatible(
 			return choice.kind === "funding" && choice.round === decision.round;
 		case "incident":
 			return choice.kind === "incident";
+		case "paradigm":
+			return (
+				choice.kind === "paradigm" &&
+				decision.choices.includes(choice.paradigmId)
+			);
 	}
+}
+
+function applyParadigmChoice(
+	state: GameState,
+	decision: PendingDecision,
+	choice: Extract<DecisionChoice, { kind: "paradigm" }>,
+): EngineResult {
+	if (decision.kind !== "paradigm") {
+		throw new Error("This decision is not a research paradigm decision");
+	}
+	if (state.research.paradigmId !== null) {
+		throw new Error("A research paradigm has already been selected");
+	}
+	if (!decision.choices.includes(choice.paradigmId)) {
+		throw new Error(
+			`Research paradigm ${choice.paradigmId} is not a choice for decision ${decision.id}`,
+		);
+	}
+	const nextState: GameState = {
+		...state,
+		research: {
+			...state.research,
+			paradigmId: choice.paradigmId,
+		},
+	};
+	assertGameState(nextState, {
+		allowNegativeCash: nextState.company.cash < 0,
+	});
+	return { state: nextState, facts: [], pending: [] };
 }
 
 function pendingModelId(decision: PendingDecision): string {

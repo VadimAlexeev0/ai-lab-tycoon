@@ -58,6 +58,17 @@ function choiceFor(decision: PendingDecision) {
 				round: decision.round,
 				accept: true,
 			};
+		case "paradigm": {
+			const paradigmId = decision.choices[0];
+			if (paradigmId === undefined) {
+				throw new Error("Expected a paradigm choice");
+			}
+			return {
+				kind: "paradigm" as const,
+				decisionId: decision.id,
+				paradigmId,
+			};
+		}
 	}
 }
 

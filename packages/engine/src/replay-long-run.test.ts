@@ -133,6 +133,17 @@ function chooseDecision(state: GameState): DecisionChoice | null {
 				decisionId: decision.id,
 				response: incidentResponse(state, decision),
 			};
+		case "paradigm": {
+			const paradigmId = decision.choices[0];
+			if (paradigmId === undefined) {
+				throw new Error("Expected a paradigm choice");
+			}
+			return {
+				kind: "paradigm",
+				decisionId: decision.id,
+				paradigmId,
+			};
+		}
 	}
 }
 
