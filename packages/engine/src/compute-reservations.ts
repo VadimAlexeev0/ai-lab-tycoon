@@ -2,6 +2,11 @@ import { BALANCE } from "./data/balance.js";
 import { deriveResearchEffects } from "./research-effects.js";
 import type { GameState } from "./state.js";
 
+type ComputeReservationState = Pick<
+	GameState,
+	"research" | "projects" | "models" | "products" | "compute"
+>;
+
 export type ComputeReservations = Readonly<{
 	trainingDemand: number;
 	servingDemand: number;
@@ -17,7 +22,9 @@ const MIN_TRAINING_COMPUTE_DEMAND = 1;
  * capacity reservation actually held; demand remains visible even when the
  * world is overloaded so incidents can explain the pressure.
  */
-export function computeReservations(state: GameState): ComputeReservations {
+export function computeReservations(
+	state: ComputeReservationState,
+): ComputeReservations {
 	const researchEffects = deriveResearchEffects(state.research);
 	const trainingDemand = state.projects.items.reduce((total, project) => {
 		if (project.kind !== "training" || project.status !== "active")
@@ -56,7 +63,9 @@ export function computeReservations(state: GameState): ComputeReservations {
 	};
 }
 
-export function withRecomputedCompute(state: GameState): GameState["compute"] {
+export function withRecomputedCompute(
+	state: ComputeReservationState,
+): GameState["compute"] {
 	const reservations = computeReservations(state);
 	return {
 		...state.compute,

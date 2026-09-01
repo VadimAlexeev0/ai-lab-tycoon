@@ -136,6 +136,22 @@ describe("GameState migration and serialization", () => {
 		expect(JSON.stringify(extended)).toBe(extendedBefore);
 	});
 
+	it("validates migration inputs before deriving reservations", () => {
+		const malformed = jsonClone(staleV1FixtureJson);
+		const models = asRecord(asRecord(malformed).models);
+		if (!Array.isArray(models.items) || models.items.length === 0) {
+			throw new Error("Expected a stale fixture model");
+		}
+		const model = asRecord(models.items[0]);
+		model.tier = "invalid";
+		const before = JSON.stringify(malformed);
+
+		expect(() => upgradeGameState(malformed)).toThrow(
+			/model.*tier|compute tier/i,
+		);
+		expect(JSON.stringify(malformed)).toBe(before);
+	});
+
 	it("rejects unknown future and unsupported prior schema versions clearly", () => {
 		const future = currentV1Fixture();
 		const futureMeta = asRecord(asRecord(future).meta);

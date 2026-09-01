@@ -1,4 +1,9 @@
 import { canonicalSerialize } from "./canonical.js";
+import { assertComputeState } from "./components/compute.js";
+import { assertModelsState } from "./components/models.js";
+import { assertProductsState } from "./components/products.js";
+import { assertProjectsState } from "./components/projects.js";
+import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import {
 	assertGameState,
@@ -6,7 +11,6 @@ import {
 } from "./invariants.js";
 import { GAME_STATE_SCHEMA_VERSION, type GameState } from "./state.js";
 import {
-	assertArray,
 	assertJsonCompatible,
 	assertObject,
 	assertSafeInteger,
@@ -133,17 +137,27 @@ function readSchemaVersion(value: unknown): number {
 function migrateV1ToV2(value: unknown): unknown {
 	const migrated = cloneJsonValue(value);
 	assertObject(migrated, "v1 game state");
-	assertObject(migrated.meta, "v1 game state meta");
-	assertObject(migrated.compute, "v1 game state compute");
-	assertObject(migrated.projects, "v1 game state projects");
-	assertArray(migrated.projects.items, "v1 game state projects items");
-	assertObject(migrated.models, "v1 game state models");
-	assertArray(migrated.models.items, "v1 game state models items");
-	assertObject(migrated.research, "v1 game state research");
-	assertArray(migrated.research.nodes, "v1 game state research nodes");
+	const meta = migrated.meta;
+	assertObject(meta, "v1 game state meta");
+	const compute = migrated.compute;
+	const projects = migrated.projects;
+	const models = migrated.models;
+	const research = migrated.research;
+	const products = migrated.products;
+	assertComputeState(compute);
+	assertProjectsState(projects);
+	assertModelsState(models);
+	assertResearchState(research);
+	assertProductsState(products);
 
-	migrated.meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
-	migrated.compute = withRecomputedCompute(migrated as GameState);
+	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
+	migrated.compute = withRecomputedCompute({
+		compute,
+		projects,
+		models,
+		research,
+		products,
+	});
 	return migrated;
 }
 
