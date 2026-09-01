@@ -189,6 +189,7 @@ export type ResearchDefinition = Readonly<{
 	insightCost: number;
 	prerequisites: readonly string[];
 	description: string;
+	publishable?: boolean;
 	effects?: readonly ResearchEffect[];
 	spark?: ResearchSpark;
 }>;

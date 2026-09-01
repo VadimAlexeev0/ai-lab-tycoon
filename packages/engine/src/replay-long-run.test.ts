@@ -133,6 +133,13 @@ function chooseDecision(state: GameState): DecisionChoice | null {
 				decisionId: decision.id,
 				response: incidentResponse(state, decision),
 			};
+		case "publication":
+			return {
+				kind: "publication",
+				decisionId: decision.id,
+				nodeId: decision.nodeId,
+				outcome: "publish",
+			};
 		case "paradigm": {
 			const paradigmId = decision.choices[0];
 			if (paradigmId === undefined) {

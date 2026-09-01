@@ -41,6 +41,7 @@ export const FOUNDATIONS_NODES = [
 		prerequisites: [],
 		description:
 			"A small recurrent memory lets the model carry yesterday's token into today's sentence; new models gain four Reliability.",
+		publishable: true,
 		effects: [
 			{
 				kind: "model_score_bonus",

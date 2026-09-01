@@ -209,6 +209,13 @@ function choiceFor(decision: PendingDecision) {
 				round: decision.round,
 				accept: true,
 			};
+		case "publication":
+			return {
+				kind: "publication" as const,
+				decisionId: decision.id,
+				nodeId: decision.nodeId,
+				outcome: "publish" as const,
+			};
 		case "paradigm": {
 			const paradigmId = decision.choices[0];
 			if (paradigmId === undefined) {

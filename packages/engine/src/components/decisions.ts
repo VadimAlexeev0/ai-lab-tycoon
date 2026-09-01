@@ -2,6 +2,7 @@ import {
 	PARADIGM_IDS,
 	type ResearchParadigmId,
 } from "../data/research/paradigms.js";
+import { getResearchDefinition } from "../data/research.js";
 import {
 	assertArray,
 	assertBoolean,
@@ -29,6 +30,7 @@ const DECISION_KINDS = [
 	"funding",
 	"incident",
 	"paradigm",
+	"publication",
 ] as const;
 const CHOICE_KINDS = [
 	"launch",
@@ -37,6 +39,7 @@ const CHOICE_KINDS = [
 	"incident",
 	"shelve",
 	"paradigm",
+	"publication",
 ] as const;
 const EVALUATION_KINDS = ["capability", "safety_reliability"] as const;
 const INCIDENT_TYPES = [
@@ -86,6 +89,12 @@ export type PendingDecision =
 			era: "text";
 			choices: readonly ResearchParadigmId[];
 			blocking: true;
+	  }
+	| {
+			kind: "publication";
+			id: string;
+			nodeId: string;
+			blocking: true;
 	  };
 
 export type DecisionChoice =
@@ -118,6 +127,12 @@ export type DecisionChoice =
 			kind: "paradigm";
 			decisionId: string;
 			paradigmId: ResearchParadigmId;
+	  }
+	| {
+			kind: "publication";
+			decisionId: string;
+			nodeId: string;
+			outcome: "publish" | "hoard";
 	  };
 
 export type DecisionsState = {
@@ -206,6 +221,20 @@ export function assertDecisionChoice(
 				"paradigm decision choice",
 			);
 			assertEnum(value.paradigmId, PARADIGM_IDS, "Research paradigm id");
+			return;
+		case "publication":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "nodeId", "outcome"],
+				"publication decision choice",
+			);
+			assertIdentifier(value.nodeId, "Publication decision node id");
+			assertPublishableResearchNode(value.nodeId, "Publication decision node");
+			assertEnum(
+				value.outcome,
+				["publish", "hoard"],
+				"Publication decision outcome",
+			);
 			return;
 	}
 }
@@ -298,5 +327,28 @@ function assertPendingDecision(value: Record<string, unknown>): void {
 			}
 			return;
 		}
+		case "publication":
+			assertExactObject(
+				value,
+				["kind", "id", "nodeId", "blocking"],
+				"publication decision",
+			);
+			assertIdentifier(value.nodeId, "Publication decision node id");
+			assertPublishableResearchNode(value.nodeId, "Publication decision node");
+			assertBoolean(value.blocking, "Publication decision blocking");
+			if (value.blocking !== true) {
+				throw new Error("Publication decisions must be blocking");
+			}
+			return;
+	}
+}
+
+function assertPublishableResearchNode(nodeId: string, path: string): void {
+	const definition = getResearchDefinition(nodeId);
+	if (definition === undefined) {
+		throw new Error(`${path} references an unknown research node: ${nodeId}`);
+	}
+	if (definition.publishable !== true) {
+		throw new Error(`${path} must reference a publishable research node`);
 	}
 }

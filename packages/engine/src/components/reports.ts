@@ -29,6 +29,7 @@ const FACT_KINDS = [
 	"project_progressed",
 	"project_completed",
 	"research_completed",
+	"research_publication_resolved",
 	"paradigm_selected",
 	"research_spark_discovered",
 	"model_trained",
@@ -88,6 +89,12 @@ export type Fact =
 			kind: "research_completed";
 			nodeId: string;
 			effects?: readonly ResearchEffect[];
+			week: number;
+	  }
+	| {
+			kind: "research_publication_resolved";
+			nodeId: string;
+			outcome: "publish" | "hoard";
 			week: number;
 	  }
 	| {
@@ -360,6 +367,20 @@ export function assertFact(value: unknown): asserts value is Fact {
 			if (Object.hasOwn(value, "effects")) {
 				assertResearchEffects(value.effects, "Research completion effects");
 			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "research_publication_resolved":
+			assertExactObject(
+				value,
+				["kind", "nodeId", "outcome", "week"],
+				"research publication resolved fact",
+			);
+			assertIdentifier(value.nodeId, "Published research node id");
+			assertEnum(
+				value.outcome,
+				["publish", "hoard"],
+				"Research publication outcome",
+			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "paradigm_selected":

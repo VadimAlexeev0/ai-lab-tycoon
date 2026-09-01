@@ -200,6 +200,12 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 			trainingVarianceBonus: 3,
 		},
 	},
+	publication: {
+		publishHypeGain: 8,
+		publishTrustGain: 4,
+		publishRivalProgressGain: 3,
+		hoardTrustPenalty: 4,
+	},
 };
 
 describe("V1 economy constants", () => {
@@ -211,6 +217,10 @@ describe("V1 economy constants", () => {
 	it("locks the exact funding and evaluation tables", () => {
 		expect(BALANCE.funding).toEqual(EXPECTED_ECONOMY.funding);
 		expect(BALANCE.evaluations).toEqual(EXPECTED_ECONOMY.evaluations);
+	});
+
+	it("locks the publication decision balance", () => {
+		expect(BALANCE.publication).toEqual(EXPECTED_ECONOMY.publication);
 	});
 
 	it("pins capacity progression and two-purchase lean-training headroom", () => {
