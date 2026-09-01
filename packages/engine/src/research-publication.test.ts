@@ -12,6 +12,7 @@ import {
 	RESEARCH_NODES,
 	type ResearchDefinition,
 	RNN_LSTM_ID,
+	WORD_VECTORS_ID,
 } from "./data/research.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
 import { deserializeGameState, serializeGameState } from "./migrations.js";
@@ -126,6 +127,43 @@ describe("research publication decisions", () => {
 		expect(() => assertDecisionChoice({ ...choice, unexpected: true })).toThrow(
 			/unexpected field/i,
 		);
+	});
+
+	it("rejects publication facts for unknown research nodes", () => {
+		expect(() =>
+			assertFact({
+				kind: "research_publication_resolved",
+				nodeId: "unknown_research_node",
+				outcome: "publish",
+				week: 1,
+			}),
+		).toThrow(/unknown research node/i);
+	});
+
+	it("rejects publication facts for non-publishable research nodes", () => {
+		expect(() =>
+			assertFact({
+				kind: "research_publication_resolved",
+				nodeId: WORD_VECTORS_ID,
+				outcome: "publish",
+				week: 1,
+			}),
+		).toThrow(/publishable/i);
+	});
+
+	it("rejects duplicate publication offers for the same node", () => {
+		const decision = {
+			kind: "publication" as const,
+			id: "decision_001",
+			nodeId: RNN_LSTM_ID,
+			blocking: true as const,
+		};
+
+		expect(() =>
+			assertDecisionsState({
+				pending: [decision, { ...decision, id: "decision_002" }],
+			}),
+		).toThrow(/duplicate publication node/i);
 	});
 
 	it("does not enqueue a second offer for a completed node", () => {

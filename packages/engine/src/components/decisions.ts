@@ -154,6 +154,7 @@ export function assertDecisionsState(
 	assertArray(value.pending, "Pending decisions");
 
 	const ids = new Set<string>();
+	const publicationNodeIds = new Set<string>();
 	for (const item of value.pending) {
 		assertObject(item, "pending decision");
 		assertEnum(item.kind, DECISION_KINDS, "Pending decision kind");
@@ -163,6 +164,12 @@ export function assertDecisionsState(
 		}
 		ids.add(item.id);
 		assertPendingDecision(item);
+		if (item.kind === "publication") {
+			if (publicationNodeIds.has(item.nodeId)) {
+				throw new Error(`Duplicate publication node: ${item.nodeId}`);
+			}
+			publicationNodeIds.add(item.nodeId);
+		}
 	}
 }
 
@@ -239,7 +246,9 @@ export function assertDecisionChoice(
 	}
 }
 
-function assertPendingDecision(value: Record<string, unknown>): void {
+function assertPendingDecision(
+	value: Record<string, unknown>,
+): asserts value is PendingDecision {
 	switch (value.kind) {
 		case "launch": {
 			const keys = Object.hasOwn(value, "channel")

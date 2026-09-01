@@ -2,6 +2,7 @@ import type { IncidentCondition } from "../data/incidents.js";
 import type { ResearchParadigmId } from "../data/research/paradigms.js";
 import {
 	assertResearchEffects,
+	getResearchDefinition,
 	isResearchParadigmId,
 	type ResearchEffect,
 } from "../data/research.js";
@@ -369,13 +370,24 @@ export function assertFact(value: unknown): asserts value is Fact {
 			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
-		case "research_publication_resolved":
+		case "research_publication_resolved": {
 			assertExactObject(
 				value,
 				["kind", "nodeId", "outcome", "week"],
 				"research publication resolved fact",
 			);
 			assertIdentifier(value.nodeId, "Published research node id");
+			const definition = getResearchDefinition(value.nodeId);
+			if (definition === undefined) {
+				throw new Error(
+					`Publication fact references an unknown research node: ${value.nodeId}`,
+				);
+			}
+			if (definition.publishable !== true) {
+				throw new Error(
+					`Publication fact references a non-publishable research node: ${value.nodeId}`,
+				);
+			}
 			assertEnum(
 				value.outcome,
 				["publish", "hoard"],
@@ -383,6 +395,7 @@ export function assertFact(value: unknown): asserts value is Fact {
 			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		}
 		case "paradigm_selected":
 			assertExactObject(
 				value,
