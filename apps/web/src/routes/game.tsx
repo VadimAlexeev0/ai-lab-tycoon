@@ -36,7 +36,10 @@ import IncidentCard from "@/game/components/incident-card";
 import LaunchDecision from "@/game/components/launch-decision";
 import NewsTicker from "@/game/components/news-ticker";
 import Pane from "@/game/components/pane";
-import { summarizeResearchParadigmEffects } from "@/game/derived/labels";
+import {
+	resolveEntityLabel,
+	summarizeResearchParadigmEffects,
+} from "@/game/derived/labels";
 import { useWeekDigest } from "@/game/derived/use-week-digest";
 import { summarizeWeekDigest } from "@/game/derived/week-digest";
 import { GameStateProvider, useRunState } from "@/game/game-state-context";
@@ -521,7 +524,7 @@ function DecisionOverlay({
 			blocking={decision.blocking}
 			description={`Queue reference: ${decision.id}`}
 			onClose={onClose}
-			title={decisionTitle(decision, modelName)}
+			title={decisionTitle(decision, modelName, state)}
 		>
 			{decision.kind === "incident" ? (
 				<IncidentCard
@@ -546,6 +549,13 @@ function DecisionOverlay({
 				/>
 			) : decision.kind === "paradigm" ? (
 				<ParadigmDecision
+					decision={decision}
+					disabled={false}
+					onResolve={(choice) => void resolve(choice)}
+					state={state}
+				/>
+			) : decision.kind === "publication" ? (
+				<PublicationDecision
 					decision={decision}
 					disabled={false}
 					onResolve={(choice) => void resolve(choice)}
@@ -715,6 +725,111 @@ function ParadigmDecision({
 	);
 }
 
+function PublicationDecision({
+	decision,
+	disabled,
+	onResolve,
+	state,
+}: {
+	decision: Extract<PendingDecision, { kind: "publication" }>;
+	disabled: boolean;
+	onResolve: (choice: DecisionChoice) => void;
+	state: GameState;
+}) {
+	const nodeLabel = resolveEntityLabel(state, "node", decision.nodeId);
+	const publishDetailsId = `publication-publish-${decision.id}-details`;
+	const hoardDetailsId = `publication-hoard-${decision.id}-details`;
+
+	return (
+		<section aria-label="Research publication decision" className="space-y-4">
+			<div className="flex items-start gap-2">
+				<BriefcaseBusiness
+					className="mt-0.5 size-4 text-[var(--game-amber)]"
+					aria-hidden="true"
+				/>
+				<div>
+					<p className="font-semibold text-[var(--game-amber)] text-xs">
+						Publication decision required
+					</p>
+					<h3 className="mt-1 font-medium text-foreground text-sm">
+						{nodeLabel}
+					</h3>
+					<p className="mt-1 text-muted-foreground text-xs leading-5">
+						This decision is irreversible for this run. Choose whether to
+						publish this completed research publicly or keep it proprietary.
+					</p>
+				</div>
+			</div>
+
+			<ul
+				aria-label="Publication choices"
+				className="grid gap-3 sm:grid-cols-2"
+			>
+				<li className="min-w-0">
+					<Button
+						aria-describedby={publishDetailsId}
+						className="h-auto min-h-full w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-3 text-left"
+						disabled={disabled}
+						onClick={() =>
+							onResolve({
+								kind: "publication",
+								decisionId: decision.id,
+								nodeId: decision.nodeId,
+								outcome: "publish",
+							})
+						}
+						type="button"
+						variant="outline"
+					>
+						<span className="block w-full">
+							<span className="block font-semibold text-foreground text-sm">
+								Publish publicly
+							</span>
+							<span
+								className="mt-2 block text-muted-foreground text-xs leading-5"
+								id={publishDetailsId}
+							>
+								Public credit and visibility build trust and hype, while active
+								rivals receive a visible clue.
+							</span>
+						</span>
+					</Button>
+				</li>
+				<li className="min-w-0">
+					<Button
+						aria-describedby={hoardDetailsId}
+						className="h-auto min-h-full w-full flex-col items-stretch justify-start gap-0 whitespace-normal p-3 text-left"
+						disabled={disabled}
+						onClick={() =>
+							onResolve({
+								kind: "publication",
+								decisionId: decision.id,
+								nodeId: decision.nodeId,
+								outcome: "hoard",
+							})
+						}
+						type="button"
+						variant="outline"
+					>
+						<span className="block w-full">
+							<span className="block font-semibold text-foreground text-sm">
+								Keep proprietary / Hoard
+							</span>
+							<span
+								className="mt-2 block text-muted-foreground text-xs leading-5"
+								id={hoardDetailsId}
+							>
+								Keeping the lead preserves your advantage, but carries an
+								openness/trust cost.
+							</span>
+						</span>
+					</Button>
+				</li>
+			</ul>
+		</section>
+	);
+}
+
 function FundingDecision({
 	decision,
 	disabled,
@@ -796,6 +911,7 @@ function DecisionChoiceButton({
 function decisionTitle(
 	decision: PendingDecision,
 	modelName: string | undefined,
+	state: GameState,
 ): string {
 	switch (decision.kind) {
 		case "incident":
@@ -806,6 +922,8 @@ function decisionTitle(
 			return `Evaluation / ${modelName ?? decision.modelId}`;
 		case "paradigm":
 			return `Research paradigm / ${humanize(decision.era)} era`;
+		case "publication":
+			return `Research publication / ${resolveEntityLabel(state, "node", decision.nodeId)}`;
 		case "funding":
 			return `Funding / ${decision.round === "series_a" ? "Series A" : "Seed"}`;
 	}

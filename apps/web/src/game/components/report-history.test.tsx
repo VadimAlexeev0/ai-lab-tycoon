@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
 
 import { startRun } from "@ai-lab-tycoon/engine";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { resolveEntityLabel } from "@/game/derived/labels";
 import ReportHistory from "./report-history";
 
 describe("report history", () => {
@@ -59,6 +60,42 @@ describe("report history", () => {
 		expect(
 			screen.getByText(
 				"Scale Maximalism selected — Benefit: +8 model score ceiling; Liability: +2 training Compute.",
+			),
+		).toBeTruthy();
+	});
+
+	it("categorizes and describes publication-resolution facts", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.meta.week = 4;
+		state.reports.items = [
+			{
+				id: "publication_report",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "research_publication_resolved",
+					nodeId: "text_infrastructure_compute",
+					outcome: "publish",
+					week: 4,
+				},
+			},
+		];
+		state.queue.reportIds = ["publication_report"];
+
+		const { container } = render(<ReportHistory state={state} />);
+
+		fireEvent.click(
+			within(container).getByRole("button", { name: /^research$/ }),
+		);
+
+		const nodeLabel = resolveEntityLabel(
+			state,
+			"node",
+			"text_infrastructure_compute",
+		);
+		expect(
+			within(container).getByText(
+				`${nodeLabel} published — Public credit and visibility build trust and hype while active rivals receive a visible clue.`,
 			),
 		).toBeTruthy();
 	});

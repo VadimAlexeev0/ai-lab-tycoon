@@ -96,6 +96,11 @@ export type UiStateContextValue = {
 
 export type GameStateContextValue = RunContextValue & UiStateContextValue;
 
+type ApiDecisionChoice = Extract<
+	ApplyCommand,
+	{ kind: "apply_decision" }
+>["choice"];
+
 const RunContext = createContext<RunContextValue | null>(null);
 const UiStateContext = createContext<UiStateContextValue | null>(null);
 
@@ -487,8 +492,10 @@ function useRunController(userId: string | null) {
 	);
 
 	const resolveDecision = useCallback(
-		(choice: DecisionChoice) =>
-			executeCommand({ kind: "apply_decision", choice }),
+		(choice: DecisionChoice) => {
+			if (!isApiDecisionChoice(choice)) return Promise.resolve(false);
+			return executeCommand({ kind: "apply_decision", choice });
+		},
 		[executeCommand],
 	);
 
@@ -553,6 +560,15 @@ function useRunController(userId: string | null) {
 			savedRun,
 			screen,
 		],
+	);
+}
+
+function isApiDecisionChoice(
+	choice: DecisionChoice,
+): choice is ApiDecisionChoice {
+	return (
+		choice.kind !== "publication" ||
+		choice.nodeId === "text_infrastructure_compute"
 	);
 }
 

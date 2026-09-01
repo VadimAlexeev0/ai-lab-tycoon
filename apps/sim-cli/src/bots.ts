@@ -174,6 +174,20 @@ function chooseDecision(
 				paradigmId,
 			};
 		}
+		case "publication":
+			return {
+				kind: "publication",
+				decisionId: decision.id,
+				nodeId: decision.nodeId,
+				outcome:
+					name === "efficiency-first"
+						? "hoard"
+						: name === "capability-rusher" || name === "evaluator"
+							? "publish"
+							: random.nextInt(2) === 0
+								? "publish"
+								: "hoard",
+			};
 		case "launch": {
 			const channel = launchChannelForDecision(
 				state,

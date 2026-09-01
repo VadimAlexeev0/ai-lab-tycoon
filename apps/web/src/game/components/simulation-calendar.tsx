@@ -27,6 +27,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
 import Pane from "@/game/components/pane";
+import { resolveEntityLabel } from "@/game/derived/labels";
 
 const DAY_LABELS = [
 	"Mon",
@@ -1038,6 +1039,15 @@ function decisionToCalendarEvent(
 		sources.push(sourceRef("funding", decision.round, state.funding));
 		title = `Funding decision · ${humanize(decision.round)}`;
 		summary = `The ${humanize(decision.round)} funding offer is pending a decision.`;
+	}
+	if (decision.kind === "publication") {
+		const nodeLabel = resolveEntityLabel(state, "node", decision.nodeId);
+		const node = lookups.researchNodes.get(decision.nodeId);
+		if (node !== undefined) {
+			sources.push(sourceRef("research.nodes (public selector)", node.id, node));
+		}
+		title = `Publication decision · ${nodeLabel}`;
+		summary = `${nodeLabel} can be published or kept proprietary; open the command overview to resolve this pending decision.`;
 	}
 	if (decision.kind === "incident") {
 		title = `Incident decision · ${humanize(decision.incident)}`;
