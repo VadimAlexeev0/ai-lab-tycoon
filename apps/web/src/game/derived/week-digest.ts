@@ -76,8 +76,14 @@ export function deriveWeekDigest(
 ): WeekDigest {
 	const week = current.meta.week;
 	const previousWeek = previous?.meta.week;
+	const hasCurrentWeekReports = current.reports.items.some(
+		(report) => report.fact.week === week,
+	);
+	const usePreviousWeekReports =
+		previousWeek !== undefined &&
+		(week === previousWeek + 1 || week < previousWeek);
 	const reportWeek =
-		previousWeek !== undefined && week < previousWeek ? previousWeek : week;
+		!hasCurrentWeekReports && usePreviousWeekReports ? previousWeek : week;
 	const facts = current.reports.items
 		.filter((report) => report.fact.week === reportWeek)
 		.map((report) => report.fact);

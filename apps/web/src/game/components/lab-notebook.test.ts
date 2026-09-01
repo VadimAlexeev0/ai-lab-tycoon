@@ -101,4 +101,37 @@ describe("lab notebook projections", () => {
 			annotation: "Week 2 · product_001 resumed on Chat.",
 		});
 	});
+
+	it("makes research Spark discoveries reachable with their player-facing annotation", () => {
+		const state = startRun({ companyName: "Acme Labs" }, 42);
+		state.reports.items = [
+			{
+				id: "report_spark",
+				priority: "important",
+				acknowledged: false,
+				fact: {
+					kind: "research_spark_discovered",
+					sparkId: "inference_optimization",
+					nodeId: "inference_price_war",
+					discount: 1,
+					trigger: "serving_throttled",
+					week: 7,
+				},
+			},
+		];
+		state.queue.reportIds = ["report_spark"];
+
+		const sparkTile = buildNotebookTiles(state).find(
+			(tile) => tile.id === "first-research-spark",
+		);
+
+		expect(sparkTile).toMatchObject({
+			label: "First research Spark",
+			discovered: true,
+			week: 7,
+			evidence: "research_spark_discovered",
+			annotation:
+				"Week 7 · Research Spark inference_optimization discounted inference_price_war by 1 Insight.",
+		});
+	});
 });

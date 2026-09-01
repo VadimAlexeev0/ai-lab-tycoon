@@ -106,6 +106,32 @@ describe("deriveWeekDigest", () => {
 		expect(digest.launches[0]?.productId).toBe("product_001");
 	});
 
+	it("includes completed-week facts after the state week advances", () => {
+		const previous = startRun({ companyName: "Acme Labs" }, 42);
+		previous.meta.week = 7;
+		const current = startRun({ companyName: "Acme Labs" }, 42);
+		current.meta.week = 8;
+		current.reports.items = [
+			report("spark", {
+				kind: "research_spark_discovered",
+				sparkId: "inference_optimization",
+				nodeId: "inference_price_war",
+				discount: 1,
+				trigger: "serving_throttled",
+				week: 7,
+			}),
+		];
+
+		const digest = deriveWeekDigest(previous, current);
+
+		expect(digest.week).toBe(8);
+		expect(digest.sparkDiscoveries).toHaveLength(1);
+		expect(digest.sparkDiscoveries[0]).toMatchObject({
+			sparkId: "inference_optimization",
+			week: 7,
+		});
+	});
+
 	it("computes resource deltas from the selector projections", () => {
 		const previous = startRun({ companyName: "Acme Labs" }, 42);
 		const current = startRun({ companyName: "Acme Labs" }, 42);
