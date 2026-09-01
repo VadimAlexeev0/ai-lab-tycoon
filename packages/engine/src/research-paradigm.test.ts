@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Model } from "./components/models.js";
+import { assertFact } from "./components/reports.js";
 import { computeReservations } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import { RESEARCH_PARADIGMS } from "./data/research/paradigms.js";
@@ -62,7 +63,37 @@ describe("Era-1 paradigm decision", () => {
 		expect(selected.state.research.paradigmId).toBe("data_curation_doctrine");
 		expect(selected.state.decisions.pending).toEqual([]);
 		expect(selected.state.queue.decisionIds).toEqual([]);
-		expect(selected.facts).toEqual([]);
+		expect(selected.facts).toEqual([
+			{
+				kind: "paradigm_selected",
+				paradigmId: "data_curation_doctrine",
+				era: "text",
+				week: offered.state.meta.week,
+			},
+		]);
+		const reportCountBeforeSelection = offered.state.reports.items.length;
+		expect(selected.state.reports.items).toHaveLength(
+			reportCountBeforeSelection + 1,
+		);
+		const paradigmReport = selected.state.reports.items.find(
+			(report) => report.fact.kind === "paradigm_selected",
+		);
+		if (paradigmReport === undefined) {
+			throw new Error("Expected one paradigm selection report");
+		}
+		expect(paradigmReport).toMatchObject({
+			priority: "important",
+			fact: selected.facts[0],
+		});
+		expect(selected.state.queue.reportIds).toContain(paradigmReport.id);
+		expect(() =>
+			assertFact({
+				kind: "paradigm_selected",
+				paradigmId: "not_a_catalog_paradigm",
+				era: "text",
+				week: 1,
+			}),
+		).toThrow(/unknown research paradigm|paradigm/i);
 		expect(selected.state.commandLog.at(-1)).toMatchObject({
 			kind: "apply_decision",
 			choice: {

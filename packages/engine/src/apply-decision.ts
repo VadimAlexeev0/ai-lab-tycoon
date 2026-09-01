@@ -197,7 +197,18 @@ function applyParadigmChoice(
 	assertGameState(nextState, {
 		allowNegativeCash: nextState.company.cash < 0,
 	});
-	return { state: nextState, facts: [], pending: [] };
+	return {
+		state: nextState,
+		facts: [
+			{
+				kind: "paradigm_selected",
+				paradigmId: choice.paradigmId,
+				era: "text",
+				week: state.meta.week,
+			},
+		],
+		pending: [],
+	};
 }
 
 function pendingModelId(decision: PendingDecision): string {

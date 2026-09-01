@@ -1,6 +1,8 @@
 import type { IncidentCondition } from "../data/incidents.js";
+import type { ResearchParadigmId } from "../data/research/paradigms.js";
 import {
 	assertResearchEffects,
+	isResearchParadigmId,
 	type ResearchEffect,
 } from "../data/research.js";
 import {
@@ -27,6 +29,7 @@ const FACT_KINDS = [
 	"project_progressed",
 	"project_completed",
 	"research_completed",
+	"paradigm_selected",
 	"research_spark_discovered",
 	"model_trained",
 	"evaluation_completed",
@@ -85,6 +88,12 @@ export type Fact =
 			kind: "research_completed";
 			nodeId: string;
 			effects?: readonly ResearchEffect[];
+			week: number;
+	  }
+	| {
+			kind: "paradigm_selected";
+			paradigmId: ResearchParadigmId;
+			era: "text";
 			week: number;
 	  }
 	| {
@@ -351,6 +360,20 @@ export function assertFact(value: unknown): asserts value is Fact {
 			if (Object.hasOwn(value, "effects")) {
 				assertResearchEffects(value.effects, "Research completion effects");
 			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "paradigm_selected":
+			assertExactObject(
+				value,
+				["kind", "paradigmId", "era", "week"],
+				"paradigm selected fact",
+			);
+			if (!isResearchParadigmId(value.paradigmId)) {
+				throw new Error(
+					`Selected research paradigm id is unsupported: ${String(value.paradigmId)}`,
+				);
+			}
+			assertEnum(value.era, ["text"], "Selected paradigm era");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		case "research_spark_discovered":

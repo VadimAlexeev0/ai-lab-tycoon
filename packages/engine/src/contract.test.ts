@@ -797,6 +797,7 @@ describe("hardened component contract", () => {
 			"selectProducts",
 			"selectRecentReports",
 			"selectResearchNodes",
+			"selectResearchParadigm",
 			"selectResourceBar",
 			"selectRivals",
 			"selectTeams",
