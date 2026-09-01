@@ -10,6 +10,7 @@ const EXPECTED_FIRST_IDS = {
 	model: "model_001",
 	product: "product_001",
 	rival: "rival_001",
+	data: "data_001",
 	decision: "decision_001",
 	report: "report_001",
 	command: "command_002",

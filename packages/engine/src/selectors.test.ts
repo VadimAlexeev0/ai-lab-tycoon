@@ -11,6 +11,7 @@ import { FOUNDING_TEAM } from "./data/teams.js";
 import { startRun } from "./index.js";
 import {
 	selectAvailableProjects,
+	selectDataInventory,
 	selectFunding,
 	selectNextObjective,
 	selectPendingDecisions,
@@ -228,6 +229,7 @@ describe("visible selectors", () => {
 			models: selectVisibleModels(stateWithHiddenFields),
 			research: selectResearchNodes(state),
 			products: selectProducts(state),
+			dataInventory: selectDataInventory(state),
 			funding: selectFunding(state),
 			pendingDecisions: selectPendingDecisions(state),
 			recentReports: selectRecentReports(state),

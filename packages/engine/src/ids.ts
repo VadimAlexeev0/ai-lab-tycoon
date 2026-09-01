@@ -8,6 +8,7 @@ const COUNTER_PREFIXES: Record<keyof CountersState, string> = {
 	model: "model",
 	product: "product",
 	rival: "rival",
+	data: "data",
 	decision: "decision",
 	report: "report",
 	command: "command",

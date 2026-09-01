@@ -65,6 +65,17 @@ export type ModelScoreBalance = Readonly<{
 	emphasisWeights: Readonly<Record<ModelDimension, ModelScoreEmphasisWeights>>;
 }>;
 
+export type DataInventoryBalance = Readonly<{
+	/** One model recipe's summarized mix is exactly this many units. */
+	trainingUnits: number;
+	/** Freshness below this percentage produces a deterministic warning. */
+	stalenessThreshold: number;
+	/** Synthetic share above this percentage creates quality/debt pressure. */
+	syntheticOveruseThreshold: number;
+	syntheticQualityPenaltyPerUnit: number;
+	syntheticDebtPerUnit: number;
+}>;
+
 export type ProductChannelBalance = Readonly<{
 	minEra: ResearchEra;
 	minimumTrust: number;
@@ -124,6 +135,7 @@ export type BalanceConstants = Readonly<{
 	modelTiers: Readonly<Record<ModelTier, ModelTierBalance>>;
 	modelFoundations: Readonly<Record<ModelFoundation, ModelFoundationBalance>>;
 	modelScore: ModelScoreBalance;
+	dataInventory: DataInventoryBalance;
 	modelEmphasisPoints: number;
 	defaultEstimateBandWidth: number;
 	productChannels: Readonly<Record<ProductChannel, ProductChannelBalance>>;
@@ -248,6 +260,15 @@ export const MODEL_SCORE_BALANCE = {
 export const MODEL_EMPHASIS_POINTS = 6;
 /** Initial uncertainty on a newly trained model, before evaluation. */
 export const DEFAULT_ESTIMATE_BAND_WIDTH = 20;
+
+/** Strategic inventory tuning; all values are integer simulation units. */
+export const DATA_INVENTORY_BALANCE = {
+	trainingUnits: 100,
+	stalenessThreshold: 40,
+	syntheticOveruseThreshold: 50,
+	syntheticQualityPenaltyPerUnit: 1,
+	syntheticDebtPerUnit: 1,
+} as const satisfies DataInventoryBalance;
 
 /** Product launch requirements and weekly operating economics. */
 export const PRODUCT_CHANNEL_BALANCE = {
@@ -407,6 +428,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
 	funding: { value: FUNDING_BALANCE, enumerable: false },
 	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
+	dataInventory: {
+		value: DATA_INVENTORY_BALANCE,
+		enumerable: false,
+	},
 	researchParadigms: {
 		value: RESEARCH_PARADIGM_BALANCE,
 		enumerable: false,
@@ -424,6 +449,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
+	readonly dataInventory: typeof DATA_INVENTORY_BALANCE;
 	readonly researchParadigms: typeof RESEARCH_PARADIGM_BALANCE;
 	readonly publication: typeof PUBLICATION_BALANCE;
 } satisfies BalanceConstants;
@@ -453,6 +479,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"modelTiers",
 			"modelFoundations",
 			"modelScore",
+			"dataInventory",
 			"modelEmphasisPoints",
 			"defaultEstimateBandWidth",
 			"productChannels",
@@ -564,6 +591,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		}
 	}
 	assertModelScoreBalance(value.modelScore);
+	assertDataInventoryBalance(value.dataInventory);
 	assertPositiveInteger(value.modelEmphasisPoints, "Model emphasis points");
 	assertPositiveInteger(
 		value.defaultEstimateBandWidth,
@@ -578,6 +606,37 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	assertEvaluationBalance(value.evaluations);
 	assertResearchParadigmBalance(value.researchParadigms);
 	assertPublicationBalance(value.publication);
+}
+
+function assertDataInventoryBalance(value: DataInventoryBalance): void {
+	assertExactObject(
+		value,
+		[
+			"trainingUnits",
+			"stalenessThreshold",
+			"syntheticOveruseThreshold",
+			"syntheticQualityPenaltyPerUnit",
+			"syntheticDebtPerUnit",
+		],
+		"Data inventory balance",
+	);
+	assertPositiveInteger(value.trainingUnits, "Data training units");
+	assertNonNegativeInteger(
+		value.stalenessThreshold,
+		"Data staleness threshold",
+	);
+	assertNonNegativeInteger(
+		value.syntheticOveruseThreshold,
+		"Synthetic overuse threshold",
+	);
+	assertPositiveInteger(
+		value.syntheticQualityPenaltyPerUnit,
+		"Synthetic quality penalty per unit",
+	);
+	assertPositiveInteger(value.syntheticDebtPerUnit, "Synthetic debt per unit");
+	if (value.stalenessThreshold > 100 || value.syntheticOveruseThreshold > 100) {
+		throw new Error("Data inventory percentage thresholds must be at most 100");
+	}
 }
 
 function assertPublicationBalance(value: PublicationBalance): void {

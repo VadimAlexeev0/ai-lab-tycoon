@@ -1,5 +1,9 @@
 import { type CompanyState, createCompanyState } from "./components/company.js";
 import { type ComputeState, createComputeState } from "./components/compute.js";
+import {
+	createDataInventoryState,
+	type DataInventoryState,
+} from "./components/data-inventory.js";
 import type {
 	DecisionChoice,
 	PendingDecision,
@@ -46,7 +50,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 4 as const;
+export const GAME_STATE_SCHEMA_VERSION = 5 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -61,6 +65,7 @@ export type CountersState = {
 	model: number;
 	product: number;
 	rival: number;
+	data: number;
 	decision: number;
 	report: number;
 	command: number;
@@ -80,6 +85,7 @@ export type CommandKind =
 	| "design_model"
 	| "run_evaluation"
 	| "launch_product"
+	| "acquire_data"
 	| "buy_compute"
 	| "hire_team"
 	| "product_resume";
@@ -139,6 +145,12 @@ export type CommandLogEntry =
 			channel: "chat" | "developer_api" | "enterprise";
 	  })
 	| (CommandLogBase & {
+			kind: "acquire_data";
+			dataId: string;
+			sourceId: string;
+			productId: string | null;
+	  })
+	| (CommandLogBase & {
 			kind: "buy_compute";
 			amount: number;
 	  })
@@ -155,6 +167,7 @@ export type WarningCode =
 	| "cash_low"
 	| "compute_shortage"
 	| "trust_low"
+	| "stale_data"
 	| "blocking_decision";
 export type WarningSeverity = "info" | "warning" | "critical";
 
@@ -175,6 +188,7 @@ export type GameState = {
 	teams: TeamsState;
 	projects: ProjectsState;
 	compute: ComputeState;
+	dataInventory: DataInventoryState;
 	research: ResearchState;
 	models: ModelsState;
 	products: ProductsState;
@@ -215,6 +229,7 @@ export function createInitialGameState(
 			model: 1,
 			product: 1,
 			rival: 1,
+			data: 1,
 			decision: 1,
 			report: 1,
 			command: 2,
@@ -223,6 +238,7 @@ export function createInitialGameState(
 		teams: createTeamsState(),
 		projects: createProjectsState(),
 		compute: createComputeState(),
+		dataInventory: createDataInventoryState(),
 		research: createResearchState("text"),
 		models: createModelsState(),
 		products: createProductsState(),

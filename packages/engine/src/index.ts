@@ -1,6 +1,7 @@
 import { advanceWeek } from "./advance-week.js";
 import { applyDecision } from "./apply-decision.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
+import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel } from "./model-design.js";
 import { launchProduct } from "./products.js";
@@ -11,11 +12,16 @@ export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
 export type { AdvanceWeekOptions } from "./advance-week.js";
 export { buyCompute, hireTeam } from "./commands/teams.js";
 export type {
+	DataInventoryRecord,
+	DataInventoryState,
+} from "./components/data-inventory.js";
+export type {
 	DecisionChoice,
 	PendingDecision,
 } from "./components/decisions.js";
 export type { FundingGateFactors, FundingRound } from "./components/funding.js";
 export type {
+	DataAllocation,
 	Model,
 	ModelEstimateBand,
 	ModelEstimates,
@@ -25,6 +31,13 @@ export type {
 } from "./components/models.js";
 export type { ProductChannel } from "./components/products.js";
 export type { Fact } from "./components/reports.js";
+export type {
+	DataModality,
+	DataProvenance,
+	DataSourceDefinition,
+	DataSourceId,
+	DataUsageRestriction,
+} from "./data/data-sources.js";
 export type {
 	DataMix,
 	ModelDimension,
@@ -38,6 +51,7 @@ export type {
 	ResearchSpark,
 	ResearchSparkTrigger,
 } from "./data/research.js";
+export type { DataAcquisitionRequest } from "./data-inventory.js";
 export { assertGameState, setAssertionsEnabled } from "./invariants.js";
 export type { GameStateUpgradeResult } from "./migrations.js";
 export {
@@ -62,6 +76,7 @@ export type {
 	TeamStatus,
 	TerminalObjective,
 	VisibleAvailableProject,
+	VisibleDataInventoryRecord,
 	VisibleEstimateBand,
 	VisibleFundingSummary,
 	VisibleGameState,
@@ -78,6 +93,7 @@ export type {
 } from "./selectors.js";
 export {
 	selectAvailableProjects,
+	selectDataInventory,
 	selectFunding,
 	selectNextObjective,
 	selectPendingDecisions,
@@ -103,6 +119,7 @@ export type {
 export { GAME_STATE_SCHEMA_VERSION } from "./state.js";
 export { fundingFactors } from "./systems/funding.js";
 export {
+	acquireData,
 	advanceWeek,
 	applyDecision,
 	assignProject,

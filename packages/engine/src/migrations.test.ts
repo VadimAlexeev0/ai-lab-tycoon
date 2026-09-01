@@ -38,6 +38,9 @@ function currentV2Fixture(): unknown {
 	) as Record<string, unknown>;
 	const meta = asRecord(state.meta);
 	const research = asRecord(state.research);
+	const counters = asRecord(state.counters);
+	delete state.dataInventory;
+	delete counters.data;
 	delete research.discoveredSparkIds;
 	delete research.paradigmId;
 	meta.schemaVersion = 2;
@@ -50,6 +53,9 @@ function currentV3Fixture(): unknown {
 	) as Record<string, unknown>;
 	const meta = asRecord(state.meta);
 	const research = asRecord(state.research);
+	const counters = asRecord(state.counters);
+	delete state.dataInventory;
+	delete counters.data;
 	delete research.paradigmId;
 	meta.schemaVersion = 3;
 	return state;
@@ -62,8 +68,8 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(3);
-		expect(upgraded.currentSchemaVersion).toBe(4);
-		expect(upgraded.state.meta.schemaVersion).toBe(4);
+		expect(upgraded.currentSchemaVersion).toBe(5);
+		expect(upgraded.state.meta.schemaVersion).toBe(5);
 		expect(upgraded.state.research.paradigmId).toBeNull();
 		expect(JSON.stringify(fixture)).toBe(before);
 	});
@@ -106,8 +112,8 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(1);
-		expect(upgraded.currentSchemaVersion).toBe(4);
-		expect(upgraded.state.meta.schemaVersion).toBe(4);
+		expect(upgraded.currentSchemaVersion).toBe(5);
+		expect(upgraded.state.meta.schemaVersion).toBe(5);
 		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
 		expect(upgraded.state.compute.trainingDemand).toBe(4);
 		expect(upgraded.state.compute.allocated).toBe(4);
@@ -127,8 +133,8 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(2);
-		expect(upgraded.currentSchemaVersion).toBe(4);
-		expect(upgraded.state.meta.schemaVersion).toBe(4);
+		expect(upgraded.currentSchemaVersion).toBe(5);
+		expect(upgraded.state.meta.schemaVersion).toBe(5);
 		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
 		expect(JSON.stringify(fixture)).toBe(before);
 	});

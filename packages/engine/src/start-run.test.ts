@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createRngState } from "./components/rng.js";
 import { BALANCE } from "./data/balance.js";
+import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import { RESEARCH_NODES, TEXT_ERA } from "./data/research.js";
 import { OPENING_RIVALS } from "./data/rivals.js";
 import { FOUNDING_TEAM } from "./data/teams.js";
@@ -51,6 +52,7 @@ describe("startRun", () => {
 				model: 1,
 				product: 1,
 				rival: 4,
+				data: STARTING_DATA_INVENTORY.length + 1,
 				decision: 1,
 				report: 1,
 				command: 2,
@@ -77,6 +79,12 @@ describe("startRun", () => {
 				allocated: 0,
 				trainingDemand: 0,
 				servingDemand: 0,
+			},
+			dataInventory: {
+				items: STARTING_DATA_INVENTORY.map((record) => ({
+					...record,
+					usageRestrictions: [...record.usageRestrictions],
+				})),
 			},
 			research: {
 				currentEra: "text",

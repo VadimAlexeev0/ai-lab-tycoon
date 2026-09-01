@@ -6,6 +6,7 @@ import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
+import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
 	assertGameState,
 	type GameStateValidationOptions,
@@ -30,10 +31,12 @@ type StateMigration = (value: unknown) => unknown;
 const STATE_SCHEMA_VERSION_V1 = 1 as const;
 const STATE_SCHEMA_VERSION_V2 = 2 as const;
 const STATE_SCHEMA_VERSION_V3 = 3 as const;
+const STATE_SCHEMA_VERSION_V4 = 4 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
 	[STATE_SCHEMA_VERSION_V3]: migrateV3ToV4,
+	[STATE_SCHEMA_VERSION_V4]: migrateV4ToV5,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -78,7 +81,9 @@ export function deserializeGameStateWithMetadata(
  * reservations before the current validator runs; it never treats a stale V1
  * reservation as authoritative. State schema v3 adds replay-safe Research
  * Spark discoveries. State schema v4 adds the unresolved/selected Era-1
- * research paradigm. There is no deployed pre-v1 format to support.
+ * research paradigm. State schema v5 adds the strategic data inventory and
+ * its deterministic data ID counter. There is no deployed pre-v1 format to
+ * support.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -215,6 +220,33 @@ function migrateV3ToV4(value: unknown): unknown {
 	}
 	assertResearchState(research, { allowMissingParadigmId: true });
 	research.paradigmId = null;
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V4;
+	return migrated;
+}
+
+function migrateV4ToV5(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v4 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v4 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V4) {
+		throw new Error("v4 game state has an invalid schema version");
+	}
+	if (Object.hasOwn(migrated, "dataInventory")) {
+		throw new Error("v4 game state contains unexpected field: dataInventory");
+	}
+	const counters = migrated.counters;
+	assertObject(counters, "v4 game state counters");
+	if (Object.hasOwn(counters, "data")) {
+		throw new Error("v4 game state counters contain unexpected field: data");
+	}
+	counters.data = STARTING_DATA_INVENTORY.length + 1;
+	migrated.dataInventory = {
+		items: STARTING_DATA_INVENTORY.map((record) => ({
+			...record,
+			usageRestrictions: [...record.usageRestrictions],
+		})),
+	};
 	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
 	return migrated;
 }

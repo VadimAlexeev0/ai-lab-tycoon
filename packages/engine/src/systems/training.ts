@@ -6,6 +6,11 @@ import {
 	withRecomputedCompute,
 } from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
+import {
+	consumeDataAllocations,
+	profileTrainingData,
+	syntheticDataEffects,
+} from "../data-inventory.js";
 import { assertGameState } from "../invariants.js";
 import { generateTrueScores } from "../model-design.js";
 import { deriveResearchEffects } from "../research-effects.js";
@@ -57,6 +62,7 @@ export const trainingSystem: GameSystem = (state, context) => {
 		});
 	}
 	let nextRng = state.rng;
+	let nextDataInventory = state.dataInventory;
 	const nextModels = state.models.items.map(cloneModel);
 	const nextProjects: Project[] = state.projects.items.map((project) => {
 		if (project.kind !== "training" || project.status !== "active") {
@@ -97,17 +103,41 @@ export const trainingSystem: GameSystem = (state, context) => {
 			model.parentModelId === undefined || model.parentModelId === null
 				? undefined
 				: nextModels.find((candidate) => candidate.id === model.parentModelId);
+		const dataProfile = profileTrainingData(state, model);
+		const dataEffects = syntheticDataEffects(dataProfile);
 		const generated = generateTrueScores(
 			nextRng,
 			model,
 			parent,
 			researchEffects,
+			{
+				quality: dataProfile.weightedQuality,
+				qualityPenalty: dataEffects.qualityPenalty,
+			},
 		);
 		nextRng = generated.rng;
 		model.status = "ready";
 		model.projectId = null;
 		model.trueScores = generated.trueScores;
 		model.estimates = generated.estimates;
+		if (model.dataAllocation !== undefined) {
+			nextDataInventory = consumeDataAllocations(
+				nextDataInventory,
+				model.dataAllocation,
+			);
+		}
+		if (dataEffects.debtAdded > 0) {
+			model.dataDebt = dataEffects.debtAdded;
+			facts.push({
+				kind: "synthetic_data_overuse",
+				modelId: model.id,
+				syntheticAmount: dataProfile.syntheticAmount,
+				totalAmount: dataProfile.totalAmount,
+				qualityPenalty: dataEffects.qualityPenalty,
+				debtAdded: dataEffects.debtAdded,
+				week: context.week,
+			});
+		}
 		completedProjectIds.add(project.id);
 		facts.push(
 			{
@@ -138,6 +168,12 @@ export const trainingSystem: GameSystem = (state, context) => {
 		models: {
 			items: nextModels,
 			activeModelId: state.models.activeModelId,
+		},
+		dataInventory: {
+			items: nextDataInventory.items.map((record) => ({
+				...record,
+				usageRestrictions: [...record.usageRestrictions],
+			})),
 		},
 		projects: { items: nextProjects },
 		teams: {
@@ -181,6 +217,14 @@ function cloneModel(model: Model): Model {
 	return {
 		...model,
 		...(model.dataMix === undefined ? {} : { dataMix: { ...model.dataMix } }),
+		...(model.dataAllocation === undefined
+			? {}
+			: {
+					dataAllocation: model.dataAllocation.map((allocation) => ({
+						...allocation,
+					})),
+				}),
+		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),

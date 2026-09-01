@@ -414,6 +414,14 @@ function cloneModel(model: Model): Model {
 	return {
 		...model,
 		...(model.dataMix === undefined ? {} : { dataMix: { ...model.dataMix } }),
+		...(model.dataAllocation === undefined
+			? {}
+			: {
+					dataAllocation: model.dataAllocation.map((allocation) => ({
+						...allocation,
+					})),
+				}),
+		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),

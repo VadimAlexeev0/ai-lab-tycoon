@@ -167,6 +167,65 @@ const FACT_CASES: readonly FactContractCase[] = [
 		wrong: ["channel", "invalid_channel"],
 	},
 	{
+		name: "data_acquired",
+		value: {
+			kind: "data_acquired",
+			dataId: "data_001",
+			sourceId: "web_corpus",
+			provenance: "acquired",
+			quantity: 300,
+			cost: 75,
+			availableFromWeek: 2,
+			rightsRisk: 40,
+			week: 1,
+		},
+		required: [
+			"kind",
+			"dataId",
+			"sourceId",
+			"provenance",
+			"quantity",
+			"cost",
+			"availableFromWeek",
+			"rightsRisk",
+			"week",
+		],
+		wrong: ["provenance", "invalid_provenance"],
+	},
+	{
+		name: "data_stale_warning",
+		value: {
+			kind: "data_stale_warning",
+			dataIds: ["data_001"],
+			threshold: 40,
+			week: 1,
+		},
+		required: ["kind", "dataIds", "threshold", "week"],
+		wrong: ["threshold", 101],
+	},
+	{
+		name: "synthetic_data_overuse",
+		value: {
+			kind: "synthetic_data_overuse",
+			modelId: "model_001",
+			syntheticAmount: 60,
+			totalAmount: 100,
+			qualityPenalty: 10,
+			debtAdded: 10,
+			week: 1,
+		},
+		required: [
+			"kind",
+			"modelId",
+			"syntheticAmount",
+			"totalAmount",
+			"qualityPenalty",
+			"debtAdded",
+			"week",
+		],
+		wrong: ["debtAdded", 101],
+	},
+	{
 		name: "revenue",
 		value: {
 			kind: "revenue",
@@ -630,6 +689,27 @@ describe("typed Fact contracts", () => {
 		const fundingWithoutOptional = { ...funding.value };
 		delete fundingWithoutOptional.factors;
 		expect(() => assertFact(fundingWithoutOptional)).not.toThrow();
+	});
+
+	it("rejects a data acquisition fact that drifts from its source catalog", () => {
+		const fact = {
+			kind: "data_acquired" as const,
+			dataId: "data_001",
+			sourceId: "web_corpus",
+			provenance: "acquired" as const,
+			quantity: 300,
+			cost: 75,
+			availableFromWeek: 2,
+			rightsRisk: 40,
+			week: 1,
+		};
+		expect(() => assertFact(fact)).not.toThrow();
+		expect(() => assertFact({ ...fact, sourceId: "missing_source" })).toThrow(
+			/source/i,
+		);
+		expect(() => assertFact({ ...fact, quantity: 299 })).toThrow(
+			/source|quantity/i,
+		);
 	});
 
 	it("accepts every PendingDecision variant and rejects malformed payloads", () => {

@@ -19,6 +19,7 @@ import {
 	assertNonNegativeInteger,
 	assertNullableString,
 	assertObject,
+	assertPositiveInteger,
 	assertString,
 } from "../validation.js";
 
@@ -47,6 +48,11 @@ export type ModelEstimateBand = {
 };
 export type ModelEstimates = Record<ModelDimension, ModelEstimateBand>;
 
+export type DataAllocation = Readonly<{
+	recordId: string;
+	amount: number;
+}>;
+
 export type Model = {
 	id: string;
 	name: string;
@@ -58,6 +64,9 @@ export type Model = {
 	tier?: ModelTier;
 	scoreCeiling?: number;
 	dataMix?: DataMix;
+	dataAllocation?: DataAllocation[];
+	/** Bounded technical debt caused by overusing synthetic training data. */
+	dataDebt?: number;
 	emphasis?: ModelEmphasis;
 	/** Hidden until training completes; never project this field to a selector. */
 	trueScores?: ModelTrueScores;
@@ -127,6 +136,15 @@ export function assertModelsState(
 		if (Object.hasOwn(item, "dataMix")) {
 			assertDataMix(item.dataMix, `Model ${item.id} data mix`);
 		}
+		if (Object.hasOwn(item, "dataAllocation")) {
+			assertDataAllocation(
+				item.dataAllocation,
+				`Model ${item.id} data allocation`,
+			);
+		}
+		if (Object.hasOwn(item, "dataDebt")) {
+			assertBoundedInteger(item.dataDebt, `Model ${item.id} data debt`);
+		}
 		if (Object.hasOwn(item, "emphasis")) {
 			assertEmphasis(item.emphasis, `Model ${item.id} emphasis`);
 		}
@@ -188,6 +206,14 @@ function cloneModel(model: Model): Model {
 	return {
 		...model,
 		...(model.dataMix === undefined ? {} : { dataMix: { ...model.dataMix } }),
+		...(model.dataAllocation === undefined
+			? {}
+			: {
+					dataAllocation: model.dataAllocation.map((allocation) => ({
+						...allocation,
+					})),
+				}),
+		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),
@@ -219,6 +245,8 @@ function assertAllowedModelKeys(value: Record<string, unknown>): void {
 		"tier",
 		"scoreCeiling",
 		"dataMix",
+		"dataAllocation",
+		"dataDebt",
 		"emphasis",
 		"trueScores",
 		"estimates",
@@ -246,6 +274,23 @@ function assertDataMix(value: unknown, path: string): asserts value is DataMix {
 	const dataMix = value as DataMix;
 	if (dataMix.general + dataMix.code + dataMix.multimodal !== 100) {
 		throw new Error(`${path} must total exactly 100`);
+	}
+}
+
+function assertDataAllocation(
+	value: unknown,
+	path: string,
+): asserts value is DataAllocation[] {
+	assertArray(value, path);
+	const recordIds = new Set<string>();
+	for (const allocation of value) {
+		assertExactObject(allocation, ["recordId", "amount"], `${path} item`);
+		assertIdentifier(allocation.recordId, `${path} record id`);
+		if (recordIds.has(allocation.recordId)) {
+			throw new Error(`${path} repeats record id: ${allocation.recordId}`);
+		}
+		recordIds.add(allocation.recordId);
+		assertPositiveInteger(allocation.amount, `${path} amount`);
 	}
 }
 

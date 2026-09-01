@@ -775,6 +775,7 @@ describe("hardened component contract", () => {
 		expect(publicRuntimeKeys).toEqual([
 			"ENGINE_PACKAGE_NAME",
 			"GAME_STATE_SCHEMA_VERSION",
+			"acquireData",
 			"advanceWeek",
 			"applyDecision",
 			"applyProductResume",
@@ -791,6 +792,7 @@ describe("hardened component contract", () => {
 			"replayCommandLog",
 			"runEvaluation",
 			"selectAvailableProjects",
+			"selectDataInventory",
 			"selectFunding",
 			"selectNextObjective",
 			"selectPendingDecisions",

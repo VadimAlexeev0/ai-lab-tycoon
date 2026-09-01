@@ -1,5 +1,6 @@
 import { assertCompanyState } from "./components/company.js";
 import { assertComputeState } from "./components/compute.js";
+import { assertDataInventoryState } from "./components/data-inventory.js";
 import {
 	assertDecisionChoice,
 	assertDecisionsState,
@@ -16,6 +17,7 @@ import { assertTeamsState } from "./components/teams.js";
 import { assertTerminalState } from "./components/terminal.js";
 import { computeReservations } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
+import { getDataSourceDefinition } from "./data/data-sources.js";
 import {
 	DATA_MIX_DIMENSIONS,
 	MODEL_EMPHASIS_DIMENSIONS,
@@ -57,6 +59,10 @@ import {
 } from "./validation.js";
 
 const RESEARCH_ERAS = ["text", "assistant", "multimodal"] as const;
+const TRAINING_BLOCKING_DATA_RESTRICTIONS = new Set<string>([
+	"research_only",
+	"no_training",
+]);
 const COMMAND_KINDS = [
 	"start_run",
 	"apply_decision",
@@ -66,6 +72,7 @@ const COMMAND_KINDS = [
 	"design_model",
 	"run_evaluation",
 	"launch_product",
+	"acquire_data",
 	"buy_compute",
 	"hire_team",
 	"product_resume",
@@ -75,6 +82,7 @@ const WARNING_CODES = [
 	"cash_low",
 	"compute_shortage",
 	"trust_low",
+	"stale_data",
 	"blocking_decision",
 ] as const;
 const WARNING_SEVERITIES = ["info", "warning", "critical"] as const;
@@ -86,6 +94,7 @@ const GAME_STATE_KEYS = [
 	"teams",
 	"projects",
 	"compute",
+	"dataInventory",
 	"research",
 	"models",
 	"products",
@@ -134,13 +143,16 @@ export function assertGameState(
 	assertTeamsState(state.teams);
 	assertProjectsState(state.projects);
 	assertComputeState(state.compute);
+	assertDataInventoryState(state.dataInventory);
 	assertResearchState(state.research);
 	assertResearchNodeDefinitions(state);
 	// Effects are a derived view of completed node ids; validating the view here
 	// rejects any catalog/state contract drift before a system consumes it.
 	deriveResearchEffects(state.research);
 	assertModelsState(state.models);
+	assertModelDataRelations(state);
 	assertProductsState(state.products);
+	assertDataInventoryProductRelations(state);
 	assertRivalsState(state.rivals);
 	assertFundingState(state.funding);
 	assertDecisionsState(state.decisions);
@@ -452,6 +464,85 @@ function assertModelRelations(state: GameState): void {
 	}
 }
 
+function assertDataInventoryProductRelations(state: GameState): void {
+	for (const record of state.dataInventory.items) {
+		if (record.provenance !== "product_derived") continue;
+		if (record.derivedFromProductId === null) {
+			throw new Error(
+				`Product-derived data record ${record.id} is missing its source product`,
+			);
+		}
+		const product = state.products.items.find(
+			(candidate) => candidate.id === record.derivedFromProductId,
+		);
+		if (product === undefined) {
+			throw new Error(
+				`Product-derived data record ${record.id} references an unknown product ${record.derivedFromProductId}`,
+			);
+		}
+		const source = getDataSourceDefinition(record.sourceId);
+		if (
+			source === undefined ||
+			!source.eligibleProductChannels.includes(product.channel)
+		) {
+			throw new Error(
+				`Product-derived data record ${record.id} references an ineligible product channel`,
+			);
+		}
+	}
+}
+
+function assertModelDataRelations(state: GameState): void {
+	for (const model of state.models.items) {
+		const allocations = model.dataAllocation;
+		if (allocations === undefined) continue;
+		const total = allocations.reduce(
+			(sum, allocation) => sum + allocation.amount,
+			0,
+		);
+		if (total !== BALANCE.dataInventory.trainingUnits) {
+			throw new Error(
+				`Model ${model.id} data allocation must total exactly ${BALANCE.dataInventory.trainingUnits} training units`,
+			);
+		}
+		const activeTraining =
+			model.projectId !== null &&
+			state.projects.items.some(
+				(project) =>
+					project.id === model.projectId &&
+					project.kind === "training" &&
+					project.status === "active",
+			);
+		for (const allocation of allocations) {
+			const record = state.dataInventory.items.find(
+				(candidate) => candidate.id === allocation.recordId,
+			);
+			if (record === undefined) {
+				throw new Error(
+					`Model ${model.id} data allocation references unknown record ${allocation.recordId}`,
+				);
+			}
+			if (
+				record.usageRestrictions.some((restriction) =>
+					TRAINING_BLOCKING_DATA_RESTRICTIONS.has(restriction),
+				)
+			) {
+				throw new Error(
+					`Model ${model.id} data allocation references restricted training data record ${record.id}`,
+				);
+			}
+			const heldAmount = activeTraining
+				? record.reservedAmount
+				: record.consumedAmount;
+			if (heldAmount < allocation.amount) {
+				throw new Error(
+					`Model ${model.id} data allocation exceeds its record ${activeTraining ? "reservation" : "consumption"}`,
+				);
+			}
+		}
+	}
+}
+
 function assertModelGenerationAvailability(state: GameState): void {
 	const currentEraIndex = RESEARCH_ERAS.indexOf(state.meta.era);
 	for (const model of state.models.items) {
@@ -509,6 +600,7 @@ function assertCounters(value: unknown): void {
 		"model",
 		"product",
 		"rival",
+		"data",
 		"decision",
 		"report",
 		"command",
@@ -536,6 +628,7 @@ function assertUniqueStateIds(state: GameState): void {
 		...state.models.items.map((model) => model.id),
 		...state.products.items.map((product) => product.id),
 		...state.rivals.items.map((rival) => rival.id),
+		...state.dataInventory.items.map((record) => record.id),
 		...state.decisions.pending.map((decision) => decision.id),
 		...state.reports.items.map((report) => report.id),
 		...state.commandLog.map((entry) => entry.id),
@@ -695,7 +788,14 @@ function assertCommandLog(
 	value: unknown,
 	state: Pick<
 		GameState,
-		"meta" | "rng" | "company" | "models" | "projects" | "teams" | "products"
+		| "meta"
+		| "rng"
+		| "company"
+		| "models"
+		| "projects"
+		| "teams"
+		| "products"
+		| "dataInventory"
 	>,
 ): void {
 	assertArray(value, "Command log");
@@ -883,6 +983,36 @@ function assertCommandLog(
 				) {
 					throw new Error(
 						`Launch command product ${launchProduct.id} does not match its model or channel`,
+					);
+				}
+				break;
+			}
+			case "acquire_data": {
+				assertExactObject(
+					item,
+					["id", "kind", "week", "dataId", "sourceId", "productId"],
+					"acquire_data command",
+				);
+				assertIdentifier(item.dataId, "Acquire data id");
+				assertIdentifier(item.sourceId, "Acquire data source id");
+				assertNullableString(item.productId, "Acquire data product id");
+				if (item.productId !== null) {
+					assertIdentifier(item.productId, "Acquire data product id");
+				}
+				const record = state.dataInventory.items.find(
+					(candidate) => candidate.id === item.dataId,
+				);
+				if (record === undefined) {
+					throw new Error(
+						`Acquire data command references an unknown record: ${String(item.dataId)}`,
+					);
+				}
+				if (
+					record.sourceId !== item.sourceId ||
+					record.derivedFromProductId !== item.productId
+				) {
+					throw new Error(
+						`Acquire data command does not match record ${record.id}`,
 					);
 				}
 				break;
