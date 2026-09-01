@@ -148,6 +148,7 @@ export function assertGameState(
 	assertTerminalState(state.terminal);
 	assertQueueShape(state.queue);
 	assertCommandLog(state.commandLog, state);
+	assertPublicationHistory(state);
 	assertWarnings(state.warnings);
 	assertComputeReservations(state);
 	assertResearchGraph(state);
@@ -918,6 +919,58 @@ function assertCommandLog(
 
 	if (!startRunSeen) {
 		throw new Error("Command log must start with a start_run command");
+	}
+}
+
+function assertPublicationHistory(state: GameState): void {
+	const publicationCommands = state.commandLog.filter(
+		(command) => command.kind === "apply_decision",
+	);
+	const resolvedNodeIds = new Set<string>();
+	for (const command of publicationCommands) {
+		if (command.choice.kind !== "publication") continue;
+		const { nodeId } = command.choice;
+		if (resolvedNodeIds.has(nodeId)) {
+			throw new Error(
+				`Duplicate publication command for research node ${nodeId}`,
+			);
+		}
+		resolvedNodeIds.add(nodeId);
+	}
+
+	for (const decision of state.decisions.pending) {
+		if (decision.kind !== "publication") continue;
+		const node = state.research.nodes.find(
+			(candidate) => candidate.id === decision.nodeId,
+		);
+		if (node?.status !== "completed") {
+			throw new Error(
+				`Publication decision for node ${decision.nodeId} requires a completed research node`,
+			);
+		}
+		if (resolvedNodeIds.has(decision.nodeId)) {
+			throw new Error(
+				`Publication decision for node ${decision.nodeId} was already resolved by a prior publication command`,
+			);
+		}
+	}
+
+	for (const report of state.reports.items) {
+		const fact = report.fact;
+		if (fact.kind !== "research_publication_resolved") continue;
+		const hasMatchingCommand = publicationCommands.some((command) => {
+			if (command.choice.kind !== "publication") return false;
+			return (
+				command.week === fact.week &&
+				command.choice.nodeId === fact.nodeId &&
+				command.choice.outcome === fact.outcome
+			);
+		});
+		if (!hasMatchingCommand) {
+			throw new Error(
+				`Retained publication fact for node ${fact.nodeId} has no matching publication command`,
+			);
+		}
 	}
 }
 

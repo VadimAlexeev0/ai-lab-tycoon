@@ -28,6 +28,7 @@ import {
 	RESEARCH_ERAS,
 	RESEARCH_NODE_STATUSES,
 	type ResearchDefinition,
+	RNN_LSTM_ID,
 	TEXT_ERA,
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./types.js";
@@ -215,6 +216,15 @@ export function assertResearchDefinitions(
 		if (hasPublishable && typeof definition.publishable !== "boolean") {
 			throw new Error(
 				`Research definition ${definition.id} publishable must be a boolean`,
+			);
+		}
+		if (
+			hasPublishable &&
+			definition.publishable === true &&
+			definition.id !== RNN_LSTM_ID
+		) {
+			throw new Error(
+				`Research definition ${definition.id} publishable=true is only allowed for canonical ${RNN_LSTM_ID}`,
 			);
 		}
 		if (Object.hasOwn(definition, "effects")) {

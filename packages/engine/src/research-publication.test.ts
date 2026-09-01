@@ -15,6 +15,7 @@ import {
 	WORD_VECTORS_ID,
 } from "./data/research.js";
 import { advanceWeek, applyDecision, startRun } from "./index.js";
+import { assertGameState } from "./invariants.js";
 import { deserializeGameState, serializeGameState } from "./migrations.js";
 import { replayCommandLog } from "./replay.js";
 import { researchSystem } from "./systems/research.js";
@@ -91,6 +92,18 @@ describe("research publication decisions", () => {
 		);
 		expect(() => assertResearchDefinitions(definitions(true, true))).toThrow(
 			/unexpected field/i,
+		);
+	});
+
+	it("rejects a noncanonical research definition marked publishable", () => {
+		const definitions = RESEARCH_NODES.map((definition) =>
+			definition.id === WORD_VECTORS_ID
+				? { ...definition, publishable: true }
+				: definition,
+		) as unknown as ResearchDefinition[];
+
+		expect(() => assertResearchDefinitions(definitions)).toThrow(
+			/canonical|text_infrastructure_compute|publishable/i,
 		);
 	});
 
@@ -183,6 +196,101 @@ describe("research publication decisions", () => {
 				(fact) => fact.kind === "research_publication_resolved",
 			),
 		).toEqual([]);
+	});
+
+	it("rejects a pending publication decision for an incomplete node", () => {
+		const { state } = completedPublicationState(19);
+		const forgedState = {
+			...state,
+			research: {
+				...state.research,
+				nodes: state.research.nodes.map((node) =>
+					node.id === RNN_LSTM_ID
+						? { ...node, status: "available" as const }
+						: node,
+				),
+			},
+		};
+
+		expect(() => assertGameState(forgedState)).toThrow(
+			/publication.*completed|completed.*publication/i,
+		);
+	});
+
+	it("rejects reintroducing a resolved publication decision", () => {
+		const { state, decision } = completedPublicationState(23);
+		const choice = {
+			kind: "publication" as const,
+			decisionId: decision.id,
+			nodeId: RNN_LSTM_ID,
+			outcome: "publish" as const,
+		};
+		const resolved = applyDecision(state, choice).state;
+		const forgedState = {
+			...resolved,
+			decisions: { pending: [{ ...decision }] },
+			queue: { ...resolved.queue, decisionIds: [decision.id] },
+		};
+
+		expect(() => assertGameState(forgedState)).toThrow(
+			/already.*resolved|prior.*publication|publication.*resolved/i,
+		);
+	});
+
+	it("rejects duplicate publication apply commands for one node", () => {
+		const { state, decision } = completedPublicationState(29);
+		const choice = {
+			kind: "publication" as const,
+			decisionId: decision.id,
+			nodeId: RNN_LSTM_ID,
+			outcome: "hoard" as const,
+		};
+		const resolved = applyDecision(state, choice).state;
+		const lastCommand = resolved.commandLog.at(-1);
+		if (lastCommand === undefined || lastCommand.kind !== "apply_decision") {
+			throw new Error("Expected the publication apply command");
+		}
+		const duplicateCommand = {
+			...lastCommand,
+			id: `command_${String(resolved.commandLog.length + 1).padStart(3, "0")}`,
+		};
+		const forgedState = {
+			...resolved,
+			commandLog: [...resolved.commandLog, duplicateCommand],
+		};
+
+		expect(() => assertGameState(forgedState)).toThrow(
+			/duplicate publication command/i,
+		);
+	});
+
+	it("rejects a retained publication fact without its matching command", () => {
+		const { state, decision } = completedPublicationState(31);
+		const choice = {
+			kind: "publication" as const,
+			decisionId: decision.id,
+			nodeId: RNN_LSTM_ID,
+			outcome: "publish" as const,
+		};
+		const resolved = applyDecision(state, choice).state;
+		const publicationCommandIndex = resolved.commandLog.findIndex(
+			(command) =>
+				command.kind === "apply_decision" &&
+				command.choice.kind === "publication",
+		);
+		if (publicationCommandIndex < 0) {
+			throw new Error("Expected the publication apply command");
+		}
+		const forgedState = {
+			...resolved,
+			commandLog: resolved.commandLog.filter(
+				(_, index) => index !== publicationCommandIndex,
+			),
+		};
+
+		expect(() => assertGameState(forgedState)).toThrow(
+			/matching publication command|publication.*command/i,
+		);
 	});
 
 	it("publishes with explicit gains, caps trust and active rival progress, and reports once", () => {
