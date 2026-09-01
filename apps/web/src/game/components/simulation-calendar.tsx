@@ -29,15 +29,7 @@ import { useMemo, useState } from "react";
 import Pane from "@/game/components/pane";
 import { resolveEntityLabel } from "@/game/derived/labels";
 
-const DAY_LABELS = [
-	"Mon",
-	"Tue",
-	"Wed",
-	"Thu",
-	"Fri",
-	"Sat",
-	"Sun",
-] as const;
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 const PAST_WEEKS_TO_SHOW = 3;
 const FUTURE_WEEKS_TO_SHOW = 4;
@@ -139,15 +131,9 @@ export function buildCalendarEvents(state: GameState): CalendarEvent[] {
 			.map((event) => [event.id.replace("calendar-project-", ""), event]),
 	);
 	const reportEvents = reports
-		.map((report) =>
-			reportToCalendarEvent(state, report, projectById, lookups),
-		)
+		.map((report) => reportToCalendarEvent(state, report, projectById, lookups))
 		.filter((event): event is CalendarEvent => event !== null);
-	const commandEvents = commandEventsForState(
-		state,
-		reports,
-		lookups,
-	);
+	const commandEvents = commandEventsForState(state, reports, lookups);
 	const decisionEvents = selectPendingDecisions(state).map((decision) =>
 		decisionToCalendarEvent(state, decision, lookups),
 	);
@@ -167,7 +153,7 @@ export function dayForCalendarEvent(id: string): number {
 		hash ^= id.charCodeAt(index);
 		hash = Math.imul(hash, 16_777_619);
 	}
-	return (hash >>> 0) % DAY_LABELS.length + 1;
+	return ((hash >>> 0) % DAY_LABELS.length) + 1;
 }
 
 /** Keep the view bounded while ensuring the end of an active span is visible. */
@@ -193,10 +179,7 @@ export default function SimulationCalendar({
 	state,
 }: SimulationCalendarProps) {
 	const events = useMemo(() => buildCalendarEvents(state), [state]);
-	const weeks = useMemo(
-		() => getCalendarWeeks(state, events),
-		[state, events],
-	);
+	const weeks = useMemo(() => getCalendarWeeks(state, events), [state, events]);
 	const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 	const selectedEvent = events.find((event) => event.id === selectedEventId);
 
@@ -227,15 +210,27 @@ export default function SimulationCalendar({
 				</div>
 				<div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-border/70 border-t pt-3 text-muted-foreground text-xs">
 					<LegendItem
-						icon={<CircleDot className="size-3.5 text-primary" aria-hidden="true" />}
+						icon={
+							<CircleDot className="size-3.5 text-primary" aria-hidden="true" />
+						}
 						label="In progress"
 					/>
 					<LegendItem
-						icon={<Check className="size-3.5 text-[var(--game-positive)]" aria-hidden="true" />}
+						icon={
+							<Check
+								className="size-3.5 text-[var(--game-positive)]"
+								aria-hidden="true"
+							/>
+						}
 						label="Completed"
 					/>
 					<LegendItem
-						icon={<Flag className="size-3.5 text-[var(--game-amber)]" aria-hidden="true" />}
+						icon={
+							<Flag
+								className="size-3.5 text-[var(--game-amber)]"
+								aria-hidden="true"
+							/>
+						}
 						label="Completion marker"
 					/>
 					<span className="text-muted-foreground/70">
@@ -271,10 +266,7 @@ export default function SimulationCalendar({
 					onClose={() => setSelectedEventId(null)}
 					title={selectedEvent.title}
 				>
-					<CalendarEventDetail
-						event={selectedEvent}
-						onNavigate={onNavigate}
-					/>
+					<CalendarEventDetail event={selectedEvent} onNavigate={onNavigate} />
 				</Pane>
 			) : null}
 		</section>
@@ -296,7 +288,9 @@ function CalendarWeekColumn({
 }) {
 	const weekEvents = events
 		.map((event) => segmentForWeek(event, week))
-		.filter((segment): segment is Omit<EventSegment, "lane"> => segment !== null);
+		.filter(
+			(segment): segment is Omit<EventSegment, "lane"> => segment !== null,
+		);
 	const segments = addEventLanes(weekEvents);
 	const laneCount = Math.max(1, ...segments.map((segment) => segment.lane + 1));
 	const isPast = week < currentWeek;
@@ -466,7 +460,10 @@ function CalendarEventDetail({
 				: `Open ${destinationLabel(event.destination)}`;
 	return (
 		<div className="space-y-5">
-			<section aria-labelledby="calendar-event-context-heading" className="space-y-2">
+			<section
+				aria-labelledby="calendar-event-context-heading"
+				className="space-y-2"
+			>
 				<p className="font-semibold text-primary text-xs">Event context</p>
 				<h3
 					className="font-semibold text-foreground text-sm"
@@ -474,7 +471,9 @@ function CalendarEventDetail({
 				>
 					What this means
 				</h3>
-				<p className="text-muted-foreground text-xs leading-5">{event.summary}</p>
+				<p className="text-muted-foreground text-xs leading-5">
+					{event.summary}
+				</p>
 			</section>
 
 			<dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-border/70 border-y py-3 text-xs sm:grid-cols-4">
@@ -489,13 +488,15 @@ function CalendarEventDetail({
 				/>
 				<DetailValue
 					label="Indicative days"
-					value={
-						`${DAY_LABELS[event.startDay - 1] ?? "Mon"} → ${DAY_LABELS[event.finishDay - 1] ?? "Sun"}`
-					}
+					value={`${DAY_LABELS[event.startDay - 1] ?? "Mon"} → ${DAY_LABELS[event.finishDay - 1] ?? "Sun"}`}
 				/>
 				<DetailValue
 					label="Progress"
-					value={event.progress === undefined ? "Not applicable" : `${event.progress}%`}
+					value={
+						event.progress === undefined
+							? "Not applicable"
+							: `${event.progress}%`
+					}
 				/>
 			</dl>
 
@@ -550,7 +551,9 @@ function CalendarEventDetail({
 
 			{actionLabel !== undefined ? (
 				<section className="border-border/70 border-t pt-4">
-					<p className="font-semibold text-[var(--game-amber)] text-xs">Next move</p>
+					<p className="font-semibold text-[var(--game-amber)] text-xs">
+						Next move
+					</p>
 					<p className="mt-1 text-muted-foreground text-xs leading-5">
 						{event.pendingDecisionId !== undefined
 							? `This action is linked to pending decision ${event.pendingDecisionId}.`
@@ -574,8 +577,12 @@ function CalendarEventDetail({
 
 function createEventLookups(state: GameState): EventLookups {
 	return {
-		models: new Map(selectVisibleModels(state).map((model) => [model.id, model])),
-		products: new Map(selectProducts(state).map((product) => [product.id, product])),
+		models: new Map(
+			selectVisibleModels(state).map((model) => [model.id, model]),
+		),
+		products: new Map(
+			selectProducts(state).map((product) => [product.id, product]),
+		),
 		researchNodes: new Map(
 			selectResearchNodes(state).map((node) => [node.id, node]),
 		),
@@ -630,13 +637,18 @@ function projectToCalendarEvent(
 	const teamId = project.teamId;
 	if (teamId !== null) {
 		const team = lookups.teams.get(teamId);
-		if (team !== undefined) sources.push(sourceRef("teams.items", team.id, team));
+		if (team !== undefined)
+			sources.push(sourceRef("teams.items", team.id, team));
 	}
 	if (project.kind === "research") {
-		const node = state.research.nodes.find((candidate) => candidate.id === project.nodeId);
+		const node = state.research.nodes.find(
+			(candidate) => candidate.id === project.nodeId,
+		);
 		const visibleNode = lookups.researchNodes.get(project.nodeId);
 		if (visibleNode !== undefined) {
-			sources.push(sourceRef("research.nodes (public)", visibleNode.id, visibleNode));
+			sources.push(
+				sourceRef("research.nodes (public)", visibleNode.id, visibleNode),
+			);
 		} else if (node !== undefined) {
 			sources.push(sourceRef("research.nodes", node.id, node));
 		}
@@ -687,7 +699,8 @@ function reportToCalendarEvent(
 				event.kind === "research" &&
 				event.status === "completed" &&
 				event.sources.some(
-					(source) => source.id === fact.nodeId && source.path.includes("research.nodes"),
+					(source) =>
+						source.id === fact.nodeId && source.path.includes("research.nodes"),
 				),
 		)
 	) {
@@ -737,7 +750,14 @@ function reportToCalendarEvent(
 				title: `Research complete · ${node?.label ?? fact.nodeId}`,
 				summary: `Research node ${fact.nodeId} completed in the engine on week ${fact.week}.`,
 				destination: "/game/research",
-				sources: appendSource(base.sources, state.research.nodes.find((candidate) => candidate.id === fact.nodeId), "research.nodes", fact.nodeId),
+				sources: appendSource(
+					base.sources,
+					state.research.nodes.find(
+						(candidate) => candidate.id === fact.nodeId,
+					),
+					"research.nodes",
+					fact.nodeId,
+				),
 			};
 		}
 		case "model_trained": {
@@ -749,7 +769,12 @@ function reportToCalendarEvent(
 				title: `Training complete · ${model?.name ?? fact.modelId}`,
 				summary: `Model ${fact.modelId} finished its training run on week ${fact.week}.`,
 				destination: "/game/models",
-				sources: appendSource(base.sources, model, "models (public selector)", fact.modelId),
+				sources: appendSource(
+					base.sources,
+					model,
+					"models (public selector)",
+					fact.modelId,
+				),
 			};
 		}
 		case "evaluation_completed": {
@@ -761,7 +786,12 @@ function reportToCalendarEvent(
 				title: `Evaluation complete · ${model?.name ?? fact.modelId}`,
 				summary: `${humanize(fact.evaluation)} evaluation reached ${fact.coverage}% coverage for model ${fact.modelId}.`,
 				destination: "/game/models",
-				sources: appendSource(base.sources, model, "models (public selector)", fact.modelId),
+				sources: appendSource(
+					base.sources,
+					model,
+					"models (public selector)",
+					fact.modelId,
+				),
 			};
 		}
 		case "product_launched": {
@@ -829,7 +859,9 @@ function reportToCalendarEvent(
 			};
 		}
 		case "rival_progressed": {
-			const rival = state.rivals.items.find((candidate) => candidate.id === fact.rivalId);
+			const rival = state.rivals.items.find(
+				(candidate) => candidate.id === fact.rivalId,
+			);
 			return {
 				...base,
 				id: `calendar-report-${report.id}`,
@@ -837,11 +869,18 @@ function reportToCalendarEvent(
 				title: `Rival movement · ${rival?.name ?? fact.rivalId}`,
 				summary: `${rival?.name ?? fact.rivalId} moved its public clock by ${signed(fact.amount)} in week ${fact.week}.`,
 				destination: "/game/products",
-				sources: appendSource(base.sources, rival, "rivals.items", fact.rivalId),
+				sources: appendSource(
+					base.sources,
+					rival,
+					"rivals.items",
+					fact.rivalId,
+				),
 			};
 		}
 		case "rival_milestone": {
-			const rival = state.rivals.items.find((candidate) => candidate.id === fact.rivalId);
+			const rival = state.rivals.items.find(
+				(candidate) => candidate.id === fact.rivalId,
+			);
 			return {
 				...base,
 				id: `calendar-report-${report.id}`,
@@ -849,7 +888,12 @@ function reportToCalendarEvent(
 				title: `Rival milestone · ${rival?.name ?? fact.rivalId}`,
 				summary: `${rival?.name ?? fact.rivalId} recorded ${humanize(fact.milestone)} in week ${fact.week}.`,
 				destination: "/game/products",
-				sources: appendSource(base.sources, rival, "rivals.items", fact.rivalId),
+				sources: appendSource(
+					base.sources,
+					rival,
+					"rivals.items",
+					fact.rivalId,
+				),
 			};
 		}
 		case "funding_resolved":
@@ -895,12 +939,14 @@ function incidentReportEvent(
 	state: GameState,
 	report: ReturnType<typeof selectRecentReports>[number],
 	fact: Extract<Fact, { kind: "incident_occurred" | "incident_resolved" }>,
-	base: Omit<CalendarEvent, "id" | "kind" | "title" | "summary" | "destination">,
+	base: Omit<
+		CalendarEvent,
+		"id" | "kind" | "title" | "summary" | "destination"
+	>,
 ): CalendarEvent {
 	const pending = selectPendingDecisions(state).find(
 		(decision) =>
-			decision.kind === "incident" &&
-			decision.incident === fact.incident,
+			decision.kind === "incident" && decision.incident === fact.incident,
 	);
 	const isOccurred = fact.kind === "incident_occurred";
 	return {
@@ -964,7 +1010,8 @@ function commandEventsForState(
 		}
 		if (command.kind !== "launch_product") {
 			if (command.kind !== "product_resume") continue;
-			if (resumeReportKeys.has(`${command.productId}:${command.week}`)) continue;
+			if (resumeReportKeys.has(`${command.productId}:${command.week}`))
+				continue;
 			const product = lookups.products.get(command.productId);
 			const day = dayForCalendarEvent(command.id);
 			events.push({
@@ -1031,7 +1078,8 @@ function decisionToCalendarEvent(
 	let summary = `A ${humanize(decision.kind)} decision is pending in week ${state.meta.week}.`;
 	if (decision.kind === "launch" || decision.kind === "evaluation") {
 		const model = lookups.models.get(decision.modelId);
-		if (model !== undefined) sources.push(sourceRef("models (public selector)", model.id, model));
+		if (model !== undefined)
+			sources.push(sourceRef("models (public selector)", model.id, model));
 		title = `${humanize(decision.kind)} decision · ${model?.name ?? decision.modelId}`;
 		summary = `${humanize(decision.kind)} decision for model ${decision.modelId} is waiting for a choice.`;
 	}
@@ -1044,7 +1092,9 @@ function decisionToCalendarEvent(
 		const nodeLabel = resolveEntityLabel(state, "node", decision.nodeId);
 		const node = lookups.researchNodes.get(decision.nodeId);
 		if (node !== undefined) {
-			sources.push(sourceRef("research.nodes (public selector)", node.id, node));
+			sources.push(
+				sourceRef("research.nodes (public selector)", node.id, node),
+			);
 		}
 		title = `Publication decision · ${nodeLabel}`;
 		summary = `${nodeLabel} can be published or kept proprietary; open the command overview to resolve this pending decision.`;
@@ -1086,7 +1136,11 @@ function projectTitle(project: Project, lookups: EventLookups): string {
 	}
 }
 
-function projectSummary(project: Project, startWeek: number, endWeek: number): string {
+function projectSummary(
+	project: Project,
+	startWeek: number,
+	endWeek: number,
+): string {
 	if (project.status === "active") {
 		return `In progress from week ${startWeek} through its indicative finish in week ${endWeek}: ${project.progress} of ${project.duration} weekly work units recorded.`;
 	}
@@ -1114,7 +1168,8 @@ function findProjectStartCommand(
 	for (let index = commands.length - 1; index >= 0; index -= 1) {
 		const command = commands[index];
 		if (
-			(command?.kind === "assign_project" || command?.kind === "design_model") &&
+			(command?.kind === "assign_project" ||
+				command?.kind === "design_model") &&
 			command.projectId === project.id
 		) {
 			return command;
@@ -1155,7 +1210,10 @@ function addEventLanes(
 	});
 }
 
-function compareCalendarEvents(left: CalendarEvent, right: CalendarEvent): number {
+function compareCalendarEvents(
+	left: CalendarEvent,
+	right: CalendarEvent,
+): number {
 	return (
 		left.startWeek - right.startWeek ||
 		left.startDay - right.startDay ||
@@ -1207,31 +1265,60 @@ function EventIcon({ kind }: { kind: CalendarEventKind }) {
 	const className = "mt-0.5 size-3 shrink-0";
 	switch (kind) {
 		case "research":
-			return <FlaskConical className={cn(className, "text-primary")} aria-hidden="true" />;
+			return (
+				<FlaskConical
+					className={cn(className, "text-primary")}
+					aria-hidden="true"
+				/>
+			);
 		case "training":
 		case "model":
-			return <CircleDot className={cn(className, "text-primary")} aria-hidden="true" />;
+			return (
+				<CircleDot
+					className={cn(className, "text-primary")}
+					aria-hidden="true"
+				/>
+			);
 		case "evaluation":
-			return <ShieldAlert className={cn(className, "text-[var(--game-amber)]")} aria-hidden="true" />;
+			return (
+				<ShieldAlert
+					className={cn(className, "text-[var(--game-amber)]")}
+					aria-hidden="true"
+				/>
+			);
 		case "rival":
-			return <Radar className={cn(className, "text-[var(--game-negative)]")} aria-hidden="true" />;
+			return (
+				<Radar
+					className={cn(className, "text-[var(--game-negative)]")}
+					aria-hidden="true"
+				/>
+			);
 		case "launch":
 		case "milestone":
-			return <Flag className={cn(className, "text-[var(--game-positive)]")} aria-hidden="true" />;
+			return (
+				<Flag
+					className={cn(className, "text-[var(--game-positive)]")}
+					aria-hidden="true"
+				/>
+			);
 		case "decision":
-			return <GitBranch className={cn(className, "text-[var(--game-amber)]")} aria-hidden="true" />;
+			return (
+				<GitBranch
+					className={cn(className, "text-[var(--game-amber)]")}
+					aria-hidden="true"
+				/>
+			);
 		default:
-			return <CalendarClock className={cn(className, "text-muted-foreground")} aria-hidden="true" />;
+			return (
+				<CalendarClock
+					className={cn(className, "text-muted-foreground")}
+					aria-hidden="true"
+				/>
+			);
 	}
 }
 
-function LegendItem({
-	icon,
-	label,
-}: {
-	icon: ReactNode;
-	label: string;
-}) {
+function LegendItem({ icon, label }: { icon: ReactNode; label: string }) {
 	return (
 		<span className="inline-flex items-center gap-1.5">
 			{icon}
