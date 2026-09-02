@@ -81,6 +81,7 @@ export function priorityForFact(fact: Fact): ReportPriority {
 	switch (fact.kind) {
 		case "terminal":
 		case "incident_occurred":
+		case "crisis_opened":
 			return "blocking";
 		case "milestone_reached":
 		case "paradigm_selected":
@@ -95,6 +96,8 @@ export function priorityForFact(fact: Fact): ReportPriority {
 		case "product_resumed":
 		case "rival_milestone":
 		case "incident_resolved":
+		case "risk_memory_updated":
+		case "crisis_resolved":
 			return "important";
 		default:
 			return "informational";

@@ -4,13 +4,18 @@
  * All values are integer simulation units. Salaries and upkeep are weekly
  * costs; project progress and research insight are also weekly rates.
  */
-import type { EvaluationKind } from "../components/decisions.js";
+import type {
+	CrisisChoice,
+	EvaluationKind,
+	IncidentResponse,
+} from "../components/decisions.js";
 import type { ModelFoundation } from "../components/models.js";
 import type { ProductChannel } from "../components/products.js";
 import type { ProjectKind } from "../components/projects.js";
 import type { ResearchEra } from "../components/research.js";
 import type { RivalArchetype } from "../components/rivals.js";
 import {
+	assertBoolean,
 	assertExactObject,
 	assertInteger,
 	assertNonNegativeInteger,
@@ -170,6 +175,7 @@ export type BalanceConstants = Readonly<{
 		Record<ResearchParadigmId, ResearchParadigmBalance>
 	>;
 	publication: PublicationBalance;
+	riskMemory: RiskMemoryBalance;
 }>;
 
 /** Cash available when a new V1 run opens. */
@@ -412,12 +418,65 @@ export type PublicationBalance = Readonly<{
 	hoardTrustPenalty: number;
 }>;
 
+export type RiskResponseBalance = Readonly<{
+	/** Whether the response leaves the named memory unresolved. */
+	unresolved: boolean;
+	/** Percentage of retained risk severity removed by this response. */
+	severityReductionPercent: number;
+}>;
+
+export type CrisisChoiceBalance = Readonly<{
+	cashCost: number;
+	trustChange: number;
+	severityReductionPercent: number;
+}>;
+
+export type RiskMemoryBalance = Readonly<{
+	/** Added percentage points per prior unresolved recurrence. */
+	recurrenceProbabilityBonus: number;
+	/** Added incident severity percentage per prior unresolved recurrence. */
+	recurrenceSeverityIncreasePercent: number;
+	/** Repeated unresolved occurrences needed to offer the first crisis. */
+	crisisRecurrenceThreshold: number;
+	responses: Readonly<Record<IncidentResponse, RiskResponseBalance>>;
+	crisisChoices: Readonly<Record<CrisisChoice, CrisisChoiceBalance>>;
+}>;
+
 export const PUBLICATION_BALANCE = {
 	publishHypeGain: 8,
 	publishTrustGain: 4,
 	publishRivalProgressGain: 3,
 	hoardTrustPenalty: 4,
 } as const satisfies PublicationBalance;
+
+/** Persistent incident-memory and first crisis-chain tuning. */
+export const RISK_MEMORY_BALANCE = {
+	recurrenceProbabilityBonus: 10,
+	recurrenceSeverityIncreasePercent: 25,
+	crisisRecurrenceThreshold: 2,
+	responses: {
+		repair: { unresolved: true, severityReductionPercent: 10 },
+		reduce_scope: { unresolved: false, severityReductionPercent: 60 },
+		disclose: { unresolved: false, severityReductionPercent: 100 },
+	},
+	crisisChoices: {
+		investigate: {
+			cashCost: 100,
+			trustChange: 3,
+			severityReductionPercent: 100,
+		},
+		contain: {
+			cashCost: 35,
+			trustChange: 0,
+			severityReductionPercent: 60,
+		},
+		disclose: {
+			cashCost: 20,
+			trustChange: 2,
+			severityReductionPercent: 75,
+		},
+	},
+} as const satisfies RiskMemoryBalance;
 
 const LEGACY_BALANCE = {
 	startingCash: STARTING_CASH,
@@ -481,6 +540,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 		value: PUBLICATION_BALANCE,
 		enumerable: false,
 	},
+	riskMemory: {
+		value: RISK_MEMORY_BALANCE,
+		enumerable: false,
+	},
 }) as unknown as typeof LEGACY_BALANCE & {
 	readonly infrastructureCapacityGain: typeof INFRASTRUCTURE_CAPACITY_GAIN;
 	readonly computePurchaseCost: typeof COMPUTE_PURCHASE_COST;
@@ -494,6 +557,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly knowledgeCutoff: typeof KNOWLEDGE_CUTOFF_BALANCE;
 	readonly researchParadigms: typeof RESEARCH_PARADIGM_BALANCE;
 	readonly publication: typeof PUBLICATION_BALANCE;
+	readonly riskMemory: typeof RISK_MEMORY_BALANCE;
 } satisfies BalanceConstants;
 
 assertBalanceConstants(BALANCE);
@@ -531,6 +595,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"evaluations",
 			"researchParadigms",
 			"publication",
+			"riskMemory",
 		],
 		"balance",
 	);
@@ -650,6 +715,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	assertEvaluationBalance(value.evaluations);
 	assertResearchParadigmBalance(value.researchParadigms);
 	assertPublicationBalance(value.publication);
+	assertRiskMemoryBalance(value.riskMemory);
 }
 
 function assertDataInventoryBalance(value: DataInventoryBalance): void {
@@ -744,6 +810,89 @@ function assertPublicationBalance(value: PublicationBalance): void {
 		"Publication rival progress gain",
 	);
 	assertPositiveInteger(value.hoardTrustPenalty, "Hoard trust penalty");
+}
+
+function assertRiskMemoryBalance(value: RiskMemoryBalance): void {
+	assertExactObject(
+		value,
+		[
+			"recurrenceProbabilityBonus",
+			"recurrenceSeverityIncreasePercent",
+			"crisisRecurrenceThreshold",
+			"responses",
+			"crisisChoices",
+		],
+		"Risk memory balance",
+	);
+	assertNonNegativeInteger(
+		value.recurrenceProbabilityBonus,
+		"Risk recurrence probability bonus",
+	);
+	if (value.recurrenceProbabilityBonus > 100) {
+		throw new Error("Risk recurrence probability bonus must be at most 100");
+	}
+	assertNonNegativeInteger(
+		value.recurrenceSeverityIncreasePercent,
+		"Risk recurrence severity increase",
+	);
+	if (value.recurrenceSeverityIncreasePercent > 100) {
+		throw new Error("Risk recurrence severity increase must be at most 100");
+	}
+	assertPositiveInteger(
+		value.crisisRecurrenceThreshold,
+		"Risk crisis recurrence threshold",
+	);
+	if (value.crisisRecurrenceThreshold < 2) {
+		throw new Error("Risk crisis recurrence threshold must be at least 2");
+	}
+	assertExactObject(
+		value.responses,
+		["repair", "reduce_scope", "disclose"],
+		"Risk response balance",
+	);
+	for (const [response, tuning] of Object.entries(value.responses)) {
+		assertExactObject(
+			tuning,
+			["unresolved", "severityReductionPercent"],
+			`Risk response ${response}`,
+		);
+		assertBoolean(tuning.unresolved, `Risk response ${response} unresolved`);
+		assertNonNegativeInteger(
+			tuning.severityReductionPercent,
+			`Risk response ${response} severity reduction`,
+		);
+		if (tuning.severityReductionPercent > 100) {
+			throw new Error(
+				`Risk response ${response} severity reduction must be at most 100`,
+			);
+		}
+	}
+	assertExactObject(
+		value.crisisChoices,
+		["investigate", "contain", "disclose"],
+		"Crisis choice balance",
+	);
+	for (const [choice, tuning] of Object.entries(value.crisisChoices)) {
+		assertExactObject(
+			tuning,
+			["cashCost", "trustChange", "severityReductionPercent"],
+			`Crisis choice ${choice}`,
+		);
+		assertNonNegativeInteger(
+			tuning.cashCost,
+			`Crisis choice ${choice} cash cost`,
+		);
+		assertInteger(tuning.trustChange, `Crisis choice ${choice} trust change`);
+		assertNonNegativeInteger(
+			tuning.severityReductionPercent,
+			`Crisis choice ${choice} severity reduction`,
+		);
+		if (tuning.severityReductionPercent > 100) {
+			throw new Error(
+				`Crisis choice ${choice} severity reduction must be at most 100`,
+			);
+		}
+	}
 }
 
 function assertProductChannelBalance(

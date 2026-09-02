@@ -23,12 +23,15 @@ export type IncidentType =
 	| "enterprise_sla_breach"
 	| "data_privacy_incident";
 export type IncidentResponse = "repair" | "reduce_scope" | "disclose";
+export type CrisisKind = "risk_escalation";
+export type CrisisChoice = "investigate" | "contain" | "disclose";
 
 const DECISION_KINDS = [
 	"launch",
 	"evaluation",
 	"funding",
 	"incident",
+	"crisis",
 	"paradigm",
 	"publication",
 ] as const;
@@ -37,6 +40,7 @@ const CHOICE_KINDS = [
 	"evaluate",
 	"funding",
 	"incident",
+	"crisis",
 	"shelve",
 	"paradigm",
 	"publication",
@@ -51,6 +55,8 @@ const INCIDENT_TYPES = [
 	"data_privacy_incident",
 ] as const;
 const INCIDENT_RESPONSES = ["repair", "reduce_scope", "disclose"] as const;
+const CRISIS_KINDS = ["risk_escalation"] as const;
+const CRISIS_CHOICES = ["investigate", "contain", "disclose"] as const;
 const FUNDING_ROUNDS = ["seed", "series_a"] as const;
 const PRODUCT_CHANNELS = ["chat", "developer_api", "enterprise"] as const;
 
@@ -80,7 +86,18 @@ export type PendingDecision =
 			id: string;
 			/** Stable id shared by the occurrence, decision, and resolution facts. */
 			incidentId?: string;
+			/** Stable risk memory updated by this occurrence, when available. */
+			riskMemoryId?: string;
 			incident: IncidentType;
+			blocking: true;
+	  }
+	| {
+			kind: "crisis";
+			id: string;
+			crisisId: string;
+			riskMemoryId: string;
+			crisis: CrisisKind;
+			choices: readonly CrisisChoice[];
 			blocking: true;
 	  }
 	| {
@@ -120,6 +137,12 @@ export type DecisionChoice =
 			response: IncidentResponse;
 	  }
 	| {
+			kind: "crisis";
+			decisionId: string;
+			crisisId: string;
+			choice: CrisisChoice;
+	  }
+	| {
 			kind: "shelve";
 			decisionId: string;
 	  }
@@ -155,6 +178,7 @@ export function assertDecisionsState(
 
 	const ids = new Set<string>();
 	const publicationNodeIds = new Set<string>();
+	const crisisIds = new Set<string>();
 	for (const item of value.pending) {
 		assertObject(item, "pending decision");
 		assertEnum(item.kind, DECISION_KINDS, "Pending decision kind");
@@ -169,6 +193,12 @@ export function assertDecisionsState(
 				throw new Error(`Duplicate publication node: ${item.nodeId}`);
 			}
 			publicationNodeIds.add(item.nodeId);
+		}
+		if (item.kind === "crisis") {
+			if (crisisIds.has(item.crisisId)) {
+				throw new Error(`Duplicate crisis decision: ${item.crisisId}`);
+			}
+			crisisIds.add(item.crisisId);
 		}
 	}
 }
@@ -213,6 +243,15 @@ export function assertDecisionChoice(
 				"incident decision choice",
 			);
 			assertEnum(value.response, INCIDENT_RESPONSES, "Incident response");
+			return;
+		case "crisis":
+			assertExactObject(
+				value,
+				["kind", "decisionId", "crisisId", "choice"],
+				"crisis decision choice",
+			);
+			assertIdentifier(value.crisisId, "Crisis choice id");
+			assertEnum(value.choice, CRISIS_CHOICES, "Crisis choice");
 			return;
 		case "shelve":
 			assertExactObject(
@@ -296,16 +335,58 @@ function assertPendingDecision(
 			return;
 		case "incident": {
 			const keys = Object.hasOwn(value, "incidentId")
-				? ["kind", "id", "incidentId", "incident", "blocking"]
-				: ["kind", "id", "incident", "blocking"];
+				? Object.hasOwn(value, "riskMemoryId")
+					? ["kind", "id", "incidentId", "riskMemoryId", "incident", "blocking"]
+					: ["kind", "id", "incidentId", "incident", "blocking"]
+				: Object.hasOwn(value, "riskMemoryId")
+					? ["kind", "id", "riskMemoryId", "incident", "blocking"]
+					: ["kind", "id", "incident", "blocking"];
 			assertExactObject(value, keys, "incident decision");
 			if (Object.hasOwn(value, "incidentId")) {
 				assertIdentifier(value.incidentId, "Incident id");
+			}
+			if (Object.hasOwn(value, "riskMemoryId")) {
+				assertIdentifier(value.riskMemoryId, "Incident risk memory id");
 			}
 			assertEnum(value.incident, INCIDENT_TYPES, "Decision incident type");
 			assertBoolean(value.blocking, "Incident decision blocking");
 			if (value.blocking !== true) {
 				throw new Error("Incident decisions must be blocking");
+			}
+			return;
+		}
+		case "crisis": {
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"id",
+					"crisisId",
+					"riskMemoryId",
+					"crisis",
+					"choices",
+					"blocking",
+				],
+				"crisis decision",
+			);
+			assertIdentifier(value.crisisId, "Crisis id");
+			assertIdentifier(value.riskMemoryId, "Crisis risk memory id");
+			assertEnum(value.crisis, CRISIS_KINDS, "Crisis kind");
+			assertArray(value.choices, "Crisis choices");
+			if (value.choices.length !== CRISIS_CHOICES.length) {
+				throw new Error("Crisis decisions must contain exactly three choices");
+			}
+			const choices = new Set<string>();
+			for (const choice of value.choices) {
+				assertEnum(choice, CRISIS_CHOICES, "Crisis choice");
+				if (choices.has(choice)) {
+					throw new Error(`Duplicate crisis choice: ${choice}`);
+				}
+				choices.add(choice);
+			}
+			assertBoolean(value.blocking, "Crisis decision blocking");
+			if (value.blocking !== true) {
+				throw new Error("Crisis decisions must be blocking");
 			}
 			return;
 		}

@@ -17,7 +17,11 @@ export type {
 	DataInventoryState,
 } from "./components/data-inventory.js";
 export type {
+	CrisisChoice,
+	CrisisKind,
 	DecisionChoice,
+	IncidentResponse,
+	IncidentType,
 	PendingDecision,
 } from "./components/decisions.js";
 export type { FundingGateFactors, FundingRound } from "./components/funding.js";
@@ -32,6 +36,15 @@ export type {
 } from "./components/models.js";
 export type { ProductChannel } from "./components/products.js";
 export type { Fact } from "./components/reports.js";
+export type {
+	Crisis,
+	RiskCrisis,
+	RiskCrisisKind,
+	RiskCrisisStatus,
+	RiskMemory,
+	RiskMemoryState,
+	RiskState,
+} from "./components/risk.js";
 export type {
 	DataModality,
 	DataProvenance,

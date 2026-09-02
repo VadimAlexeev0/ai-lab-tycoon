@@ -30,6 +30,7 @@ import {
 	type ResearchEra,
 	type ResearchState,
 } from "./components/research.js";
+import { createRiskState, type RiskState } from "./components/risk.js";
 import { createRivalsState, type RivalsState } from "./components/rivals.js";
 import { createRngState, type RngState } from "./components/rng.js";
 import { createTeamsState, type TeamsState } from "./components/teams.js";
@@ -50,7 +51,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 6 as const;
+export const GAME_STATE_SCHEMA_VERSION = 7 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -177,7 +178,8 @@ export type WarningCode =
 	| "trust_low"
 	| "stale_data"
 	| "stale_model"
-	| "blocking_decision";
+	| "blocking_decision"
+	| "risk_escalation";
 export type WarningSeverity = "info" | "warning" | "critical";
 
 export type Warning = {
@@ -205,6 +207,7 @@ export type GameState = {
 	funding: FundingState;
 	decisions: DecisionsState;
 	reports: ReportsState;
+	risk: RiskState;
 	queue: QueueState;
 	commandLog: CommandLogEntry[];
 	warnings: Warning[];
@@ -255,6 +258,7 @@ export function createInitialGameState(
 		funding: createFundingState(),
 		decisions: createDecisionsState(),
 		reports: createReportsState(),
+		risk: createRiskState(),
 		queue: {
 			decisionIds: [],
 			reportIds: [],

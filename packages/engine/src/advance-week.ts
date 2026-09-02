@@ -86,8 +86,22 @@ const DECLARATIONS = {
 		writes: ["funding", "company.cash", "decisions"],
 	},
 	incidents: {
-		reads: ["company", "products.items", "projects.items", "compute"],
-		writes: ["company", "rng.incidents", "decisions", "reports.facts"],
+		reads: [
+			"company",
+			"products.items",
+			"projects.items",
+			"models.items",
+			"compute",
+			"risk",
+		],
+		writes: [
+			"company",
+			"rng.incidents",
+			"decisions",
+			"risk",
+			"warnings",
+			"reports.facts",
+		],
 	},
 	terminal: {
 		reads: ["company", "decisions"],

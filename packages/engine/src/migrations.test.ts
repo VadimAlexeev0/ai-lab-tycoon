@@ -42,6 +42,7 @@ function currentV2Fixture(): unknown {
 	const research = asRecord(state.research);
 	const counters = asRecord(state.counters);
 	delete state.dataInventory;
+	delete state.risk;
 	delete counters.data;
 	delete research.discoveredSparkIds;
 	delete research.paradigmId;
@@ -57,6 +58,7 @@ function currentV3Fixture(): unknown {
 	const research = asRecord(state.research);
 	const counters = asRecord(state.counters);
 	delete state.dataInventory;
+	delete state.risk;
 	delete counters.data;
 	delete research.paradigmId;
 	meta.schemaVersion = 3;
@@ -93,6 +95,7 @@ function trainedV5Fixture(): unknown {
 	>;
 	const meta = asRecord(fixture.meta);
 	const models = asRecord(fixture.models);
+	delete fixture.risk;
 	const model = asRecord((models.items as unknown[])[0]);
 	delete model.knowledgeCutoff;
 	delete model.knowledgeFreshness;

@@ -41,12 +41,14 @@ const STATE_SCHEMA_VERSION_V2 = 2 as const;
 const STATE_SCHEMA_VERSION_V3 = 3 as const;
 const STATE_SCHEMA_VERSION_V4 = 4 as const;
 const STATE_SCHEMA_VERSION_V5 = 5 as const;
+const STATE_SCHEMA_VERSION_V6 = 6 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
 	[STATE_SCHEMA_VERSION_V3]: migrateV3ToV4,
 	[STATE_SCHEMA_VERSION_V4]: migrateV4ToV5,
 	[STATE_SCHEMA_VERSION_V5]: migrateV5ToV6,
+	[STATE_SCHEMA_VERSION_V6]: migrateV6ToV7,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -95,8 +97,9 @@ export function deserializeGameStateWithMetadata(
  * its deterministic data ID counter. State schema v6 adds the model knowledge
  * cutoff/freshness contract and the explicit refresh project/command. V5
  * models that already have hidden scores derive their legacy cutoff from the
- * newest allocated inventory record and weighted source freshness. There is
- * no deployed pre-v1 format to support.
+ * newest allocated inventory record and weighted source freshness. State
+ * schema v7 adds the persistent incident risk component; v6 saves receive an
+ * empty memory/crisis component. There is no deployed pre-v1 format to support.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -297,6 +300,22 @@ function migrateV5ToV6(value: unknown): unknown {
 		item.knowledgeCutoff = knowledge.knowledgeCutoff;
 		item.knowledgeFreshness = knowledge.knowledgeFreshness;
 	}
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V6;
+	return migrated;
+}
+
+function migrateV6ToV7(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v6 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v6 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V6) {
+		throw new Error("v6 game state has an invalid schema version");
+	}
+	if (Object.hasOwn(migrated, "risk")) {
+		throw new Error("v6 game state contains unexpected field: risk");
+	}
+	migrated.risk = { memories: [], crises: [] };
 	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
 	return migrated;
 }

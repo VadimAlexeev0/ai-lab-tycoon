@@ -58,6 +58,7 @@ describe("GameState", () => {
 			"funding",
 			"decisions",
 			"reports",
+			"risk",
 			"queue",
 			"commandLog",
 			"warnings",

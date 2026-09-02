@@ -224,6 +224,33 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 		publishRivalProgressGain: 3,
 		hoardTrustPenalty: 4,
 	},
+	riskMemory: {
+		recurrenceProbabilityBonus: 10,
+		recurrenceSeverityIncreasePercent: 25,
+		crisisRecurrenceThreshold: 2,
+		responses: {
+			repair: { unresolved: true, severityReductionPercent: 10 },
+			reduce_scope: { unresolved: false, severityReductionPercent: 60 },
+			disclose: { unresolved: false, severityReductionPercent: 100 },
+		},
+		crisisChoices: {
+			investigate: {
+				cashCost: 100,
+				trustChange: 3,
+				severityReductionPercent: 100,
+			},
+			contain: {
+				cashCost: 35,
+				trustChange: 0,
+				severityReductionPercent: 60,
+			},
+			disclose: {
+				cashCost: 20,
+				trustChange: 2,
+				severityReductionPercent: 75,
+			},
+		},
+	},
 };
 
 describe("V1 economy constants", () => {
