@@ -239,16 +239,21 @@ export function cancelProject(
 
 	const commandAllocation = allocateId(state, "command");
 	const cancelledModel =
-		storedProject.kind === "training"
+		storedProject.kind === "training" || storedProject.kind === "refresh"
 			? state.models.items.find((model) => model.id === storedProject.modelId)
 			: undefined;
 	const releasedDataInventory =
-		cancelledModel?.dataAllocation === undefined
-			? state.dataInventory
-			: releaseDataAllocations(
+		storedProject.kind === "refresh"
+			? releaseDataAllocations(
 					state.dataInventory,
-					cancelledModel.dataAllocation,
-				);
+					storedProject.dataAllocation,
+				)
+			: cancelledModel?.dataAllocation === undefined
+				? state.dataInventory
+				: releaseDataAllocations(
+						state.dataInventory,
+						cancelledModel.dataAllocation,
+					);
 	const nextState: GameState = {
 		...commandAllocation.state,
 		teams: {
@@ -270,7 +275,10 @@ export function cancelProject(
 			items: state.models.items.map((model) =>
 				storedProject.kind === "training" && model.id === storedProject.modelId
 					? shelveCancelledTrainingModel(model)
-					: { ...model },
+					: storedProject.kind === "refresh" &&
+							model.id === storedProject.modelId
+						? { ...model, projectId: null }
+						: { ...model },
 			),
 			activeModelId: state.models.activeModelId,
 		},
@@ -312,5 +320,9 @@ function shelveCancelledTrainingModel(model: Model): Model {
 function isTrainingOrModelProject(
 	project: Project,
 ): project is Extract<Project, { modelId: string }> {
-	return project.kind === "model" || project.kind === "training";
+	return (
+		project.kind === "model" ||
+		project.kind === "training" ||
+		project.kind === "refresh"
+	);
 }

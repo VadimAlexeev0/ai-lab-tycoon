@@ -10,6 +10,10 @@ import {
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
+import {
+	applyKnowledgeQuality,
+	deriveKnowledgePressure,
+} from "./knowledge-cutoff.js";
 import type { EngineResult, GameState } from "./state.js";
 import { appendFactsAsReports } from "./systems/reporting.js";
 import { assertEnum, assertIdentifier, assertObject } from "./validation.js";
@@ -100,7 +104,11 @@ export function applyProductLaunch(
 			`Model ${model.id} already has a ${request.channel} product`,
 		);
 	}
-	const quality = effectiveQuality(model, tuning.qualityDimensions);
+	const quality = effectiveProductQuality(
+		model,
+		request.channel,
+		state.meta.week,
+	);
 	assertChannelScore(
 		model,
 		"capability",
@@ -229,7 +237,11 @@ export function applyProductResume(
 		users,
 		lastRevenue: 0,
 		servingDemand: users * tuning.servingComputePerUser,
-		effectiveQuality: effectiveProductQuality(model, product.channel),
+		effectiveQuality: effectiveProductQuality(
+			model,
+			product.channel,
+			state.meta.week,
+		),
 	};
 	const commandAllocation = allocateId(state, "command");
 	const nextState: GameState = {
@@ -328,10 +340,16 @@ export function isProductLaunchEligible(
 export function effectiveProductQuality(
 	model: Model,
 	channel: ProductChannel,
+	asOfWeek?: number,
 ): number {
-	return effectiveQuality(
+	const baseQuality = effectiveQuality(
 		model,
 		BALANCE.productChannels[channel].qualityDimensions,
+	);
+	if (asOfWeek === undefined) return baseQuality;
+	return applyKnowledgeQuality(
+		baseQuality,
+		deriveKnowledgePressure(model, asOfWeek),
 	);
 }
 
@@ -422,6 +440,12 @@ function cloneModel(model: Model): Model {
 					})),
 				}),
 		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
+		...(model.knowledgeCutoff === undefined
+			? {}
+			: { knowledgeCutoff: model.knowledgeCutoff }),
+		...(model.knowledgeFreshness === undefined
+			? {}
+			: { knowledgeFreshness: model.knowledgeFreshness }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),

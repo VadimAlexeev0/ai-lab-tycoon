@@ -27,8 +27,11 @@ export function computeReservations(
 ): ComputeReservations {
 	const researchEffects = deriveResearchEffects(state.research);
 	const trainingDemand = state.projects.items.reduce((total, project) => {
-		if (project.kind !== "training" || project.status !== "active")
-			return total;
+		if (project.status !== "active") return total;
+		if (project.kind === "refresh") {
+			return total + BALANCE.knowledgeCutoff.refreshCompute;
+		}
+		if (project.kind !== "training") return total;
 		const model = state.models.items.find(
 			(candidate) => candidate.id === project.modelId,
 		);

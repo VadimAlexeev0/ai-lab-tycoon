@@ -11,8 +11,10 @@ import {
 	upgradeGameState,
 	upgradeGameStateWithMetadata,
 } from "./index.js";
+import { designModel } from "./model-design.js";
 import type { GameState } from "./state.js";
 import { GAME_STATE_SCHEMA_VERSION } from "./state.js";
+import { trainingSystem } from "./systems/training.js";
 
 function jsonClone(value: unknown): unknown {
 	return JSON.parse(JSON.stringify(value));
@@ -61,15 +63,76 @@ function currentV3Fixture(): unknown {
 	return state;
 }
 
+function trainedV5Fixture(): unknown {
+	const state = startRun({ companyName: "Migration Labs" }, 23);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) throw new Error("Expected model unlock");
+	familyUnlock.status = "completed";
+	const designed = designModel(state, {
+		name: "Legacy-1",
+		family: "text",
+		foundation: "fresh",
+		tier: "standard",
+		dataMix: { general: 60, code: 30, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	}).state;
+	const project = designed.projects.items.at(-1);
+	if (project === undefined || project.kind !== "training") {
+		throw new Error("Expected training project");
+	}
+	project.duration = 1;
+	const trained = trainingSystem(designed, {
+		phase: "training",
+		week: 1,
+	}).state;
+	const fixture = JSON.parse(serializeGameState(trained)) as Record<
+		string,
+		unknown
+	>;
+	const meta = asRecord(fixture.meta);
+	const models = asRecord(fixture.models);
+	const model = asRecord((models.items as unknown[])[0]);
+	delete model.knowledgeCutoff;
+	delete model.knowledgeFreshness;
+	meta.schemaVersion = 5;
+	return fixture;
+}
+
 describe("GameState migration and serialization", () => {
+	it("migrates a v5 trained model by deriving its cutoff and freshness", () => {
+		const fixture = trainedV5Fixture();
+		const before = JSON.stringify(fixture);
+
+		const upgraded = upgradeGameStateWithMetadata(fixture);
+		const model = upgraded.state.models.items[0];
+		if (model === undefined) throw new Error("Expected migrated model");
+
+		expect(upgraded.sourceSchemaVersion).toBe(5);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(model.knowledgeCutoff).toBe(1);
+		expect(model.knowledgeFreshness).toBe(100);
+		expect(JSON.stringify(fixture)).toBe(before);
+	});
+
+	it("rejects v5 knowledge fields instead of accepting a future-shaped save", () => {
+		const fixture = trainedV5Fixture();
+		const models = asRecord(asRecord(fixture).models);
+		if (!Array.isArray(models.items)) throw new Error("Expected model items");
+		const model = asRecord(models.items[0]);
+		model.knowledgeCutoff = 1;
+
+		expect(() => upgradeGameState(fixture)).toThrow(/unexpected|knowledge/i);
+	});
 	it("migrates a v3 state to an unresolved paradigm without mutation", () => {
 		const fixture = currentV3Fixture();
 		const before = JSON.stringify(fixture);
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(3);
-		expect(upgraded.currentSchemaVersion).toBe(5);
-		expect(upgraded.state.meta.schemaVersion).toBe(5);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.state.meta.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.state.research.paradigmId).toBeNull();
 		expect(JSON.stringify(fixture)).toBe(before);
 	});
@@ -112,8 +175,8 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(1);
-		expect(upgraded.currentSchemaVersion).toBe(5);
-		expect(upgraded.state.meta.schemaVersion).toBe(5);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.state.meta.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
 		expect(upgraded.state.compute.trainingDemand).toBe(4);
 		expect(upgraded.state.compute.allocated).toBe(4);
@@ -133,8 +196,8 @@ describe("GameState migration and serialization", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(2);
-		expect(upgraded.currentSchemaVersion).toBe(5);
-		expect(upgraded.state.meta.schemaVersion).toBe(5);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
+		expect(upgraded.state.meta.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.state.research.discoveredSparkIds).toEqual([]);
 		expect(JSON.stringify(fixture)).toBe(before);
 	});

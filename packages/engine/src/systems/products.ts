@@ -7,6 +7,7 @@ import {
 import { BALANCE } from "../data/balance.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
+import { deriveKnowledgePressure } from "../knowledge-cutoff.js";
 import {
 	effectiveProductQuality,
 	isProductLaunchEligible,
@@ -34,6 +35,7 @@ export const productsSystem: GameSystem = (state, context) => {
 			throw new Error(`Product ${product.id} references an unknown model`);
 		}
 		const tuning = BALANCE.productChannels[product.channel];
+		const pressure = deriveKnowledgePressure(model, context.week);
 		const currentUsers = product.users ?? tuning.baseUsers;
 		const growthUsers = currentUsers + tuning.usersPerWeek;
 		return [
@@ -41,8 +43,12 @@ export const productsSystem: GameSystem = (state, context) => {
 				product,
 				model,
 				tuning,
+				pressure,
 				currentUsers,
 				growthUsers,
+				// Knowledge pressure affects live serving, not the nominal user
+				// growth gate. Otherwise degraded demand can paradoxically let a
+				// product grow into a larger reservation and starve training.
 				growthDemand: growthUsers * tuning.servingComputePerUser,
 			},
 		];
@@ -72,7 +78,12 @@ export const productsSystem: GameSystem = (state, context) => {
 			allocatedProductServing,
 			growthThrottled,
 			users,
-			servingDemand: users * projection.tuning.servingComputePerUser,
+			servingDemand: Math.trunc(
+				(users *
+					projection.tuning.servingComputePerUser *
+					projection.pressure.demandFactor) /
+					100,
+			),
 			unmetDemand: Math.max(
 				0,
 				projection.growthDemand - allocatedProductServing,
@@ -112,17 +123,23 @@ export const productsSystem: GameSystem = (state, context) => {
 			continue;
 		}
 
-		const quality = effectiveProductQuality(operating.model, product.channel);
+		const quality = effectiveProductQuality(
+			operating.model,
+			product.channel,
+			context.week,
+		);
 		const baseRevenue = Math.trunc(
-			(operating.tuning.weeklyRevenue * quality * operating.users) /
-				(100 * operating.tuning.baseUsers),
+			(operating.tuning.weeklyRevenue *
+				quality *
+				operating.users *
+				operating.pressure.demandFactor) /
+				(100 * operating.tuning.baseUsers * 100),
 		);
 		const revenue =
 			totalServingDemand === 0
 				? 0
 				: Math.trunc(
-						(baseRevenue * allocatedAvailableServing) /
-							totalServingDemand,
+						(baseRevenue * allocatedAvailableServing) / totalServingDemand,
 					);
 		const nextProduct: Product = {
 			...product,
@@ -133,6 +150,26 @@ export const productsSystem: GameSystem = (state, context) => {
 			cumulativeRevenue: (product.cumulativeRevenue ?? 0) + revenue,
 		};
 		nextProducts.push(nextProduct);
+
+		if (
+			operating.pressure.recorded &&
+			operating.pressure.status !== "fresh" &&
+			operating.pressure.knowledgeCutoff !== null &&
+			operating.pressure.knowledgeFreshness !== null
+		) {
+			facts.push({
+				kind: "model_staleness",
+				modelId: operating.model.id,
+				productId: product.id,
+				status: operating.pressure.status,
+				ageWeeks: operating.pressure.ageWeeks,
+				knowledgeCutoff: operating.pressure.knowledgeCutoff,
+				knowledgeFreshness: operating.pressure.knowledgeFreshness,
+				demandFactor: operating.pressure.demandFactor,
+				qualityFactor: operating.pressure.qualityFactor,
+				week: context.week,
+			});
+		}
 
 		if (operating.growthThrottled && operating.unmetDemand > 0) {
 			facts.push({
@@ -198,6 +235,13 @@ export const productsSystem: GameSystem = (state, context) => {
 			servingDemand: totalServingDemand,
 		},
 		products: { items: nextProducts },
+		warnings: updateModelStalenessWarning(
+			state.warnings,
+			operatingProducts.some(
+				(product) =>
+					product.pressure.recorded && product.pressure.status === "stale",
+			),
+		),
 	};
 	nextState = {
 		...nextState,
@@ -346,6 +390,19 @@ function servingAllocation(
 ): number {
 	if (demand === 0 || totalDemand === 0 || allocated === 0) return 0;
 	return Math.trunc((demand * allocated) / totalDemand);
+}
+
+function updateModelStalenessWarning(
+	warnings: GameState["warnings"],
+	stale: boolean,
+): GameState["warnings"] {
+	const nextWarnings = warnings.filter(
+		(warning) => warning.code !== "stale_model",
+	);
+	if (stale) {
+		nextWarnings.push({ code: "stale_model", severity: "warning" });
+	}
+	return nextWarnings;
 }
 
 function cloneProduct(product: Product): Product {

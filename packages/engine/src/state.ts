@@ -50,7 +50,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 5 as const;
+export const GAME_STATE_SCHEMA_VERSION = 6 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -83,6 +83,7 @@ export type CommandKind =
 	| "assign_project"
 	| "cancel_project"
 	| "design_model"
+	| "refresh_model"
 	| "run_evaluation"
 	| "launch_product"
 	| "acquire_data"
@@ -134,6 +135,13 @@ export type CommandLogEntry =
 			emphasis: ModelEmphasis;
 	  })
 	| (CommandLogBase & {
+			kind: "refresh_model";
+			modelId: string;
+			projectId: string;
+			teamId: string;
+			dataMix: DataMix;
+	  })
+	| (CommandLogBase & {
 			kind: "run_evaluation";
 			modelId: string;
 			evaluation: "capability" | "safety_reliability";
@@ -168,6 +176,7 @@ export type WarningCode =
 	| "compute_shortage"
 	| "trust_low"
 	| "stale_data"
+	| "stale_model"
 	| "blocking_decision";
 export type WarningSeverity = "info" | "warning" | "critical";
 

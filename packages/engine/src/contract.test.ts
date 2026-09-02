@@ -789,6 +789,7 @@ describe("hardened component contract", () => {
 			"fundingFactors",
 			"hireTeam",
 			"launchProduct",
+			"refreshModel",
 			"replayCommandLog",
 			"runEvaluation",
 			"selectAvailableProjects",

@@ -76,6 +76,27 @@ export type DataInventoryBalance = Readonly<{
 	syntheticDebtPerUnit: number;
 }>;
 
+export type KnowledgeCutoffBalance = Readonly<{
+	/** Inclusive age in weeks that remains fresh. */
+	freshThroughWeeks: number;
+	/** Age at which the stronger stale pressure begins. */
+	staleAfterWeeks: number;
+	/** Bounded demand multiplier for aging models. */
+	agingDemandFactor: number;
+	/** Bounded quality multiplier for aging models. */
+	agingQualityFactor: number;
+	/** Bounded demand multiplier for stale models. */
+	staleDemandFactor: number;
+	/** Bounded quality multiplier for stale models. */
+	staleQualityFactor: number;
+	/** Weeks of shared-compute work for one explicit refresh. */
+	refreshDuration: number;
+	/** Shared compute reserved by one active refresh project. */
+	refreshCompute: number;
+	/** Minimum source freshness accepted by an explicit refresh. */
+	refreshMinimumFreshness: number;
+}>;
+
 export type ProductChannelBalance = Readonly<{
 	minEra: ResearchEra;
 	minimumTrust: number;
@@ -129,13 +150,16 @@ export type BalanceConstants = Readonly<{
 		foundingTeam: number;
 	}>;
 	upkeep: number;
-	projectProgressPerWeek: Readonly<Record<ProjectKind, number>>;
+	projectProgressPerWeek: Readonly<
+		Record<Exclude<ProjectKind, "refresh">, number>
+	>;
 	researchInsightPerWeek: number;
 	researchProjectDuration: number;
 	modelTiers: Readonly<Record<ModelTier, ModelTierBalance>>;
 	modelFoundations: Readonly<Record<ModelFoundation, ModelFoundationBalance>>;
 	modelScore: ModelScoreBalance;
 	dataInventory: DataInventoryBalance;
+	knowledgeCutoff: KnowledgeCutoffBalance;
 	modelEmphasisPoints: number;
 	defaultEstimateBandWidth: number;
 	productChannels: Readonly<Record<ProductChannel, ProductChannelBalance>>;
@@ -180,7 +204,7 @@ export const PROJECT_PROGRESS_PER_WEEK = {
 	training: 1,
 	evaluation: 1,
 	product: 1,
-} as const satisfies Readonly<Record<ProjectKind, number>>;
+} as const satisfies Readonly<Record<Exclude<ProjectKind, "refresh">, number>>;
 /** Insight units produced by each idle or researching team per week. */
 export const RESEARCH_INSIGHT_PER_WEEK = 1;
 /** Duration of each initial research project in weeks. */
@@ -269,6 +293,19 @@ export const DATA_INVENTORY_BALANCE = {
 	syntheticQualityPenaltyPerUnit: 1,
 	syntheticDebtPerUnit: 1,
 } as const satisfies DataInventoryBalance;
+
+/** Deterministic knowledge-age and refresh tuning. */
+export const KNOWLEDGE_CUTOFF_BALANCE = {
+	freshThroughWeeks: 3,
+	staleAfterWeeks: 8,
+	agingDemandFactor: 95,
+	agingQualityFactor: 95,
+	staleDemandFactor: 85,
+	staleQualityFactor: 85,
+	refreshDuration: 1,
+	refreshCompute: 4,
+	refreshMinimumFreshness: 60,
+} as const satisfies KnowledgeCutoffBalance;
 
 /** Product launch requirements and weekly operating economics. */
 export const PRODUCT_CHANNEL_BALANCE = {
@@ -432,6 +469,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 		value: DATA_INVENTORY_BALANCE,
 		enumerable: false,
 	},
+	knowledgeCutoff: {
+		value: KNOWLEDGE_CUTOFF_BALANCE,
+		enumerable: false,
+	},
 	researchParadigms: {
 		value: RESEARCH_PARADIGM_BALANCE,
 		enumerable: false,
@@ -450,6 +491,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
 	readonly dataInventory: typeof DATA_INVENTORY_BALANCE;
+	readonly knowledgeCutoff: typeof KNOWLEDGE_CUTOFF_BALANCE;
 	readonly researchParadigms: typeof RESEARCH_PARADIGM_BALANCE;
 	readonly publication: typeof PUBLICATION_BALANCE;
 } satisfies BalanceConstants;
@@ -480,6 +522,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 			"modelFoundations",
 			"modelScore",
 			"dataInventory",
+			"knowledgeCutoff",
 			"modelEmphasisPoints",
 			"defaultEstimateBandWidth",
 			"productChannels",
@@ -592,6 +635,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	}
 	assertModelScoreBalance(value.modelScore);
 	assertDataInventoryBalance(value.dataInventory);
+	assertKnowledgeCutoffBalance(value.knowledgeCutoff);
 	assertPositiveInteger(value.modelEmphasisPoints, "Model emphasis points");
 	assertPositiveInteger(
 		value.defaultEstimateBandWidth,
@@ -636,6 +680,49 @@ function assertDataInventoryBalance(value: DataInventoryBalance): void {
 	assertPositiveInteger(value.syntheticDebtPerUnit, "Synthetic debt per unit");
 	if (value.stalenessThreshold > 100 || value.syntheticOveruseThreshold > 100) {
 		throw new Error("Data inventory percentage thresholds must be at most 100");
+	}
+}
+
+function assertKnowledgeCutoffBalance(value: KnowledgeCutoffBalance): void {
+	assertExactObject(
+		value,
+		[
+			"freshThroughWeeks",
+			"staleAfterWeeks",
+			"agingDemandFactor",
+			"agingQualityFactor",
+			"staleDemandFactor",
+			"staleQualityFactor",
+			"refreshDuration",
+			"refreshCompute",
+			"refreshMinimumFreshness",
+		],
+		"Knowledge cutoff balance",
+	);
+	assertNonNegativeInteger(value.freshThroughWeeks, "Fresh knowledge age");
+	assertPositiveInteger(value.staleAfterWeeks, "Stale knowledge age");
+	if (value.staleAfterWeeks <= value.freshThroughWeeks) {
+		throw new Error("Stale knowledge age must exceed fresh knowledge age");
+	}
+	for (const [name, factor] of [
+		["agingDemandFactor", value.agingDemandFactor],
+		["agingQualityFactor", value.agingQualityFactor],
+		["staleDemandFactor", value.staleDemandFactor],
+		["staleQualityFactor", value.staleQualityFactor],
+	] as const) {
+		assertPositiveInteger(factor, `Knowledge ${name}`);
+		if (factor > 100) {
+			throw new Error(`Knowledge ${name} must be at most 100`);
+		}
+	}
+	assertPositiveInteger(value.refreshDuration, "Refresh duration");
+	assertPositiveInteger(value.refreshCompute, "Refresh compute");
+	assertNonNegativeInteger(
+		value.refreshMinimumFreshness,
+		"Refresh minimum freshness",
+	);
+	if (value.refreshMinimumFreshness > 100) {
+		throw new Error("Refresh minimum freshness must be at most 100");
 	}
 }
 

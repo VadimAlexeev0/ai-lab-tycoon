@@ -93,6 +93,10 @@ export type VisibleAvailableProject =
 			modelId: string;
 	  })
 	| (VisibleProjectBase & {
+			kind: "refresh";
+			modelId: string;
+	  })
+	| (VisibleProjectBase & {
 			kind: "evaluation";
 			modelId: string;
 			evaluation: "capability" | "safety_reliability";
@@ -540,6 +544,15 @@ function projectToVisible(
 			return {
 				id: project.id,
 				kind: "training",
+				status: "available",
+				progress: project.progress,
+				duration: project.duration,
+				modelId: project.modelId,
+			};
+		case "refresh":
+			return {
+				id: project.id,
+				kind: "refresh",
 				status: "available",
 				progress: project.progress,
 				duration: project.duration,
