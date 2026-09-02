@@ -30,6 +30,7 @@ import { applyIncidentResponse, incidentsSystem } from "./systems/incidents.js";
 
 type RiskMemory = {
 	id: string;
+	name: string;
 	incident: string;
 	condition: string;
 	severity: number;
@@ -140,6 +141,93 @@ function firstOccurrence(): {
 	const decision = result.pending[0];
 	if (decision === undefined) throw new Error("Expected incident decision");
 	return { state: result.state, decisionId: decision.id };
+}
+
+function pendingIncidentState(): StateWithRisk {
+	const occurrence = firstOccurrence();
+	return {
+		...(occurrence.state as StateWithRisk),
+		decisions: {
+			pending: [
+				{
+					kind: "incident",
+					id: occurrence.decisionId,
+					incidentId: occurrence.decisionId,
+					riskMemoryId: "risk_outage_product_001",
+					incident: "outage",
+					blocking: true,
+				},
+			],
+		},
+		queue: {
+			...occurrence.state.queue,
+			decisionIds: [occurrence.decisionId],
+		},
+	};
+}
+
+function openRiskCrisisState(): StateWithRisk {
+	const source = firstOccurrence().state as StateWithRisk;
+	const eligible = structuredClone(source) as StateWithRisk;
+	const memory = eligible.risk.memories[0];
+	if (memory === undefined) throw new Error("Expected risk memory");
+	memory.recurrenceCount = 2;
+	memory.unresolvedRecurrenceCount = 2;
+	eligible.meta.week = 2;
+	const opened = incidentsSystem(eligible, {
+		phase: "incidents",
+		week: 2,
+		incidentRoll: 99,
+	});
+	const decision = opened.pending[0];
+	if (decision?.kind !== "crisis") {
+		throw new Error("Expected crisis decision");
+	}
+	return {
+		...(opened.state as StateWithRisk),
+		decisions: {
+			pending: opened.pending.map((item) => ({ ...item })),
+		},
+		queue: {
+			...opened.state.queue,
+			decisionIds: opened.pending.map((item) => item.id),
+		},
+	};
+}
+
+function directOutageResponse(
+	state: GameState,
+	response: "repair" | "reduce_scope" | "disclose",
+	decisionId: string,
+) {
+	const offered: GameState = {
+		...state,
+		decisions: {
+			pending: [
+				{
+					kind: "incident",
+					id: decisionId,
+					incidentId: decisionId,
+					riskMemoryId: "risk_outage_product_001",
+					incident: "outage",
+					blocking: true,
+				},
+			],
+		},
+		queue: {
+			...state.queue,
+			decisionIds: [decisionId],
+		},
+	};
+	const result = applyIncidentResponse(offered, "outage", response, decisionId);
+	return {
+		...result,
+		state: {
+			...result.state,
+			decisions: { pending: [] },
+			queue: { ...result.state.queue, decisionIds: [] },
+		},
+	};
 }
 
 const MISS_ROLLS: readonly number[] = [99, 99, 99, 99, 99, 99];
@@ -297,9 +385,8 @@ describe("persistent incident risk memory", () => {
 
 	it("raises recurrence probability and severity when a cheap repair leaves risk unresolved", () => {
 		const first = firstOccurrence();
-		const repaired = applyIncidentResponse(
+		const repaired = directOutageResponse(
 			repeatablePressure(first.state, 2),
-			"outage",
 			"repair",
 			first.decisionId,
 		);
@@ -336,9 +423,8 @@ describe("persistent incident risk memory", () => {
 	it("reduces risk on rollback-style response while retaining recurrence history", () => {
 		const first = firstOccurrence();
 		const before = JSON.stringify(first.state);
-		const reduced = applyIncidentResponse(
+		const reduced = directOutageResponse(
 			repeatablePressure(first.state, 1),
-			"outage",
 			"reduce_scope",
 			first.decisionId,
 		);
@@ -393,11 +479,86 @@ describe("persistent incident risk memory", () => {
 		);
 	});
 
+	it("rejects a repeated direct response when its incident is no longer pending", () => {
+		const offered = pendingIncidentState();
+		const decision = offered.decisions.pending[0];
+		if (decision?.kind !== "incident") {
+			throw new Error("Expected incident decision");
+		}
+		const resolved = applyDecision(offered, {
+			kind: "incident",
+			decisionId: decision.id,
+			response: "reduce_scope",
+		});
+
+		expect(resolved.state.decisions.pending).toEqual([]);
+		expect(() =>
+			applyIncidentResponse(
+				resolved.state,
+				"outage",
+				"reduce_scope",
+				decision.id,
+			),
+		).toThrow(/pending|unknown.*incident|stable.*incident/i);
+	});
+
+	it("rejects a forged persisted crisis identity", () => {
+		const malformed = structuredClone(openRiskCrisisState()) as StateWithRisk;
+		const crisis = malformed.risk.crises[0];
+		if (crisis === undefined) throw new Error("Expected risk crisis");
+		crisis.id = "crisis_forged";
+
+		expect(() =>
+			assertRiskState(malformed.risk, { currentWeek: malformed.meta.week }),
+		).toThrow(/canonical|crisis.*identity|crisis.*id/i);
+	});
+
+	it("rejects a pending incident id that disagrees with its decision id", () => {
+		const malformed = pendingIncidentState();
+		const decision = malformed.decisions.pending[0];
+		if (decision?.kind !== "incident") {
+			throw new Error("Expected incident decision");
+		}
+		decision.incidentId = "incident_forged";
+
+		expect(() => assertGameState(malformed)).toThrow(
+			/incident.*id|decision.*id|match/i,
+		);
+	});
+
+	it("rejects a crisis decision identity that is not canonical for its risk memory", () => {
+		const malformed = openRiskCrisisState();
+		const crisis = malformed.risk.crises[0];
+		const decision = malformed.decisions.pending[0];
+		if (crisis === undefined || decision?.kind !== "crisis") {
+			throw new Error("Expected pending crisis");
+		}
+		const alternateMemory: RiskMemory = {
+			id: "risk_data_privacy_incident_company",
+			name: "Privacy exposure",
+			incident: "data_privacy_incident",
+			condition: "privacy_exposure",
+			severity: 10,
+			affectedProductId: null,
+			affectedModelId: null,
+			unresolved: true,
+			recurrenceCount: 1,
+			unresolvedRecurrenceCount: 1,
+			lastOccurrenceWeek: 1,
+		};
+		malformed.risk.memories.push(alternateMemory);
+		crisis.riskMemoryId = alternateMemory.id;
+		decision.riskMemoryId = alternateMemory.id;
+
+		expect(() => assertGameState(malformed)).toThrow(
+			/canonical|crisis.*identity|crisis.*id/i,
+		);
+	});
+
 	it("clears risk severity on disclosure without erasing recurrence history", () => {
 		const first = firstOccurrence();
-		const disclosed = applyIncidentResponse(
+		const disclosed = directOutageResponse(
 			repeatablePressure(first.state, 1),
-			"outage",
 			"disclose",
 			first.decisionId,
 		);
@@ -412,9 +573,8 @@ describe("persistent incident risk memory", () => {
 
 	it("opens and resolves one later-week blocking crisis for a repeated unresolved memory", () => {
 		const first = firstOccurrence();
-		const repaired = applyIncidentResponse(
+		const repaired = directOutageResponse(
 			repeatablePressure(first.state, 2),
-			"outage",
 			"repair",
 			first.decisionId,
 		);
@@ -425,9 +585,8 @@ describe("persistent incident risk memory", () => {
 		});
 		const repeatedDecision = repeated.pending[0];
 		if (repeatedDecision === undefined) throw new Error("Expected recurrence");
-		const repairedAgain = applyIncidentResponse(
+		const repairedAgain = directOutageResponse(
 			repeatablePressure(repeated.state, 3),
-			"outage",
 			"repair",
 			repeatedDecision.id,
 		);

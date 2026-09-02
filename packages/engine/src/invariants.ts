@@ -1418,6 +1418,12 @@ function assertRiskRelations(state: GameState): void {
 			}
 		}
 		if (decision.kind !== "crisis") continue;
+		const canonicalCrisisId = `crisis_${decision.riskMemoryId}`;
+		if (decision.crisisId !== canonicalCrisisId) {
+			throw new Error(
+				`Crisis decision ${decision.id} must reference canonical crisis ${canonicalCrisisId}`,
+			);
+		}
 		const crisis = state.risk.crises.find(
 			(candidate) => candidate.id === decision.crisisId,
 		);

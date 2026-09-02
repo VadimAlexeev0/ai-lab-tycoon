@@ -234,33 +234,58 @@ export function applyIncidentResponse(
 	assertRunActive(state);
 	const definition = incidentDefinition(incident);
 	const effect = definition.responses[response];
-	const pendingIncident = state.decisions.pending.find((decision) => {
-		if (decision.kind !== "incident") return false;
-		return incidentId === undefined
-			? decision.incident === incident
-			: decision.incidentId === incidentId || decision.id === incidentId;
-	});
+	const pendingIncidents = state.decisions.pending.filter(
+		(decision): decision is Extract<PendingDecision, { kind: "incident" }> =>
+			decision.kind === "incident",
+	);
+	let pendingIncident:
+		| Extract<PendingDecision, { kind: "incident" }>
+		| undefined;
 	if (incidentId !== undefined) {
 		assertIdentifier(incidentId, "Incident id");
-	}
-	if (
-		pendingIncident?.kind === "incident" &&
-		pendingIncident.incident !== incident
-	) {
-		throw new Error(
-			`Incident id ${incidentId} does not match ${pendingIncident.incident}`,
+		pendingIncident = pendingIncidents.find(
+			(decision) =>
+				decision.incidentId === incidentId ||
+				((decision.incidentId === undefined ||
+					decision.riskMemoryId === undefined) &&
+					decision.id === incidentId),
 		);
+		if (pendingIncident === undefined) {
+			throw new Error(
+				`Cannot resolve incident ${incidentId} without a matching pending incident id`,
+			);
+		}
+	} else {
+		const matchingIncidents = pendingIncidents.filter(
+			(decision) => decision.incident === incident,
+		);
+		if (matchingIncidents.length !== 1) {
+			throw new Error(
+				"Cannot resolve an incident without a unique matching pending incident id",
+			);
+		}
+		pendingIncident = matchingIncidents[0];
 	}
-	const resolvedIncidentId =
-		incidentId ??
-		(pendingIncident?.kind === "incident"
-			? (pendingIncident.incidentId ?? pendingIncident.id)
-			: undefined);
-	if (resolvedIncidentId === undefined) {
+	if (pendingIncident === undefined) {
 		throw new Error(
 			"Cannot resolve an incident without its stable incident id",
 		);
 	}
+	if (
+		pendingIncident.incidentId !== undefined &&
+		pendingIncident.riskMemoryId !== undefined &&
+		pendingIncident.incidentId !== pendingIncident.id
+	) {
+		throw new Error(
+			`Incident decision ${pendingIncident.id} must use its own id as incident id`,
+		);
+	}
+	if (pendingIncident.incident !== incident) {
+		throw new Error(
+			`Incident id ${incidentId} does not match ${pendingIncident.incident}`,
+		);
+	}
+	const resolvedIncidentId = pendingIncident.incidentId ?? pendingIncident.id;
 
 	const memory = responseMemory(state, incident, pendingIncident);
 	const mechanicallyResolved = applyMechanicalResolution(

@@ -291,6 +291,12 @@ function assertRiskCrisis(
 	assertIdentifier(value.id, "Risk crisis id");
 	assertEnum(value.kind, CRISIS_KINDS, "Risk crisis kind");
 	assertIdentifier(value.riskMemoryId, "Risk crisis memory id");
+	const canonicalId = `crisis_${value.riskMemoryId}`;
+	if (value.id !== canonicalId) {
+		throw new Error(
+			`Risk crisis ${value.id} must use canonical id ${canonicalId}`,
+		);
+	}
 	assertEnum(value.status, CRISIS_STATUSES, "Risk crisis status");
 	assertPositiveInteger(
 		value.openedWeek,
