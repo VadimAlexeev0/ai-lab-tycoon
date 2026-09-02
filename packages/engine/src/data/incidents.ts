@@ -41,6 +41,7 @@ export type IncidentResponseEffect = IncidentEffect &
 
 export type IncidentDefinition = Readonly<{
 	type: IncidentType;
+	riskName: string;
 	condition: IncidentCondition;
 	affectedEntity: IncidentTarget;
 	metric: IncidentMetric;
@@ -54,6 +55,7 @@ export type IncidentDefinition = Readonly<{
 export const INCIDENT_DEFINITIONS = [
 	{
 		type: "outage",
+		riskName: "Unresolved Availability Risk",
 		condition: "serving_overload",
 		affectedEntity: "product",
 		metric: "servingDemand",
@@ -83,6 +85,7 @@ export const INCIDENT_DEFINITIONS = [
 	},
 	{
 		type: "latency_degradation",
+		riskName: "Unresolved Latency Risk",
 		condition: "api_overload",
 		affectedEntity: "product",
 		metric: "servingDemand",
@@ -112,6 +115,7 @@ export const INCIDENT_DEFINITIONS = [
 	},
 	{
 		type: "quality_safety_scandal",
+		riskName: "Unresolved Quality Risk",
 		condition: "low_quality",
 		affectedEntity: "product",
 		metric: "effectiveQuality",
@@ -141,6 +145,7 @@ export const INCIDENT_DEFINITIONS = [
 	},
 	{
 		type: "compute_cost_overrun",
+		riskName: "Unresolved Compute Risk",
 		condition: "training_overload",
 		affectedEntity: "training_project",
 		metric: "trainingDemand",
@@ -170,6 +175,7 @@ export const INCIDENT_DEFINITIONS = [
 	},
 	{
 		type: "enterprise_sla_breach",
+		riskName: "Unresolved Enterprise Reliability Risk",
 		condition: "enterprise_risk",
 		affectedEntity: "product",
 		// Enterprise SLA V1 is reliability-only; quality is not a second trigger.
@@ -200,6 +206,7 @@ export const INCIDENT_DEFINITIONS = [
 	},
 	{
 		type: "data_privacy_incident",
+		riskName: "Unresolved Privacy Concerns",
 		condition: "privacy_exposure",
 		affectedEntity: "company",
 		metric: "trust",
@@ -261,6 +268,7 @@ function assertIncidentDefinitions(
 			definition,
 			[
 				"type",
+				"riskName",
 				"condition",
 				"affectedEntity",
 				"metric",
@@ -283,6 +291,12 @@ function assertIncidentDefinitions(
 			],
 			"Incident type",
 		);
+		assertString(definition.riskName, "Incident risk name");
+		if (definition.riskName.trim().length === 0) {
+			throw new Error(
+				`Incident ${definition.type} risk name must not be empty`,
+			);
+		}
 		if (types.has(definition.type))
 			throw new Error("Incident types must be unique");
 		types.add(definition.type);

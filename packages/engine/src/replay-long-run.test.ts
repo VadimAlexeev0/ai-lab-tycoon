@@ -133,6 +133,13 @@ function chooseDecision(state: GameState): DecisionChoice | null {
 				decisionId: decision.id,
 				response: incidentResponse(state, decision),
 			};
+		case "crisis":
+			return {
+				kind: "crisis",
+				decisionId: decision.id,
+				crisisId: decision.crisisId,
+				choice: "investigate",
+			};
 		case "publication":
 			return {
 				kind: "publication",

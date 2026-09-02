@@ -45,6 +45,13 @@ function choiceFor(decision: PendingDecision) {
 				decisionId: decision.id,
 				response: "repair" as const,
 			};
+		case "crisis":
+			return {
+				kind: "crisis" as const,
+				decisionId: decision.id,
+				crisisId: decision.crisisId,
+				choice: "investigate" as const,
+			};
 		case "launch":
 			return {
 				kind: "launch" as const,

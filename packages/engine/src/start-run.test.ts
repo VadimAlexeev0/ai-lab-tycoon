@@ -101,6 +101,7 @@ describe("startRun", () => {
 			},
 			decisions: { pending: [] },
 			reports: { items: [], totalCount: 0 },
+			risk: { memories: [], crises: [] },
 			queue: { decisionIds: [], reportIds: [] },
 			commandLog: [
 				{

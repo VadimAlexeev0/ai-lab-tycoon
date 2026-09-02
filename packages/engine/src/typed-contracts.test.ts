@@ -430,7 +430,7 @@ const PENDING_DECISION_CASES: readonly PendingDecisionContractCase[] = [
 		value: {
 			kind: "incident",
 			id: "decision_001",
-			incidentId: "incident_001",
+			incidentId: "decision_001",
 			incident: "outage",
 			blocking: true,
 		},

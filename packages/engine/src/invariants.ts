@@ -11,6 +11,7 @@ import { assertProductsState } from "./components/products.js";
 import { assertProjectsState, type Project } from "./components/projects.js";
 import { assertReportsState } from "./components/reports.js";
 import { assertResearchState } from "./components/research.js";
+import { assertRiskState } from "./components/risk.js";
 import { assertRivalsState } from "./components/rivals.js";
 import { assertRngState } from "./components/rng.js";
 import { assertTeamsState } from "./components/teams.js";
@@ -86,6 +87,7 @@ const WARNING_CODES = [
 	"stale_data",
 	"stale_model",
 	"blocking_decision",
+	"risk_escalation",
 ] as const;
 const WARNING_SEVERITIES = ["info", "warning", "critical"] as const;
 const GAME_STATE_KEYS = [
@@ -104,6 +106,7 @@ const GAME_STATE_KEYS = [
 	"funding",
 	"decisions",
 	"reports",
+	"risk",
 	"queue",
 	"commandLog",
 	"warnings",
@@ -160,10 +163,12 @@ export function assertGameState(
 	assertFundingState(state.funding);
 	assertDecisionsState(state.decisions);
 	assertReportsState(state.reports);
+	assertRiskState(state.risk, { currentWeek: state.meta.week });
 	assertTerminalState(state.terminal);
 	assertQueueShape(state.queue);
 	assertCommandLog(state.commandLog, state);
 	assertPublicationHistory(state);
+	assertRiskRelations(state);
 	assertWarnings(state.warnings);
 	assertComputeReservations(state);
 	assertResearchGraph(state);
@@ -716,6 +721,8 @@ function assertUniqueStateIds(state: GameState): void {
 		...state.dataInventory.items.map((record) => record.id),
 		...state.decisions.pending.map((decision) => decision.id),
 		...state.reports.items.map((report) => report.id),
+		...state.risk.memories.map((memory) => memory.id),
+		...state.risk.crises.map((crisis) => crisis.id),
 		...state.commandLog.map((entry) => entry.id),
 	];
 	for (const id of allIds) {
@@ -1357,6 +1364,85 @@ function matchesDesignEmphasis(
 	return MODEL_EMPHASIS_DIMENSIONS.every(
 		(dimension) => modelEmphasis[dimension] === emphasis[dimension],
 	);
+}
+
+function assertRiskRelations(state: GameState): void {
+	for (const memory of state.risk.memories) {
+		const product =
+			memory.affectedProductId === null
+				? undefined
+				: state.products.items.find(
+						(candidate) => candidate.id === memory.affectedProductId,
+					);
+		if (memory.affectedProductId !== null && product === undefined) {
+			throw new Error(
+				`Risk memory ${memory.id} references unknown product ${memory.affectedProductId}`,
+			);
+		}
+		const model =
+			memory.affectedModelId === null
+				? undefined
+				: state.models.items.find(
+						(candidate) => candidate.id === memory.affectedModelId,
+					);
+		if (memory.affectedModelId !== null && model === undefined) {
+			throw new Error(
+				`Risk memory ${memory.id} references unknown model ${memory.affectedModelId}`,
+			);
+		}
+		if (
+			product !== undefined &&
+			model !== undefined &&
+			product.modelId !== model.id
+		) {
+			throw new Error(
+				`Risk memory ${memory.id} product and model references disagree`,
+			);
+		}
+	}
+
+	for (const decision of state.decisions.pending) {
+		if (decision.kind === "incident" && decision.riskMemoryId !== undefined) {
+			const memory = state.risk.memories.find(
+				(candidate) => candidate.id === decision.riskMemoryId,
+			);
+			if (memory === undefined) {
+				throw new Error(
+					`Incident decision ${decision.id} references unknown risk memory ${decision.riskMemoryId}`,
+				);
+			}
+			if (memory.incident !== decision.incident) {
+				throw new Error(
+					`Incident decision ${decision.id} references a mismatched risk memory`,
+				);
+			}
+		}
+		if (decision.kind !== "crisis") continue;
+		const canonicalCrisisId = `crisis_${decision.riskMemoryId}`;
+		if (decision.crisisId !== canonicalCrisisId) {
+			throw new Error(
+				`Crisis decision ${decision.id} must reference canonical crisis ${canonicalCrisisId}`,
+			);
+		}
+		const crisis = state.risk.crises.find(
+			(candidate) => candidate.id === decision.crisisId,
+		);
+		if (crisis === undefined) {
+			throw new Error(
+				`Crisis decision ${decision.id} references unknown crisis ${decision.crisisId}`,
+			);
+		}
+		if (crisis.status !== "open") {
+			throw new Error(
+				`Crisis decision ${decision.id} references a resolved crisis`,
+			);
+		}
+		if (crisis.riskMemoryId !== decision.riskMemoryId) {
+			throw new Error(
+				`Crisis decision ${decision.id} references a mismatched risk memory`,
+			);
+		}
+	}
 }
 
 function assertWarnings(value: unknown): asserts value is Warning[] {

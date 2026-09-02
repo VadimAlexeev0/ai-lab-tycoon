@@ -11,7 +11,10 @@ import { assertGameState } from "./invariants.js";
 import { applyProductLaunch } from "./products.js";
 import type { EngineResult, GameState } from "./state.js";
 import { applyFunding } from "./systems/funding.js";
-import { applyIncidentResponse } from "./systems/incidents.js";
+import {
+	applyCrisisChoice,
+	applyIncidentResponse,
+} from "./systems/incidents.js";
 import { appendFactsAsReports } from "./systems/reporting.js";
 import { terminalSystem } from "./systems/terminal.js";
 
@@ -96,6 +99,33 @@ export function applyDecision(
 			pending: terminalResult.pending,
 		};
 		remaining = terminalResult.pending.map((decision) => ({ ...decision }));
+	} else if (choice.kind === "crisis") {
+		resolved = applyCrisisChoice(
+			state,
+			pendingCrisisId(pending),
+			choice.choice,
+			pending.id,
+		);
+		remaining = withoutDecision(state.decisions.pending, pending.id);
+		const postCrisis: GameState = {
+			...resolved.state,
+			decisions: { pending: remaining },
+			queue: {
+				...resolved.state.queue,
+				decisionIds: remaining.map((decision) => decision.id),
+			},
+		};
+		const terminalResult = terminalSystem(postCrisis, {
+			phase: "terminal",
+			week: state.meta.week,
+			facts: resolved.facts,
+		});
+		resolved = {
+			state: terminalResult.state,
+			facts: [...resolved.facts, ...terminalResult.facts],
+			pending: terminalResult.pending,
+		};
+		remaining = terminalResult.pending.map((decision) => ({ ...decision }));
 	} else if (choice.kind === "paradigm") {
 		resolved = applyParadigmChoice(state, pending, choice);
 		remaining = withoutDecision(state.decisions.pending, pending.id);
@@ -155,6 +185,13 @@ function isChoiceCompatible(
 			choice.evaluation === decision.evaluation
 		);
 	}
+	if (choice.kind === "crisis") {
+		return (
+			decision.kind === "crisis" &&
+			choice.crisisId === decision.crisisId &&
+			decision.choices.includes(choice.choice)
+		);
+	}
 	switch (decision.kind) {
 		case "launch":
 			return (
@@ -167,6 +204,8 @@ function isChoiceCompatible(
 			return choice.kind === "funding" && choice.round === decision.round;
 		case "incident":
 			return choice.kind === "incident";
+		case "crisis":
+			return false;
 		case "paradigm":
 			return (
 				choice.kind === "paradigm" &&
@@ -313,6 +352,13 @@ function pendingIncident(
 		throw new Error("This decision is not an incident");
 	}
 	return decision.incident;
+}
+
+function pendingCrisisId(decision: PendingDecision): string {
+	if (decision.kind !== "crisis") {
+		throw new Error("This decision is not a crisis");
+	}
+	return decision.crisisId;
 }
 
 function withoutDecision(

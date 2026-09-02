@@ -2,7 +2,10 @@ import {
 	DATA_PROVENANCES,
 	getDataSourceDefinition,
 } from "../data/data-sources.js";
-import type { IncidentCondition } from "../data/incidents.js";
+import {
+	type IncidentCondition,
+	incidentDefinition,
+} from "../data/incidents.js";
 import type { ResearchParadigmId } from "../data/research/paradigms.js";
 import {
 	assertResearchEffects,
@@ -19,11 +22,12 @@ import {
 	assertIdentifier,
 	assertInteger,
 	assertNonNegativeInteger,
+	assertNullableString,
 	assertObject,
 	assertPositiveInteger,
 	assertString,
 } from "../validation.js";
-import type { IncidentType } from "./decisions.js";
+import type { CrisisChoice, CrisisKind, IncidentType } from "./decisions.js";
 import type { FundingGateFactors, FundingRound } from "./funding.js";
 import type { ProductChannel } from "./products.js";
 import type { TerminalContributor } from "./terminal.js";
@@ -57,6 +61,9 @@ const FACT_KINDS = [
 	"funding_resolved",
 	"incident_occurred",
 	"incident_resolved",
+	"risk_memory_updated",
+	"crisis_opened",
+	"crisis_resolved",
 	"milestone_reached",
 	"terminal",
 ] as const;
@@ -262,6 +269,11 @@ export type Fact =
 			measurement: number;
 			threshold: number;
 			severity: number;
+			riskMemoryId?: string;
+			recurrenceCount?: number;
+			unresolvedRecurrenceCount?: number;
+			unresolved?: boolean;
+			riskSeverity?: number;
 			week: number;
 	  }
 	| {
@@ -269,6 +281,36 @@ export type Fact =
 			incidentId: string;
 			incident: IncidentType;
 			response: "repair" | "reduce_scope" | "disclose";
+			riskMemoryId?: string;
+			week: number;
+	  }
+	| {
+			kind: "risk_memory_updated";
+			riskMemoryId: string;
+			name: string;
+			incident: IncidentType;
+			condition: IncidentCondition;
+			severity: number;
+			affectedProductId: string | null;
+			affectedModelId: string | null;
+			unresolved: boolean;
+			recurrenceCount: number;
+			unresolvedRecurrenceCount: number;
+			lastOccurrenceWeek: number;
+			week: number;
+	  }
+	| {
+			kind: "crisis_opened";
+			crisisId: string;
+			riskMemoryId: string;
+			crisis: CrisisKind;
+			week: number;
+	  }
+	| {
+			kind: "crisis_resolved";
+			crisisId: string;
+			riskMemoryId: string;
+			choice: CrisisChoice;
 			week: number;
 	  }
 	| {
@@ -877,23 +919,32 @@ export function assertFact(value: unknown): asserts value is Fact {
 			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
-		case "incident_occurred":
-			assertExactObject(
-				value,
-				[
-					"kind",
-					"incident",
-					"condition",
-					"affectedEntity",
-					"metric",
-					"measurement",
-					"threshold",
-					"severity",
-					"week",
-				],
-				"incident occurred fact",
-			);
+		case "incident_occurred": {
+			const keys = [
+				"kind",
+				"incident",
+				"condition",
+				"affectedEntity",
+				"metric",
+				"measurement",
+				"threshold",
+				"severity",
+			];
+			for (const optionalKey of [
+				"riskMemoryId",
+				"recurrenceCount",
+				"unresolvedRecurrenceCount",
+				"unresolved",
+				"riskSeverity",
+			] as const) {
+				if (Object.hasOwn(value, optionalKey)) keys.push(optionalKey);
+			}
+			keys.push("week");
+			assertExactObject(value, keys, "incident occurred fact");
 			assertEnum(value.incident, INCIDENT_TYPES, "Incident fact type");
+			if (incidentDefinition(value.incident).condition !== value.condition) {
+				throw new Error("Incident fact condition does not match its type");
+			}
 			assertEnum(
 				value.condition,
 				[
@@ -917,20 +968,155 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertInteger(value.measurement, "Incident fact measurement");
 			assertInteger(value.threshold, "Incident fact threshold");
 			assertInteger(value.severity, "Incident fact severity");
+			if (Object.hasOwn(value, "riskMemoryId")) {
+				assertIdentifier(value.riskMemoryId, "Incident risk memory fact id");
+			}
+			if (Object.hasOwn(value, "recurrenceCount")) {
+				assertPositiveInteger(
+					value.recurrenceCount,
+					"Incident recurrence fact count",
+				);
+			}
+			if (Object.hasOwn(value, "unresolvedRecurrenceCount")) {
+				assertNonNegativeInteger(
+					value.unresolvedRecurrenceCount,
+					"Incident unresolved recurrence fact count",
+				);
+			}
+			if (Object.hasOwn(value, "unresolved")) {
+				assertBoolean(value.unresolved, "Incident risk unresolved fact");
+			}
+			if (Object.hasOwn(value, "riskSeverity")) {
+				assertNonNegativeInteger(
+					value.riskSeverity,
+					"Incident risk severity fact",
+				);
+			}
 			assertPositiveInteger(value.week, "Fact week");
 			return;
-		case "incident_resolved":
-			assertExactObject(
-				value,
-				["kind", "incidentId", "incident", "response", "week"],
-				"incident resolved fact",
-			);
+		}
+		case "incident_resolved": {
+			const keys = ["kind", "incidentId", "incident", "response"];
+			if (Object.hasOwn(value, "riskMemoryId")) keys.push("riskMemoryId");
+			keys.push("week");
+			assertExactObject(value, keys, "incident resolved fact");
 			assertIdentifier(value.incidentId, "Resolved incident id");
 			assertEnum(value.incident, INCIDENT_TYPES, "Resolved incident type");
 			assertEnum(
 				value.response,
 				["repair", "reduce_scope", "disclose"],
 				"Incident response",
+			);
+			if (Object.hasOwn(value, "riskMemoryId")) {
+				assertIdentifier(value.riskMemoryId, "Resolved risk memory id");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		}
+		case "risk_memory_updated":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"riskMemoryId",
+					"name",
+					"incident",
+					"condition",
+					"severity",
+					"affectedProductId",
+					"affectedModelId",
+					"unresolved",
+					"recurrenceCount",
+					"unresolvedRecurrenceCount",
+					"lastOccurrenceWeek",
+					"week",
+				],
+				"risk memory updated fact",
+			);
+			assertIdentifier(value.riskMemoryId, "Risk memory fact id");
+			assertString(value.name, "Risk memory fact name");
+			if (value.name.trim().length === 0) {
+				throw new Error("Risk memory fact name must not be empty");
+			}
+			assertEnum(value.incident, INCIDENT_TYPES, "Risk memory fact incident");
+			if (incidentDefinition(value.incident).condition !== value.condition) {
+				throw new Error("Risk memory fact condition does not match its type");
+			}
+			assertEnum(
+				value.condition,
+				[
+					"serving_overload",
+					"api_overload",
+					"low_quality",
+					"training_overload",
+					"enterprise_risk",
+					"privacy_exposure",
+				],
+				"Risk memory fact condition",
+			);
+			assertNonNegativeInteger(value.severity, "Risk memory fact severity");
+			assertNullableString(
+				value.affectedProductId,
+				"Risk memory fact product id",
+			);
+			if (value.affectedProductId !== null) {
+				assertIdentifier(
+					value.affectedProductId,
+					"Risk memory fact product id",
+				);
+			}
+			assertNullableString(value.affectedModelId, "Risk memory fact model id");
+			if (value.affectedModelId !== null) {
+				assertIdentifier(value.affectedModelId, "Risk memory fact model id");
+			}
+			assertBoolean(value.unresolved, "Risk memory fact unresolved");
+			assertPositiveInteger(
+				value.recurrenceCount,
+				"Risk memory fact recurrence count",
+			);
+			assertNonNegativeInteger(
+				value.unresolvedRecurrenceCount,
+				"Risk memory fact unresolved recurrence count",
+			);
+			if (
+				value.unresolvedRecurrenceCount > value.recurrenceCount ||
+				(!value.unresolved && value.unresolvedRecurrenceCount !== 0) ||
+				(value.unresolved && value.unresolvedRecurrenceCount < 1)
+			) {
+				throw new Error("Risk memory fact has an invalid unresolved streak");
+			}
+			assertPositiveInteger(
+				value.lastOccurrenceWeek,
+				"Risk memory fact last occurrence week",
+			);
+			assertPositiveInteger(value.week, "Fact week");
+			if (value.lastOccurrenceWeek > value.week) {
+				throw new Error("Risk memory fact cannot report a future occurrence");
+			}
+			return;
+		case "crisis_opened":
+			assertExactObject(
+				value,
+				["kind", "crisisId", "riskMemoryId", "crisis", "week"],
+				"crisis opened fact",
+			);
+			assertIdentifier(value.crisisId, "Opened crisis id");
+			assertIdentifier(value.riskMemoryId, "Opened crisis memory id");
+			assertEnum(value.crisis, ["risk_escalation"], "Opened crisis kind");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "crisis_resolved":
+			assertExactObject(
+				value,
+				["kind", "crisisId", "riskMemoryId", "choice", "week"],
+				"crisis resolved fact",
+			);
+			assertIdentifier(value.crisisId, "Resolved crisis id");
+			assertIdentifier(value.riskMemoryId, "Resolved crisis memory id");
+			assertEnum(
+				value.choice,
+				["investigate", "contain", "disclose"],
+				"Resolved crisis choice",
 			);
 			assertPositiveInteger(value.week, "Fact week");
 			return;

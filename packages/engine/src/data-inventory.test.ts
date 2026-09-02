@@ -382,6 +382,7 @@ describe("strategic data inventory", () => {
 		const meta = fixture.meta as Record<string, unknown>;
 		const counters = fixture.counters as Record<string, unknown>;
 		delete fixture.dataInventory;
+		delete fixture.risk;
 		delete counters.data;
 		meta.schemaVersion = 4;
 		const before = JSON.stringify(fixture);

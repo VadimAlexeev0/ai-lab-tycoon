@@ -96,6 +96,8 @@ function impactForFact(fact: Fact): number {
 			return fact.amount;
 		case "incident_occurred":
 			return fact.severity;
+		case "risk_memory_updated":
+			return -fact.severity;
 		default:
 			return 0;
 	}

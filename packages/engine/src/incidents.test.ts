@@ -207,8 +207,18 @@ describe("incidents", () => {
 			if (incidentDecision?.kind !== "incident") {
 				throw new Error("Expected an incident decision");
 			}
+			const offeredState: GameState = {
+				...occurrence.state,
+				decisions: {
+					pending: [{ ...incidentDecision }],
+				},
+				queue: {
+					...occurrence.state.queue,
+					decisionIds: [incidentDecision.id],
+				},
+			};
 			const resolved = applyIncidentResponse(
-				occurrence.state,
+				offeredState,
 				incident,
 				"repair",
 				incidentDecision.id,
