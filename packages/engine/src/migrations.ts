@@ -431,9 +431,39 @@ function migrateV8ToV9(value: unknown): unknown {
 		return lineage;
 	};
 
+	const dataDebtResolving = new Set<string>();
+	const dataDebtResolved = new Set<string>();
+	const normalizeDataDebt = (item: Record<string, unknown>): void => {
+		assertIdentifier(item.id, "v8 model id");
+		if (dataDebtResolved.has(item.id)) return;
+		if (dataDebtResolving.has(item.id)) {
+			throw new Error(`v8 model data debt contains a cycle at ${item.id}`);
+		}
+		dataDebtResolving.add(item.id);
+
+		if (item.foundation === "continued" || item.foundation === "distilled") {
+			if (typeof item.parentModelId !== "string") {
+				throw new Error(
+					`v8 ${String(item.foundation)} model ${item.id} must reference a parent`,
+				);
+			}
+			const parent = modelsById.get(item.parentModelId);
+			if (parent === undefined) {
+				throw new Error(
+					`v8 model ${item.id} references unknown parent ${item.parentModelId}`,
+				);
+			}
+			normalizeDataDebt(parent);
+		}
+
+		normalizeV8DataDebt(item, modelsById);
+		dataDebtResolving.delete(item.id);
+		dataDebtResolved.add(item.id);
+	};
+
 	for (const item of modelItems) {
 		const lineage = resolveLineage(item);
-		normalizeV8DataDebt(item, modelsById);
+		normalizeDataDebt(item);
 		item.brandId = lineage.brandId;
 		item.foundationId = lineage.foundationId;
 		item.foundationDebt = 0;

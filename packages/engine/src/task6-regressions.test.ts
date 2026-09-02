@@ -63,6 +63,7 @@ function multimodalDesignableState(seed = 42): GameState {
 		id: "model_002",
 		name: "Assistant-proof",
 		family: "assistant" as const,
+		foundationId: "foundation_model_002",
 	};
 	state.models.items = [textProof, assistantProof];
 	state.products.items = [
@@ -105,6 +106,10 @@ function parentModel(trueScores: Model["trueScores"]): Model {
 		foundation: "fresh",
 		status: "ready",
 		projectId: null,
+		brandId: "brand_model_001",
+		foundationId: "foundation_model_001",
+		foundationDebt: 0,
+		foundationRisk: 0,
 		tier: "aggressive",
 		scoreCeiling: 100,
 		dataMix: { general: 60, code: 30, multimodal: 10 },
@@ -382,6 +387,7 @@ describe("Task 6 review regressions", () => {
 			id: "model_002",
 			name: "Assistant-1",
 			family: "assistant" as const,
+			foundationId: "foundation_model_002",
 		};
 		assistantReady.models.items.push(assistantModel);
 		assistantReady.counters.model = 3;

@@ -244,15 +244,22 @@ function retainedFoundationValue(
 }
 
 function assertLineageRelation(model: Model, parent: Model): void {
-	if (model.foundationId === undefined) return;
-	if (
-		parent.foundationId === undefined ||
-		parent.foundationDebt === undefined ||
-		parent.foundationRisk === undefined
-	) {
-		// Legacy in-memory fixtures may predate the v9 lineage fields. The v9
-		// migration supplies their deterministic defaults before persistence.
+	const modelHasLineage = hasCompleteLineageTuple(model);
+	const parentHasLineage = hasCompleteLineageTuple(parent);
+	if (!modelHasLineage && !parentHasLineage) {
+		// Legacy model and parent pairs predate the v9 lineage tuple. Migration
+		// supplies their deterministic values before they are persisted.
 		return;
+	}
+	if (!modelHasLineage) {
+		throw new Error(
+			`Legacy model ${model.id} cannot attach to current lineage parent ${parent.id}`,
+		);
+	}
+	if (!parentHasLineage) {
+		throw new Error(
+			`Model ${model.id} requires parent ${parent.id} to have a complete lineage tuple`,
+		);
 	}
 	if (model.foundationId !== parent.foundationId) {
 		throw new Error(
@@ -289,6 +296,20 @@ function assertLineageRelation(model: Model, parent: Model): void {
 			);
 		}
 	}
+}
+
+function hasCompleteLineageTuple(model: Model): model is Model & {
+	brandId: string;
+	foundationId: string;
+	foundationDebt: number;
+	foundationRisk: number;
+} {
+	return (
+		model.brandId !== undefined &&
+		model.foundationId !== undefined &&
+		model.foundationDebt !== undefined &&
+		model.foundationRisk !== undefined
+	);
 }
 
 function assertFoundationParentReferences(items: readonly Model[]): void {

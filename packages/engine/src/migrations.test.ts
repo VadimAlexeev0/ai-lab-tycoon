@@ -103,6 +103,89 @@ function v8LineageDebtFixture(): Record<string, unknown> {
 	return fixture;
 }
 
+function v8ReverseOrderThreeGenerationFixture(): Record<string, unknown> {
+	const state = startRun({ companyName: "Migration Labs" }, 23);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) throw new Error("Expected model unlock");
+	familyUnlock.status = "completed";
+
+	const designSpec = {
+		family: "text" as const,
+		tier: "standard" as const,
+		dataMix: { general: 60, code: 30, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	};
+	let trained = designModel(state, {
+		...designSpec,
+		name: "Legacy-1",
+		foundation: "fresh",
+	}).state;
+	let project = trained.projects.items.at(-1);
+	if (project === undefined || project.kind !== "training") {
+		throw new Error("Expected root training project");
+	}
+	for (let week = 1; week <= project.duration; week += 1) {
+		trained = trainingSystem(trained, { phase: "training", week }).state;
+	}
+
+	const root = trained.models.items.at(-1);
+	if (root === undefined || root.status !== "ready") {
+		throw new Error("Expected a ready root model");
+	}
+	trained = designModel(trained, {
+		...designSpec,
+		name: "Legacy-2",
+		foundation: "continued",
+		parentModelId: root.id,
+	}).state;
+	project = trained.projects.items.at(-1);
+	if (project === undefined || project.kind !== "training") {
+		throw new Error("Expected child training project");
+	}
+	for (let week = 1; week <= project.duration; week += 1) {
+		trained = trainingSystem(trained, { phase: "training", week }).state;
+	}
+
+	const child = trained.models.items.at(-1);
+	if (child === undefined || child.status !== "ready") {
+		throw new Error("Expected a ready child model");
+	}
+	const designed = designModel(trained, {
+		...designSpec,
+		name: "Legacy-3",
+		foundation: "continued",
+		parentModelId: child.id,
+	}).state;
+	const fixture = JSON.parse(serializeGameState(designed)) as Record<
+		string,
+		unknown
+	>;
+	stripV9LineageFields(fixture);
+	const models = asRecord(fixture.models);
+	if (!Array.isArray(models.items) || models.items.length !== 3) {
+		throw new Error("Expected a three-generation model chain");
+	}
+	const rootFixture = asRecord(
+		models.items.find((item) => asRecord(item).id === root.id),
+	);
+	const childFixture = asRecord(
+		models.items.find((item) => asRecord(item).id === child.id),
+	);
+	const grandchildFixture = asRecord(
+		models.items.find(
+			(item) => asRecord(item).id === designed.models.items.at(-1)?.id,
+		),
+	);
+	rootFixture.dataDebt = 49;
+	childFixture.dataDebt = 10;
+	grandchildFixture.dataDebt = 1;
+	models.items.reverse();
+	asRecord(fixture.meta).schemaVersion = 8;
+	return fixture;
+}
+
 function currentV1Fixture(): unknown {
 	// Schema v1 is the first accepted persisted format. This fixture is a JSON
 	// snapshot of the actual current startRun shape before the migration boundary;
@@ -233,6 +316,27 @@ describe("GameState migration and serialization", () => {
 
 		expect(parent.dataDebt).toBe(49);
 		expect(successor.dataDebt).toBe(49);
+		expect(JSON.stringify(fixture)).toBe(before);
+	});
+
+	it("normalizes reverse-ordered three-generation v8 data debt by parent floors", () => {
+		const fixture = v8ReverseOrderThreeGenerationFixture();
+		const before = JSON.stringify(fixture);
+
+		const upgraded = upgradeGameState(fixture);
+		const byId = new Map(
+			upgraded.models.items.map((model) => [model.name, model]),
+		);
+		const root = byId.get("Legacy-1");
+		const child = byId.get("Legacy-2");
+		const grandchild = byId.get("Legacy-3");
+		if (root === undefined || child === undefined || grandchild === undefined) {
+			throw new Error("Expected all migrated generations");
+		}
+
+		expect(root.dataDebt).toBe(49);
+		expect(child.dataDebt).toBe(49);
+		expect(grandchild.dataDebt).toBe(49);
 		expect(JSON.stringify(fixture)).toBe(before);
 	});
 

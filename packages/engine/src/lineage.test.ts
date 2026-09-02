@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { assertModelsState } from "./components/models.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	advanceWeek,
@@ -10,7 +11,11 @@ import {
 	startRun,
 	upgradeGameState,
 } from "./index.js";
-import { assertGameState } from "./invariants.js";
+import {
+	assertGameState,
+	assertionsEnabled,
+	setAssertionsEnabled,
+} from "./invariants.js";
 import {
 	designModel,
 	generateTrueScores,
@@ -98,40 +103,36 @@ function readyFreshParentState(): GameState {
 
 function readyParentState(): GameState {
 	const state = readyFreshParentState();
-	const legacyRoot = state.models.items.at(-1);
-	if (legacyRoot === undefined || legacyRoot.status !== "ready") {
-		throw new Error("Expected a ready legacy root model");
+	const root = state.models.items.at(-1);
+	if (root === undefined || root.status !== "ready") {
+		throw new Error("Expected a ready root model");
 	}
 
-	// Keep this stress fixture in the explicitly supported pre-lineage shape so
-	// the inherited values below can exercise successor retention without
-	// forging a current fresh root.
-	const legacyAnchor = {
-		...legacyRoot,
-		id: "model_002",
-		name: "Legacy-Anchor",
-		foundation: "continued" as const,
-		parentModelId: legacyRoot.id,
-		projectId: null,
-	};
-	delete legacyAnchor.brandId;
-	delete legacyAnchor.foundationId;
-	delete legacyAnchor.foundationDebt;
-	delete legacyAnchor.foundationRisk;
 	const parent = {
-		...legacyRoot,
-		id: "model_003",
+		...root,
+		id: "model_002",
 		name: "Aurora-Parent",
 		foundation: "continued" as const,
-		parentModelId: legacyAnchor.id,
+		parentModelId: root.id,
 		projectId: null,
 	};
-	state.models.items.push(legacyAnchor, parent);
-	state.counters.model += 2;
-	parent.foundationDebt = 80;
-	parent.foundationRisk = 60;
+	state.models.items.push(parent);
+	state.counters.model += 1;
 	parent.dataDebt = 37;
 	return state;
+}
+
+function designWithInjectedLineageValues(
+	state: GameState,
+	spec: ModelDesignSpec,
+): ReturnType<typeof designModel> {
+	const previousAssertionsEnabled = assertionsEnabled;
+	setAssertionsEnabled(false);
+	try {
+		return designModel(state, spec);
+	} finally {
+		setAssertionsEnabled(previousAssertionsEnabled);
+	}
 }
 
 describe("foundation and brand lineage", () => {
@@ -286,9 +287,11 @@ describe("foundation and brand lineage", () => {
 		const state = readyParentState();
 		const parent = state.models.items.at(-1);
 		if (parent === undefined) throw new Error("Expected a parent model");
+		parent.foundationDebt = 80;
+		parent.foundationRisk = 60;
 		parent.dataDebt = 37;
 
-		const result = designModel(state, {
+		const result = designWithInjectedLineageValues(state, {
 			...BASE_SPEC,
 			name: "Aurora-S",
 			foundation: "distilled",
@@ -323,7 +326,7 @@ describe("foundation and brand lineage", () => {
 		parent.foundationRisk = 1;
 		parent.dataDebt = 1;
 
-		const result = designModel(state, {
+		const result = designWithInjectedLineageValues(state, {
 			...BASE_SPEC,
 			name: "Aurora-S",
 			foundation: "distilled",
@@ -729,6 +732,41 @@ describe("foundation and brand lineage", () => {
 		expect(() => assertGameState(successor)).toThrow(
 			/foundation.*lineage|foundation id/i,
 		);
+	});
+
+	it("rejects a current successor whose ready parent loses its lineage tuple", () => {
+		const state = readyFreshParentState();
+		const parent = state.models.items.at(-1);
+		if (parent === undefined || parent.status !== "ready") {
+			throw new Error("Expected a ready parent model");
+		}
+
+		const successorState = designModel(state, {
+			...BASE_SPEC,
+			name: "Aurora-2",
+			foundation: "continued",
+			parentModelId: parent.id,
+		}).state;
+		const successor = successorState.models.items.at(-1);
+		const legacyParent = successorState.models.items.find(
+			(model) => model.id === parent.id,
+		);
+		if (successor === undefined || legacyParent === undefined) {
+			throw new Error("Expected a current successor and its parent");
+		}
+		expect(successor).toMatchObject({
+			brandId: expect.any(String),
+			foundationId: expect.any(String),
+			foundationDebt: expect.any(Number),
+			foundationRisk: expect.any(Number),
+		});
+
+		delete legacyParent.brandId;
+		delete legacyParent.foundationId;
+		delete legacyParent.foundationDebt;
+		delete legacyParent.foundationRisk;
+
+		expect(() => assertModelsState(successorState.models)).toThrow(/lineage/i);
 	});
 
 	it("rejects forged foundation identity and debt on a fresh root", () => {
