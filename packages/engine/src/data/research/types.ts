@@ -245,6 +245,8 @@ export const TEXT_MODELS_KEYSTONE_ID = "text_models_keystone";
 export const ASSISTANT_MODELS_KEYSTONE_ID = "assistant_models_keystone";
 /** The first Multimodal-era model research node gates the model family. */
 export const MULTIMODAL_MODELS_FUSION_ID = "multimodal_models_fusion";
+/** The Assistant-era Local/Edge model research node gates the family. */
+export const LOCAL_EDGE_INFERENCE_ID = "local_edge_inference";
 
 /** Stable ids retain save and model-family references while gaining historical labels. */
 export const WORD_VECTORS_ID = "text_models_principles";
