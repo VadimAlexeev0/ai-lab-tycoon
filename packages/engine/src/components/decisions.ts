@@ -1,3 +1,4 @@
+import { PRODUCT_PRESSURE_BALANCE } from "../data/balance.js";
 import {
 	PARADIGM_IDS,
 	type ResearchParadigmId,
@@ -10,6 +11,7 @@ import {
 	assertExactObject,
 	assertIdentifier,
 	assertObject,
+	assertPositiveInteger,
 } from "../validation.js";
 import type { FundingRound } from "./funding.js";
 import type { ProductChannel } from "./products.js";
@@ -66,6 +68,7 @@ export type PendingDecision =
 			id: string;
 			modelId: string;
 			channel?: ProductChannel;
+			price?: number;
 			blocking: true;
 	  }
 	| {
@@ -119,6 +122,7 @@ export type DecisionChoice =
 			kind: "launch";
 			decisionId: string;
 			channel: ProductChannel;
+			price?: number;
 	  }
 	| {
 			kind: "evaluate";
@@ -214,10 +218,15 @@ export function assertDecisionChoice(
 		case "launch":
 			assertExactObject(
 				value,
-				["kind", "decisionId", "channel"],
+				Object.hasOwn(value, "price")
+					? ["kind", "decisionId", "channel", "price"]
+					: ["kind", "decisionId", "channel"],
 				"launch decision choice",
 			);
 			assertEnum(value.channel, PRODUCT_CHANNELS, "Launch channel");
+			if (Object.hasOwn(value, "price")) {
+				assertDecisionPrice(value.channel, value.price);
+			}
 			return;
 		case "evaluate":
 			assertExactObject(
@@ -291,12 +300,20 @@ function assertPendingDecision(
 	switch (value.kind) {
 		case "launch": {
 			const keys = Object.hasOwn(value, "channel")
-				? ["kind", "id", "modelId", "channel", "blocking"]
+				? Object.hasOwn(value, "price")
+					? ["kind", "id", "modelId", "channel", "price", "blocking"]
+					: ["kind", "id", "modelId", "channel", "blocking"]
 				: ["kind", "id", "modelId", "blocking"];
 			assertExactObject(value, keys, "launch decision");
 			assertIdentifier(value.modelId, "Launch model id");
 			if (Object.hasOwn(value, "channel")) {
 				assertEnum(value.channel, PRODUCT_CHANNELS, "Launch decision channel");
+			}
+			if (Object.hasOwn(value, "price")) {
+				if (value.channel === undefined) {
+					throw new Error("Launch decision price requires a channel");
+				}
+				assertDecisionPrice(value.channel as ProductChannel, value.price);
 			}
 			assertBoolean(value.blocking, "Launch decision blocking");
 			if (value.blocking !== true) {
@@ -435,6 +452,16 @@ function assertPendingDecision(
 				throw new Error("Publication decisions must be blocking");
 			}
 			return;
+	}
+}
+
+function assertDecisionPrice(channel: ProductChannel, value: unknown): void {
+	assertPositiveInteger(value, "Launch decision price");
+	const tuning = PRODUCT_PRESSURE_BALANCE.channels[channel];
+	if (value < tuning.minimumPrice || value > tuning.maximumPrice) {
+		throw new Error(
+			`Launch decision price for ${channel} must be between ${tuning.minimumPrice} and ${tuning.maximumPrice}`,
+		);
 	}
 }
 

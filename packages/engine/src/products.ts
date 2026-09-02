@@ -1,5 +1,9 @@
 import type { Model } from "./components/models.js";
-import type { Product, ProductChannel } from "./components/products.js";
+import {
+	assertProductPrice,
+	type Product,
+	type ProductChannel,
+} from "./components/products.js";
 import type { Fact } from "./components/reports.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
@@ -23,6 +27,8 @@ type LaunchChannelInput = ProductChannel | "api";
 export type ProductLaunchRequest = Readonly<{
 	modelId: string;
 	channel: LaunchChannelInput;
+	/** Optional channel price; omitted requests use the data-defined default. */
+	price?: number;
 }>;
 
 /** Launch a product channel from a model that has a public scored estimate. */
@@ -33,16 +39,23 @@ export function launchProduct(
 ): EngineResult;
 export function launchProduct(
 	state: GameState,
+	modelId: string,
+	channel: LaunchChannelInput,
+	price: number,
+): EngineResult;
+export function launchProduct(
+	state: GameState,
 	request: ProductLaunchRequest,
 ): EngineResult;
 export function launchProduct(
 	state: GameState,
 	modelOrRequest: string | ProductLaunchRequest,
 	channel?: LaunchChannelInput,
+	price?: number,
 ): EngineResult {
 	assertGameState(state);
 	assertRunActive(state);
-	const request = normalizeRequest(modelOrRequest, channel);
+	const request = normalizeRequest(modelOrRequest, channel, price);
 	const result = applyProductLaunch(state, request, true);
 	const reportedState = appendFactsAsReports(result.state, result.facts);
 	assertGameState(reportedState);
@@ -55,7 +68,11 @@ export function launchProduct(
 /** Apply an already validated launch choice without adding another choice log. */
 export function applyProductLaunch(
 	state: GameState,
-	request: Readonly<{ modelId: string; channel: ProductChannel }>,
+	request: Readonly<{
+		modelId: string;
+		channel: ProductChannel;
+		price?: number;
+	}>,
 	appendCommand: boolean,
 ): EngineResult {
 	assertGameState(state);
@@ -104,6 +121,7 @@ export function applyProductLaunch(
 			`Model ${model.id} already has a ${request.channel} product`,
 		);
 	}
+	const price = normalizePrice(request.channel, request.price);
 	const quality = effectiveProductQuality(
 		model,
 		request.channel,
@@ -138,6 +156,12 @@ export function applyProductLaunch(
 		cumulativeRevenue: 0,
 		servingDemand: tuning.baseUsers * tuning.servingComputePerUser,
 		effectiveQuality: quality,
+		price,
+		lastMargin: 0,
+		cumulativeMargin: 0,
+		satisfaction: 100,
+		churnRate: 0,
+		retiredUsers: 0,
 	};
 	const nextState: GameState = {
 		...commandAllocation.state,
@@ -174,6 +198,7 @@ export function applyProductLaunch(
 						productId: product.id,
 						modelId: model.id,
 						channel: request.channel,
+						price,
 					},
 				]
 			: commandAllocation.state.commandLog.map((entry) => ({ ...entry })),
@@ -228,6 +253,11 @@ export function applyProductResume(
 		throw new Error(`Product ${product.id} references an unknown model`);
 	}
 	const tuning = BALANCE.productChannels[product.channel];
+	const price = normalizePrice(
+		product.channel,
+		product.price ??
+			BALANCE.productPressure.channels[product.channel].defaultPrice,
+	);
 	// V1 pause policy is persist-with-decay=0: preserve the current user base,
 	// then recompute serving demand from those users without a growth tick.
 	const users = product.users ?? tuning.baseUsers;
@@ -237,6 +267,13 @@ export function applyProductResume(
 		users,
 		lastRevenue: 0,
 		servingDemand: users * tuning.servingComputePerUser,
+		price,
+		lastMargin: 0,
+		cumulativeMargin:
+			product.cumulativeMargin ?? product.cumulativeRevenue ?? 0,
+		satisfaction: product.satisfaction ?? 100,
+		churnRate: product.churnRate ?? 0,
+		retiredUsers: product.retiredUsers ?? 0,
 		effectiveQuality: effectiveProductQuality(
 			model,
 			product.channel,
@@ -282,6 +319,131 @@ export function applyProductResume(
 		pending: state.decisions.pending.map((decision) => ({ ...decision })),
 	};
 }
+
+/** Retire a product permanently while retaining its model and history. */
+export function retireProduct(
+	state: GameState,
+	productId: string,
+): EngineResult {
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
+	assertRunActive(state);
+	assertIdentifier(productId, "Product id");
+	const product = state.products.items.find((item) => item.id === productId);
+	if (product === undefined) {
+		throw new Error(`Cannot retire an unknown product: ${productId}`);
+	}
+	if (product.status !== "operating" && product.status !== "paused") {
+		throw new Error(
+			`Only an operating or paused product can be retired: ${productId}`,
+		);
+	}
+	const model = state.models.items.find(
+		(candidate) => candidate.id === product.modelId,
+	);
+	if (model === undefined) {
+		throw new Error(`Product ${product.id} references an unknown model`);
+	}
+	const channelPricing = BALANCE.productPressure.channels[product.channel];
+	const price = product.price ?? channelPricing.defaultPrice;
+	assertProductPrice(product.channel, price);
+	const lostUsers =
+		product.users ?? BALANCE.productChannels[product.channel].baseUsers;
+	const releasedCompute =
+		product.status === "operating" ? (product.servingDemand ?? 0) : 0;
+	const trustPenalty = Math.min(
+		state.company.trust,
+		BALANCE.productPressure.retirementTrustPenalty,
+	);
+	const hypePenalty = Math.min(
+		state.company.hype,
+		BALANCE.productPressure.retirementHypePenalty,
+	);
+	const retiredProduct: Product = {
+		...product,
+		status: "retired",
+		users: 0,
+		servingDemand: 0,
+		lastRevenue: 0,
+		cumulativeRevenue: product.cumulativeRevenue ?? 0,
+		price,
+		lastMargin: 0,
+		cumulativeMargin:
+			product.cumulativeMargin ?? product.cumulativeRevenue ?? 0,
+		satisfaction: 0,
+		churnRate: 100,
+		retiredUsers: lostUsers,
+	};
+	const commandAllocation = allocateId(state, "command");
+	const nextState: GameState = {
+		...commandAllocation.state,
+		company: {
+			...commandAllocation.state.company,
+			trust: state.company.trust - trustPenalty,
+			hype: state.company.hype - hypePenalty,
+		},
+		products: {
+			items: commandAllocation.state.products.items.map((candidate) =>
+				candidate.id === product.id ? retiredProduct : cloneProduct(candidate),
+			),
+		},
+		commandLog: [
+			...commandAllocation.state.commandLog,
+			{
+				id: commandAllocation.id,
+				kind: "product_retire",
+				week: state.meta.week,
+				productId: product.id,
+			},
+		],
+	};
+	const recomputedState = {
+		...nextState,
+		compute: withRecomputedCompute(nextState),
+	};
+	const facts: Fact[] = [
+		{
+			kind: "product_retired",
+			productId: product.id,
+			modelId: model.id,
+			channel: product.channel,
+			lostUsers,
+			releasedCompute,
+			trustPenalty,
+			hypePenalty,
+			week: state.meta.week,
+		},
+	];
+	if (trustPenalty > 0) {
+		facts.push({
+			kind: "resource_changed",
+			resource: "trust",
+			amount: -trustPenalty,
+			week: state.meta.week,
+		});
+	}
+	if (hypePenalty > 0) {
+		facts.push({
+			kind: "resource_changed",
+			resource: "hype",
+			amount: -hypePenalty,
+			week: state.meta.week,
+		});
+	}
+	const reportedState = appendFactsAsReports(recomputedState, facts);
+	assertGameState(reportedState, {
+		allowNegativeCash: reportedState.company.cash < 0,
+	});
+	return {
+		state: reportedState,
+		facts,
+		pending: reportedState.decisions.pending.map((decision) => ({
+			...decision,
+		})),
+	};
+}
+
+export const applyProductRetirement = retireProduct;
+
 export function rivalLaunchPressure(
 	state: GameState,
 	baseMinimumHype: number,
@@ -356,13 +518,18 @@ export function effectiveProductQuality(
 function normalizeRequest(
 	modelOrRequest: string | ProductLaunchRequest,
 	channel?: LaunchChannelInput,
-): { modelId: string; channel: ProductChannel } {
+	price?: number,
+): { modelId: string; channel: ProductChannel; price?: number } {
 	if (typeof modelOrRequest === "string") {
 		assertIdentifier(modelOrRequest, "Launch model id");
 		if (channel === undefined) {
 			throw new Error("Product channel is required");
 		}
-		return { modelId: modelOrRequest, channel: normalizeChannel(channel) };
+		return {
+			modelId: modelOrRequest,
+			channel: normalizeChannel(channel),
+			...(price === undefined ? {} : { price }),
+		};
 	}
 	assertObject(modelOrRequest, "Product launch request");
 	if (!Object.hasOwn(modelOrRequest, "modelId")) {
@@ -371,11 +538,32 @@ function normalizeRequest(
 	if (!Object.hasOwn(modelOrRequest, "channel")) {
 		throw new Error("Product channel is required");
 	}
+	const requestKeys = Object.hasOwn(modelOrRequest, "price")
+		? ["modelId", "channel", "price"]
+		: ["modelId", "channel"];
+	for (const key of Reflect.ownKeys(modelOrRequest)) {
+		if (typeof key !== "string" || !requestKeys.includes(key)) {
+			throw new Error(
+				`Product launch request contains an unexpected field: ${String(key)}`,
+			);
+		}
+	}
 	assertIdentifier(modelOrRequest.modelId, "Launch model id");
+	const normalizedChannel = normalizeChannel(modelOrRequest.channel);
 	return {
 		modelId: modelOrRequest.modelId,
-		channel: normalizeChannel(modelOrRequest.channel),
+		channel: normalizedChannel,
+		...(Object.hasOwn(modelOrRequest, "price")
+			? { price: modelOrRequest.price }
+			: {}),
 	};
+}
+
+function normalizePrice(channel: ProductChannel, price?: number): number {
+	const selected =
+		price ?? BALANCE.productPressure.channels[channel].defaultPrice;
+	assertProductPrice(channel, selected);
+	return selected;
 }
 
 function normalizeChannel(value: unknown): ProductChannel {

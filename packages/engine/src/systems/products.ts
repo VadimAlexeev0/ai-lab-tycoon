@@ -4,7 +4,10 @@ import {
 	computeReservations,
 	withRecomputedCompute,
 } from "../compute-reservations.js";
-import { BALANCE } from "../data/balance.js";
+import {
+	BALANCE,
+	type ProductPressureChannelBalance,
+} from "../data/balance.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
 import { deriveKnowledgePressure } from "../knowledge-cutoff.js";
@@ -16,8 +19,10 @@ import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
 
 /**
- * Operate launched channels after training. Revenue deliberately uses public
- * estimate centers, never a model's hidden true scores.
+ * Operate launched channels after training. Revenue uses public estimate
+ * centers, never a model's hidden true scores. Product pressure intentionally
+ * keeps nominal growth separate from demand multipliers: market pressure can
+ * throttle service without silently changing the nominal growth gate.
  */
 export const productsSystem: GameSystem = (state, context) => {
 	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
@@ -25,7 +30,8 @@ export const productsSystem: GameSystem = (state, context) => {
 	let cash = state.company.cash;
 	let hype = state.company.hype;
 	let trust = state.company.trust;
-	const evaluationDemand = computeReservations(state).evaluationDemand;
+	const reservations = computeReservations(state);
+	const evaluationDemand = reservations.evaluationDemand;
 	const projections = state.products.items.flatMap((product) => {
 		if (product.status !== "operating") return [];
 		const model = state.models.items.find(
@@ -35,63 +41,171 @@ export const productsSystem: GameSystem = (state, context) => {
 			throw new Error(`Product ${product.id} references an unknown model`);
 		}
 		const tuning = BALANCE.productChannels[product.channel];
+		const pricing = BALANCE.productPressure.channels[product.channel];
 		const pressure = deriveKnowledgePressure(model, context.week);
 		const currentUsers = product.users ?? tuning.baseUsers;
-		const growthUsers = currentUsers + tuning.usersPerWeek;
+		const nominalGrowthUsers = safeAdd(
+			currentUsers,
+			tuning.usersPerWeek,
+			`Product ${product.id} nominal users`,
+		);
+		const nominalDemand = safeMultiply(
+			nominalGrowthUsers,
+			tuning.servingComputePerUser,
+			`Product ${product.id} nominal serving demand`,
+		);
+		const price = product.price ?? pricing.defaultPrice;
+		const marketDemandFactor = marketDemandFactorFor(
+			state.company.hype,
+			price,
+			pricing,
+		);
+		const demandFactor = safePercentProduct(
+			marketDemandFactor,
+			pressure.demandFactor,
+			`Product ${product.id} demand factor`,
+		);
 		return [
 			{
 				product,
 				model,
 				tuning,
+				pricing,
 				pressure,
 				currentUsers,
-				growthUsers,
-				// Knowledge pressure affects live serving, not the nominal user
-				// growth gate. Otherwise degraded demand can paradoxically let a
-				// product grow into a larger reservation and starve training.
-				growthDemand: growthUsers * tuning.servingComputePerUser,
+				nominalGrowthUsers,
+				nominalDemand,
+				price,
+				marketDemandFactor,
+				demandFactor,
+				projectedDemand: demandForUsers(
+					nominalGrowthUsers,
+					tuning.servingComputePerUser,
+					demandFactor,
+					`Product ${product.id} projected demand`,
+				),
 			},
 		];
 	});
-	const projectedServingDemand = projections.reduce(
-		(total, projection) => total + projection.growthDemand,
+
+	// This reservation deliberately uses nominal users and excludes pressure
+	// multipliers. It preserves the V1 "growth only when nominal service can
+	// fit" behavior while the measured demand below can still overload serving.
+	const projectedNominalDemand = projections.reduce(
+		(total, projection) =>
+			safeAdd(
+				total,
+				projection.nominalDemand,
+				"Projected nominal serving demand",
+			),
 		0,
 	);
-	const allocatedServing = Math.min(
+	const allocatedNominalServing = Math.min(
 		state.compute.capacity,
-		projectedServingDemand,
+		projectedNominalDemand,
 	);
-	const operatingProducts = projections.map((projection) => {
-		const allocatedProductServing = servingAllocation(
-			projection.growthDemand,
-			projectedServingDemand,
-			allocatedServing,
+	const allocatedProjectedServingCapacity = Math.min(
+		Math.max(0, state.compute.capacity - evaluationDemand),
+		projections.reduce(
+			(total, projection) =>
+				safeAdd(
+					total,
+					projection.projectedDemand,
+					"Projected market serving demand",
+				),
+			0,
+		),
+	);
+	const projectedMarketDemand = projections.reduce(
+		(total, projection) =>
+			safeAdd(
+				total,
+				projection.projectedDemand,
+				"Projected market serving demand",
+			),
+		0,
+	);
+	const projectionsWithPressure = projections.map((projection) => {
+		const allocatedNominalProductServing = servingAllocation(
+			projection.nominalDemand,
+			projectedNominalDemand,
+			allocatedNominalServing,
+		);
+		const allocatedProjectedProductServing = servingAllocation(
+			projection.projectedDemand,
+			projectedMarketDemand,
+			allocatedProjectedServingCapacity,
 		);
 		const growthThrottled =
-			projection.growthUsers > projection.currentUsers &&
-			projection.growthDemand > allocatedProductServing;
-		const users = growthThrottled
-			? projection.currentUsers
-			: projection.growthUsers;
+			projection.nominalGrowthUsers > projection.currentUsers &&
+			projection.nominalDemand > allocatedNominalProductServing;
+		const serviceThrottled =
+			projection.projectedDemand > allocatedProjectedProductServing;
+		const quality = effectiveProductQuality(
+			projection.model,
+			projection.product.channel,
+			context.week,
+		);
+		const satisfaction = satisfactionFor(
+			projection,
+			quality,
+			sharePercent(
+				projection.projectedDemand,
+				allocatedProjectedProductServing,
+			),
+		);
+		const churnRate = churnRateFor(satisfaction);
+		const churnedUsers = Math.min(
+			projection.currentUsers,
+			Math.trunc(
+				safeMultiply(
+					projection.currentUsers,
+					churnRate,
+					`Product ${projection.product.id} churn`,
+				) / 100,
+			),
+		);
+		const acquisitionFactor = Math.min(100, projection.demandFactor);
+		const potentialNewUsers = Math.trunc(
+			safeMultiply(
+				projection.tuning.usersPerWeek,
+				acquisitionFactor,
+				`Product ${projection.product.id} acquisition`,
+			) / 100,
+		);
+		const newUsers =
+			growthThrottled || serviceThrottled ? 0 : potentialNewUsers;
+		const users = Math.max(
+			0,
+			projection.currentUsers - churnedUsers + newUsers,
+		);
 		return {
 			...projection,
-			allocatedProductServing,
+			allocatedNominalProductServing,
+			allocatedProjectedProductServing,
 			growthThrottled,
+			serviceThrottled,
+			quality,
+			satisfaction,
+			churnRate,
+			churnedUsers,
+			newUsers,
 			users,
-			servingDemand: Math.trunc(
-				(users *
-					projection.tuning.servingComputePerUser *
-					projection.pressure.demandFactor) /
-					100,
-			),
-			unmetDemand: Math.max(
-				0,
-				projection.growthDemand - allocatedProductServing,
-			),
 		};
 	});
-	const totalServingDemand = operatingProducts.reduce(
-		(total, product) => total + product.servingDemand,
+
+	const totalServingDemand = projectionsWithPressure.reduce(
+		(total, projection) =>
+			safeAdd(
+				total,
+				demandForUsers(
+					projection.users,
+					projection.tuning.servingComputePerUser,
+					projection.demandFactor,
+					`Product ${projection.product.id} serving demand`,
+				),
+				"Total serving demand",
+			),
 		0,
 	);
 	const availableServingCapacity = Math.max(
@@ -102,14 +216,15 @@ export const productsSystem: GameSystem = (state, context) => {
 		availableServingCapacity,
 		totalServingDemand,
 	);
-	const servedShare =
-		totalServingDemand === 0
-			? 100
-			: Math.trunc((allocatedAvailableServing * 100) / totalServingDemand);
 	const productsById = new Map(
-		operatingProducts.map((product) => [product.product.id, product]),
+		projectionsWithPressure.map((projection) => [
+			projection.product.id,
+			projection,
+		]),
 	);
 	const nextProducts: Product[] = [];
+	let activeProductCount = 0;
+	let earnedHype = 0;
 
 	for (const product of state.products.items) {
 		const operating = productsById.get(product.id);
@@ -123,31 +238,82 @@ export const productsSystem: GameSystem = (state, context) => {
 			continue;
 		}
 
-		const quality = effectiveProductQuality(
-			operating.model,
-			product.channel,
-			context.week,
+		activeProductCount += 1;
+		const servingDemand = demandForUsers(
+			operating.users,
+			operating.tuning.servingComputePerUser,
+			operating.demandFactor,
+			`Product ${product.id} serving demand`,
 		);
-		const baseRevenue = Math.trunc(
-			(operating.tuning.weeklyRevenue *
-				quality *
-				operating.users *
-				operating.pressure.demandFactor) /
-				(100 * operating.tuning.baseUsers * 100),
+		const allocatedProductServing = servingAllocation(
+			servingDemand,
+			totalServingDemand,
+			allocatedAvailableServing,
 		);
-		const revenue =
-			totalServingDemand === 0
-				? 0
-				: Math.trunc(
-						(baseRevenue * allocatedAvailableServing) / totalServingDemand,
-					);
+		const productServedShare = sharePercent(
+			servingDemand,
+			allocatedProductServing,
+		);
+		const satisfaction = satisfactionFor(
+			operating,
+			operating.quality,
+			productServedShare,
+		);
+		const churnRate = churnRateFor(satisfaction);
+		const baseRevenue = calculateBaseRevenue(
+			operating.tuning.weeklyRevenue,
+			operating.tuning.baseUsers,
+			operating.quality,
+			operating.users,
+			operating.pressure.demandFactor,
+			operating.price,
+			operating.pricing.defaultPrice,
+			`Product ${product.id} revenue`,
+		);
+		const revenue = Math.trunc(
+			safeMultiply(
+				baseRevenue,
+				productServedShare,
+				`Product ${product.id} served revenue`,
+			) / 100,
+		);
+		const operatingCost = safeAdd(
+			operating.pricing.weeklyOperatingCost,
+			safeMultiply(
+				allocatedProductServing,
+				operating.pricing.servingCostPerDemand,
+				`Product ${product.id} serving cost`,
+			),
+			`Product ${product.id} operating cost`,
+		);
+		const margin = safeSubtract(
+			revenue,
+			operatingCost,
+			`Product ${product.id} margin`,
+		);
+		const cumulativeRevenue = safeAdd(
+			product.cumulativeRevenue ?? 0,
+			revenue,
+			`Product ${product.id} cumulative revenue`,
+		);
+		const cumulativeMargin = safeAdd(
+			product.cumulativeMargin ?? 0,
+			margin,
+			`Product ${product.id} cumulative margin`,
+		);
 		const nextProduct: Product = {
 			...product,
+			price: operating.price,
 			users: operating.users,
-			servingDemand: operating.servingDemand,
-			effectiveQuality: quality,
+			servingDemand,
+			effectiveQuality: operating.quality,
 			lastRevenue: revenue,
-			cumulativeRevenue: (product.cumulativeRevenue ?? 0) + revenue,
+			cumulativeRevenue,
+			lastMargin: margin,
+			cumulativeMargin,
+			satisfaction,
+			churnRate,
+			retiredUsers: product.retiredUsers ?? 0,
 		};
 		nextProducts.push(nextProduct);
 
@@ -171,42 +337,75 @@ export const productsSystem: GameSystem = (state, context) => {
 			});
 		}
 
-		if (operating.growthThrottled && operating.unmetDemand > 0) {
+		const nominalUnmetDemand = Math.max(
+			0,
+			operating.nominalDemand - operating.allocatedNominalProductServing,
+		);
+		const marketUnmetDemand = Math.max(
+			0,
+			servingDemand - allocatedProductServing,
+		);
+		const unmetDemand = Math.max(nominalUnmetDemand, marketUnmetDemand);
+		if (unmetDemand > 0) {
 			facts.push({
 				kind: "serving_throttled",
 				productId: product.id,
 				week: context.week,
-				unmetDemand: operating.unmetDemand,
+				unmetDemand,
 			});
 		}
+		facts.push({
+			kind: "product_pressure",
+			productId: product.id,
+			channel: product.channel,
+			price: operating.price,
+			freshnessStatus: operating.pressure.status,
+			quality: operating.quality,
+			reliability: publicScore(
+				operating.model,
+				"reliability",
+				operating.pressure.qualityFactor,
+			),
+			latency: publicScore(
+				operating.model,
+				"efficiency",
+				operating.pressure.qualityFactor,
+			),
+			satisfaction,
+			churnRate,
+			fulfilledDemand: allocatedProductServing,
+			servedShare: productServedShare,
+			churnedUsers: operating.churnedUsers,
+			newUsers: operating.newUsers,
+			margin,
+			week: context.week,
+		});
 		if (revenue > 0) {
-			cash += revenue;
-			facts.push(
-				{
-					kind: "revenue",
-					productId: product.id,
-					channel: product.channel,
-					amount: revenue,
-					effectiveQuality: quality,
-					servedShare,
-					week: context.week,
-				},
-				{
-					kind: "resource_changed",
-					resource: "cash",
-					amount: revenue,
-					week: context.week,
-				},
-			);
-		}
-		if (operating.tuning.hypePerWeek > 0) {
-			hype += operating.tuning.hypePerWeek;
 			facts.push({
-				kind: "resource_changed",
-				resource: "hype",
-				amount: operating.tuning.hypePerWeek,
+				kind: "revenue",
+				productId: product.id,
+				channel: product.channel,
+				amount: revenue,
+				effectiveQuality: operating.quality,
+				servedShare: productServedShare,
 				week: context.week,
 			});
+		}
+		if (margin !== 0) {
+			cash = safeAdd(cash, margin, "Company cash from product margin");
+			facts.push({
+				kind: "resource_changed",
+				resource: "cash",
+				amount: margin,
+				week: context.week,
+			});
+		}
+		if (satisfaction >= BALANCE.productPressure.hypeSatisfactionThreshold) {
+			earnedHype = safeAdd(
+				earnedHype,
+				operating.tuning.hypePerWeek,
+				"Product earned hype",
+			);
 		}
 		if (operating.tuning.trustPerWeek > 0) {
 			const trustGain = Math.min(100 - trust, operating.tuning.trustPerWeek);
@@ -222,6 +421,55 @@ export const productsSystem: GameSystem = (state, context) => {
 		}
 	}
 
+	const hypeDecay =
+		activeProductCount * BALANCE.productPressure.hypeDecayPerWeek;
+	const hypeDelta = safeSubtract(earnedHype, hypeDecay, "Product hype delta");
+	const nextHype = Math.min(
+		100,
+		Math.max(0, safeAdd(hype, hypeDelta, "Company hype from products")),
+	);
+	if (nextHype !== hype) {
+		facts.push({
+			kind: "resource_changed",
+			resource: "hype",
+			amount: nextHype - hype,
+			week: context.week,
+		});
+		hype = nextHype;
+	}
+
+	const computeConflict =
+		activeProductCount > 0 &&
+		(reservations.trainingDemand > 0 || evaluationDemand > 0) &&
+		safeAdd(
+			totalServingDemand,
+			safeAdd(
+				reservations.trainingDemand,
+				evaluationDemand,
+				"Product compute conflict non-serving demand",
+			),
+			"Product compute conflict total demand",
+		) > state.compute.capacity;
+	if (computeConflict) {
+		const servingCapacityAfterOtherWork = Math.max(
+			0,
+			state.compute.capacity - reservations.trainingDemand - evaluationDemand,
+		);
+		facts.push({
+			kind: "compute_conflict",
+			week: context.week,
+			capacity: state.compute.capacity,
+			servingDemand: totalServingDemand,
+			trainingDemand: reservations.trainingDemand,
+			evaluationDemand,
+			viral: totalServingDemand >= BALANCE.productPressure.viralDemandThreshold,
+			choice:
+				totalServingDemand > servingCapacityAfterOtherWork
+					? "serving_throttled"
+					: "training_starved",
+		});
+	}
+
 	let nextState: GameState = {
 		...state,
 		company: {
@@ -235,12 +483,14 @@ export const productsSystem: GameSystem = (state, context) => {
 			servingDemand: totalServingDemand,
 		},
 		products: { items: nextProducts },
-		warnings: updateModelStalenessWarning(
+		warnings: updateProductWarnings(
 			state.warnings,
-			operatingProducts.some(
-				(product) =>
-					product.pressure.recorded && product.pressure.status === "stale",
+			projectionsWithPressure.some(
+				(projection) =>
+					projection.pressure.recorded &&
+					projection.pressure.status === "stale",
 			),
+			computeConflict,
 		),
 	};
 	nextState = {
@@ -315,6 +565,7 @@ export const productsSystem: GameSystem = (state, context) => {
 					id: allocation.id,
 					modelId: model.id,
 					channel,
+					price: BALANCE.productPressure.channels[channel].defaultPrice,
 					blocking: true,
 				});
 				offeredChoice = true;
@@ -342,6 +593,223 @@ export const productsSystem: GameSystem = (state, context) => {
 	});
 	return { state: recomputedState, facts, pending };
 };
+
+function marketDemandFactorFor(
+	hype: number,
+	price: number,
+	pricing: ProductPressureChannelBalance,
+): number {
+	const priceDelta = price - pricing.defaultPrice;
+	const pricePressure = Math.trunc(
+		safeMultiply(
+			priceDelta,
+			pricing.priceDemandSensitivity,
+			"Product price pressure",
+		) / pricing.defaultPrice,
+	);
+	const priceDemandFactor = clamp(
+		100 - pricePressure,
+		BALANCE.productPressure.minimumDemandFactor,
+		BALANCE.productPressure.maximumDemandFactor,
+	);
+	const hypeDemandFactor = clamp(
+		100 +
+			Math.max(0, hype - BALANCE.productPressure.hypeBaseline) *
+				BALANCE.productPressure.hypeDemandPerPoint,
+		BALANCE.productPressure.minimumDemandFactor,
+		BALANCE.productPressure.maximumDemandFactor,
+	);
+	return clamp(
+		Math.trunc((priceDemandFactor * hypeDemandFactor) / 100),
+		BALANCE.productPressure.minimumDemandFactor,
+		BALANCE.productPressure.maximumDemandFactor,
+	);
+}
+
+function demandForUsers(
+	users: number,
+	computePerUser: number,
+	demandFactor: number,
+	path: string,
+): number {
+	return Math.trunc(
+		safeMultiply(
+			safeMultiply(users, computePerUser, `${path} users`),
+			demandFactor,
+			`${path} factor`,
+		) / 100,
+	);
+}
+
+function satisfactionFor(
+	projection: {
+		model: GameState["models"]["items"][number];
+		pressure: ReturnType<typeof deriveKnowledgePressure>;
+		price: number;
+		pricing: ProductPressureChannelBalance;
+	},
+	quality: number,
+	fulfilledShare: number,
+): number {
+	const weights = BALANCE.productPressure.satisfactionWeights;
+	const reliability = publicScore(
+		projection.model,
+		"reliability",
+		projection.pressure.qualityFactor,
+	);
+	const latency = publicScore(
+		projection.model,
+		"efficiency",
+		projection.pressure.qualityFactor,
+	);
+	const freshness = projection.pressure.recorded
+		? Math.min(
+				projection.pressure.knowledgeFreshness ?? 0,
+				projection.pressure.qualityFactor,
+			)
+		: 100;
+	const priceValue = Math.min(
+		100,
+		marketDemandFactorFor(
+			BALANCE.productPressure.hypeBaseline,
+			projection.price,
+			projection.pricing,
+		),
+	);
+	const weighted =
+		quality * weights.quality +
+		reliability * weights.reliability +
+		latency * weights.latency +
+		freshness * weights.freshness +
+		fulfilledShare * weights.fulfillment +
+		priceValue * weights.price;
+	return clamp(Math.trunc(weighted / 100), 0, 100);
+}
+
+function publicScore(
+	model: GameState["models"]["items"][number],
+	dimension: "reliability" | "efficiency",
+	qualityFactor: number,
+): number {
+	const estimate = model.estimates?.[dimension]?.estimate ?? 100;
+	return Math.trunc((estimate * qualityFactor) / 100);
+}
+
+function churnRateFor(satisfaction: number): number {
+	if (satisfaction >= BALANCE.productPressure.churnSatisfactionThreshold) {
+		return 0;
+	}
+	return Math.min(
+		BALANCE.productPressure.maximumChurnRate,
+		(BALANCE.productPressure.churnSatisfactionThreshold - satisfaction) *
+			BALANCE.productPressure.churnPerSatisfactionPoint,
+	);
+}
+
+function calculateBaseRevenue(
+	weeklyRevenue: number,
+	baseUsers: number,
+	quality: number,
+	users: number,
+	knowledgeDemandFactor: number,
+	price: number,
+	defaultPrice: number,
+	path: string,
+): number {
+	const numerator = safeMultiply(
+		safeMultiply(
+			safeMultiply(
+				safeMultiply(weeklyRevenue, quality, `${path} weekly quality`),
+				users,
+				`${path} users`,
+			),
+			knowledgeDemandFactor,
+			`${path} freshness demand`,
+		),
+		price,
+		`${path} price`,
+	);
+	const denominator = safeMultiply(
+		100 * defaultPrice,
+		100 * baseUsers,
+		`${path} denominator`,
+	);
+	return Math.trunc(numerator / denominator);
+}
+
+function safePercentProduct(left: number, right: number, path: string): number {
+	return Math.trunc(safeMultiply(left, right, path) / 100);
+}
+
+function sharePercent(demand: number, allocated: number): number {
+	if (demand === 0) return 100;
+	return clamp(
+		Math.trunc(safeMultiply(allocated, 100, "Product served share") / demand),
+		0,
+		100,
+	);
+}
+
+function servingAllocation(
+	demand: number,
+	totalDemand: number,
+	allocated: number,
+): number {
+	if (demand === 0 || totalDemand === 0 || allocated === 0) return 0;
+	return Math.trunc(
+		safeMultiply(demand, allocated, "Product serving allocation") / totalDemand,
+	);
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+	return Math.min(maximum, Math.max(minimum, value));
+}
+
+function safeAdd(left: number, right: number, path: string): number {
+	const result = left + right;
+	if (!Number.isSafeInteger(result)) {
+		throw new Error(`${path} exceeded the safe integer limit`);
+	}
+	return result;
+}
+
+function safeSubtract(left: number, right: number, path: string): number {
+	const result = left - right;
+	if (!Number.isSafeInteger(result)) {
+		throw new Error(`${path} exceeded the safe integer limit`);
+	}
+	return result;
+}
+
+function safeMultiply(left: number, right: number, path: string): number {
+	const result = left * right;
+	if (!Number.isSafeInteger(result)) {
+		throw new Error(`${path} exceeded the safe integer limit`);
+	}
+	return result;
+}
+
+function updateProductWarnings(
+	warnings: GameState["warnings"],
+	stale: boolean,
+	computeConflict: boolean,
+): GameState["warnings"] {
+	const nextWarnings = warnings.filter(
+		(warning) =>
+			warning.code !== "stale_model" && warning.code !== "compute_conflict",
+	);
+	if (stale) {
+		nextWarnings.push({ code: "stale_model", severity: "warning" });
+	}
+	if (computeConflict) {
+		nextWarnings.push({ code: "compute_conflict", severity: "warning" });
+	}
+	return nextWarnings;
+}
+
+function cloneProduct(product: Product): Product {
+	return { ...product };
+}
 
 function canAffordEvaluation(
 	state: GameState,
@@ -381,30 +849,4 @@ function hasEvaluation(
 			project.evaluation === evaluation &&
 			project.status !== "cancelled",
 	);
-}
-
-function servingAllocation(
-	demand: number,
-	totalDemand: number,
-	allocated: number,
-): number {
-	if (demand === 0 || totalDemand === 0 || allocated === 0) return 0;
-	return Math.trunc((demand * allocated) / totalDemand);
-}
-
-function updateModelStalenessWarning(
-	warnings: GameState["warnings"],
-	stale: boolean,
-): GameState["warnings"] {
-	const nextWarnings = warnings.filter(
-		(warning) => warning.code !== "stale_model",
-	);
-	if (stale) {
-		nextWarnings.push({ code: "stale_model", severity: "warning" });
-	}
-	return nextWarnings;
-}
-
-function cloneProduct(product: Product): Product {
-	return { ...product };
 }

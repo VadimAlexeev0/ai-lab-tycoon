@@ -157,6 +157,12 @@ export type VisibleProductSummary = {
 	cumulativeRevenue?: number;
 	servingDemand?: number;
 	effectiveQuality?: number;
+	price?: number;
+	lastMargin?: number;
+	cumulativeMargin?: number;
+	satisfaction?: number;
+	churnRate?: number;
+	retiredUsers?: number;
 };
 
 export type VisibleDataInventoryRecord = {
@@ -371,6 +377,19 @@ export function selectProducts(
 		}
 		if (product.effectiveQuality !== undefined) {
 			visible.effectiveQuality = product.effectiveQuality;
+		}
+		if (product.price !== undefined) visible.price = product.price;
+		if (product.lastMargin !== undefined)
+			visible.lastMargin = product.lastMargin;
+		if (product.cumulativeMargin !== undefined) {
+			visible.cumulativeMargin = product.cumulativeMargin;
+		}
+		if (product.satisfaction !== undefined) {
+			visible.satisfaction = product.satisfaction;
+		}
+		if (product.churnRate !== undefined) visible.churnRate = product.churnRate;
+		if (product.retiredUsers !== undefined) {
+			visible.retiredUsers = product.retiredUsers;
 		}
 		return visible;
 	});

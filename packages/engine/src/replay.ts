@@ -6,7 +6,11 @@ import { buyCompute, hireTeam } from "./commands/teams.js";
 import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel } from "./model-design.js";
-import { applyProductResume, launchProduct } from "./products.js";
+import {
+	applyProductResume,
+	launchProduct,
+	retireProduct,
+} from "./products.js";
 import { refreshModel } from "./refresh-model.js";
 import { startRun } from "./start-run.js";
 import type { CommandLogEntry, EngineResult, GameState } from "./state.js";
@@ -202,7 +206,12 @@ function replayCommand(
 		case "run_evaluation":
 			return runEvaluation(state, command.modelId, command.evaluation);
 		case "launch_product":
-			return launchProduct(state, command.modelId, command.channel);
+			return launchProduct(
+				state,
+				command.modelId,
+				command.channel,
+				command.price,
+			);
 		case "acquire_data":
 			return acquireData(state, {
 				sourceId: command.sourceId,
@@ -214,6 +223,8 @@ function replayCommand(
 			return hireTeam(state, command.name);
 		case "product_resume":
 			return applyProductResume(state, command.productId);
+		case "product_retire":
+			return retireProduct(state, command.productId);
 	}
 }
 

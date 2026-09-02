@@ -12,6 +12,7 @@ import {
 	type ModelDesignSpec,
 	type PendingDecision,
 	replayCommandLog,
+	retireProduct,
 	selectAvailableProjects,
 	startRun,
 } from "./index.js";
@@ -336,6 +337,23 @@ describe("long-run command-log replay", () => {
 	}, () => {
 		const live = efficiencyFirstRun(43, 30);
 		assertGameState(live, {}, true);
+		const candidate = live.products.items.find(
+			(product) =>
+				product.status === "operating" || product.status === "paused",
+		);
+		if (candidate === undefined)
+			throw new Error("Expected a product to retire");
+		const retired = retireProduct(live, candidate.id);
+		const retiredReplay = replayCommandLog(retired.state.commandLog, {
+			expectedState: retired.state,
+		});
+		expect(retiredReplay.products).toEqual(retired.state.products);
+		expect(retiredReplay.commandLog.at(-1)).toEqual(
+			expect.objectContaining({
+				kind: "product_retire",
+				productId: candidate.id,
+			}),
+		);
 		const resumeReports = live.reports.items.filter(
 			(report) => report.fact.kind === "product_resumed",
 		);

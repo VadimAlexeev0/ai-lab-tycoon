@@ -75,7 +75,7 @@ const DECLARATIONS = {
 	},
 	products: {
 		reads: ["products.items", "models.items", "company", "rivals.items"],
-		writes: ["products.items", "company", "compute", "decisions"],
+		writes: ["products.items", "company", "compute", "decisions", "warnings"],
 	},
 	rivals: {
 		reads: ["rivals.items", "meta.era"],
