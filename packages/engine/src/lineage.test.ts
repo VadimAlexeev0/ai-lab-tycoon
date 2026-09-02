@@ -77,7 +77,7 @@ function replayableDesignableState(seed = 42): GameState {
 	return advanceWeek(state).state;
 }
 
-function readyParentState(): GameState {
+function readyFreshParentState(): GameState {
 	let state = designModel(designableState(), {
 		...BASE_SPEC,
 		brandId: "brand_aurora",
@@ -93,6 +93,41 @@ function readyParentState(): GameState {
 	if (parent === undefined || parent.status !== "ready") {
 		throw new Error("Expected a ready parent model");
 	}
+	return state;
+}
+
+function readyParentState(): GameState {
+	const state = readyFreshParentState();
+	const legacyRoot = state.models.items.at(-1);
+	if (legacyRoot === undefined || legacyRoot.status !== "ready") {
+		throw new Error("Expected a ready legacy root model");
+	}
+
+	// Keep this stress fixture in the explicitly supported pre-lineage shape so
+	// the inherited values below can exercise successor retention without
+	// forging a current fresh root.
+	const legacyAnchor = {
+		...legacyRoot,
+		id: "model_002",
+		name: "Legacy-Anchor",
+		foundation: "continued" as const,
+		parentModelId: legacyRoot.id,
+		projectId: null,
+	};
+	delete legacyAnchor.brandId;
+	delete legacyAnchor.foundationId;
+	delete legacyAnchor.foundationDebt;
+	delete legacyAnchor.foundationRisk;
+	const parent = {
+		...legacyRoot,
+		id: "model_003",
+		name: "Aurora-Parent",
+		foundation: "continued" as const,
+		parentModelId: legacyAnchor.id,
+		projectId: null,
+	};
+	state.models.items.push(legacyAnchor, parent);
+	state.counters.model += 2;
 	parent.foundationDebt = 80;
 	parent.foundationRisk = 60;
 	parent.dataDebt = 37;
@@ -186,6 +221,25 @@ describe("foundation and brand lineage", () => {
 		const successor = successorState.models.items.at(-1);
 		if (successor === undefined) throw new Error("Expected a successor model");
 		successor.dataDebt = 0;
+
+		expect(() => assertGameState(successorState)).toThrow(
+			/data debt|retention/i,
+		);
+	});
+
+	it("rejects a successor with deleted inherited synthetic data debt", () => {
+		const state = readyParentState();
+		const parent = state.models.items.at(-1);
+		if (parent === undefined) throw new Error("Expected a parent model");
+		const successorState = designModel(state, {
+			...BASE_SPEC,
+			name: "Aurora-2",
+			foundation: "continued",
+			parentModelId: parent.id,
+		}).state;
+		const successor = successorState.models.items.at(-1);
+		if (successor === undefined) throw new Error("Expected a successor model");
+		delete successor.dataDebt;
 
 		expect(() => assertGameState(successorState)).toThrow(
 			/data debt|retention/i,
@@ -337,7 +391,7 @@ describe("foundation and brand lineage", () => {
 			...BASE_SPEC,
 			tier: "lean",
 		}).state;
-		const parentState = readyParentState();
+		const parentState = readyFreshParentState();
 		const parent = parentState.models.items.at(-1);
 		if (parent === undefined) throw new Error("Expected a parent model");
 		const continued = designModel(parentState, {
@@ -577,17 +631,17 @@ describe("foundation and brand lineage", () => {
 		if (parent === undefined) throw new Error("Expected a parent model");
 		const second = {
 			...parent,
-			id: "model_002",
+			id: "model_004",
 			name: "Cycle-2",
 			foundation: "continued" as const,
-			parentModelId: "model_003",
+			parentModelId: "model_005",
 		};
 		const third = {
 			...parent,
-			id: "model_003",
+			id: "model_005",
 			name: "Cycle-3",
 			foundation: "continued" as const,
-			parentModelId: "model_002",
+			parentModelId: "model_004",
 		};
 		state.models.items.push(second, third);
 
@@ -675,5 +729,16 @@ describe("foundation and brand lineage", () => {
 		expect(() => assertGameState(successor)).toThrow(
 			/foundation.*lineage|foundation id/i,
 		);
+	});
+
+	it("rejects forged foundation identity and debt on a fresh root", () => {
+		const state = designModel(designableState(), BASE_SPEC).state;
+		const model = state.models.items.at(-1);
+		if (model === undefined) throw new Error("Expected a fresh model");
+		model.foundationId = "foundation_forged";
+		model.foundationDebt = 99;
+		model.foundationRisk = 99;
+
+		expect(() => assertGameState(state)).toThrow(/fresh|deterministic|zero/i);
 	});
 });

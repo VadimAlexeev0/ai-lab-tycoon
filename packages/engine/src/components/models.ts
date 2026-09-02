@@ -278,12 +278,12 @@ function assertLineageRelation(model: Model, parent: Model): void {
 			`Model ${model.id} foundation risk does not match its ${model.foundation} retention rule`,
 		);
 	}
-	if (parent.dataDebt !== undefined && model.dataDebt !== undefined) {
+	if (parent.dataDebt !== undefined) {
 		const expectedDataDebt = retainedFoundationValue(
 			parent.dataDebt,
 			balance.dataDebtRetentionPercent,
 		);
-		if (model.dataDebt < expectedDataDebt) {
+		if (model.dataDebt === undefined || model.dataDebt < expectedDataDebt) {
 			throw new Error(
 				`Model ${model.id} data debt cannot fall below its ${model.foundation} retention rule`,
 			);
@@ -296,6 +296,19 @@ function assertFoundationParentReferences(items: readonly Model[]): void {
 		if (model.foundation === "fresh") {
 			if (model.parentModelId !== undefined && model.parentModelId !== null) {
 				throw new Error(`Fresh model ${model.id} cannot reference a parent`);
+			}
+			if (model.foundationId !== undefined) {
+				const expectedFoundationId = `foundation_${model.id}`;
+				if (model.foundationId !== expectedFoundationId) {
+					throw new Error(
+						`Fresh model ${model.id} must use foundation identity ${expectedFoundationId}`,
+					);
+				}
+				if (model.foundationDebt !== 0 || model.foundationRisk !== 0) {
+					throw new Error(
+						`Fresh model ${model.id} foundation debt and risk must be zero`,
+					);
+				}
 			}
 			continue;
 		}

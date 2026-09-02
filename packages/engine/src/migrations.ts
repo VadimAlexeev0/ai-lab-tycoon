@@ -10,7 +10,7 @@ import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
-import { PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
+import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
 	assertGameState,
@@ -433,6 +433,7 @@ function migrateV8ToV9(value: unknown): unknown {
 
 	for (const item of modelItems) {
 		const lineage = resolveLineage(item);
+		normalizeV8DataDebt(item, modelsById);
 		item.brandId = lineage.brandId;
 		item.foundationId = lineage.foundationId;
 		item.foundationDebt = 0;
@@ -457,6 +458,27 @@ function migrateV8ToV9(value: unknown): unknown {
 
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V9;
 	return migrated;
+}
+
+function normalizeV8DataDebt(
+	model: Record<string, unknown>,
+	modelsById: ReadonlyMap<string, Record<string, unknown>>,
+): void {
+	if (model.foundation !== "continued" && model.foundation !== "distilled") {
+		return;
+	}
+	if (typeof model.parentModelId !== "string") return;
+	const parent = modelsById.get(model.parentModelId);
+	if (parent === undefined || typeof parent.dataDebt !== "number") return;
+
+	const retentionPercent =
+		BALANCE.modelFoundations[model.foundation].dataDebtRetentionPercent;
+	const retained = Math.trunc((parent.dataDebt * retentionPercent) / 100);
+	const expectedDataDebt =
+		parent.dataDebt > 0 ? Math.max(1, retained) : retained;
+	if (typeof model.dataDebt !== "number" || model.dataDebt < expectedDataDebt) {
+		model.dataDebt = expectedDataDebt;
+	}
 }
 
 function assertNoV9FieldsInV8(state: Record<string, unknown>): void {

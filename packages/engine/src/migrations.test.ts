@@ -47,6 +47,62 @@ function stripV9LineageFields(state: Record<string, unknown>): void {
 	}
 }
 
+function v8LineageDebtFixture(): Record<string, unknown> {
+	const state = startRun({ companyName: "Migration Labs" }, 23);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) throw new Error("Expected model unlock");
+	familyUnlock.status = "completed";
+
+	const designed = designModel(state, {
+		name: "Legacy-1",
+		family: "text",
+		foundation: "fresh",
+		tier: "standard",
+		dataMix: { general: 60, code: 30, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	}).state;
+	const project = designed.projects.items.at(-1);
+	if (project === undefined || project.kind !== "training") {
+		throw new Error("Expected training project");
+	}
+	let trained = designed;
+	for (let week = 1; week <= project.duration; week += 1) {
+		trained = trainingSystem(trained, { phase: "training", week }).state;
+	}
+	const parent = trained.models.items.at(-1);
+	if (parent === undefined || parent.status !== "ready") {
+		throw new Error("Expected a ready parent model");
+	}
+	parent.dataDebt = 49;
+
+	const successor = designModel(trained, {
+		name: "Legacy-2",
+		family: "text",
+		foundation: "continued",
+		parentModelId: parent.id,
+		tier: "standard",
+		dataMix: { general: 60, code: 30, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	}).state;
+	const fixture = JSON.parse(serializeGameState(successor)) as Record<
+		string,
+		unknown
+	>;
+	stripV9LineageFields(fixture);
+	const models = asRecord(fixture.models);
+	if (!Array.isArray(models.items) || models.items.length !== 2) {
+		throw new Error("Expected a parent and successor model");
+	}
+	const migratedParent = asRecord(models.items[0]);
+	const migratedSuccessor = asRecord(models.items[1]);
+	migratedParent.dataDebt = 49;
+	migratedSuccessor.dataDebt = 10;
+	asRecord(fixture.meta).schemaVersion = 8;
+	return fixture;
+}
+
 function currentV1Fixture(): unknown {
 	// Schema v1 is the first accepted persisted format. This fixture is a JSON
 	// snapshot of the actual current startRun shape before the migration boundary;
@@ -161,6 +217,22 @@ describe("GameState migration and serialization", () => {
 		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(model.knowledgeCutoff).toBe(1);
 		expect(model.knowledgeFreshness).toBe(100);
+		expect(JSON.stringify(fixture)).toBe(before);
+	});
+
+	it("raises a v8 successor data debt to its inherited retention floor", () => {
+		const fixture = v8LineageDebtFixture();
+		const before = JSON.stringify(fixture);
+
+		const upgraded = upgradeGameState(fixture);
+		const parent = upgraded.models.items[0];
+		const successor = upgraded.models.items[1];
+		if (parent === undefined || successor === undefined) {
+			throw new Error("Expected a migrated parent and successor");
+		}
+
+		expect(parent.dataDebt).toBe(49);
+		expect(successor.dataDebt).toBe(49);
 		expect(JSON.stringify(fixture)).toBe(before);
 	});
 
