@@ -9,7 +9,9 @@ import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE } from "./data/balance.js";
 import {
 	MODEL_DIMENSIONS,
+	MODEL_FAMILIES,
 	type ModelDimension,
+	type ModelFamilyDefinition,
 } from "./data/model-families.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
@@ -154,7 +156,11 @@ export function applyProductLaunch(
 		users: tuning.baseUsers,
 		lastRevenue: 0,
 		cumulativeRevenue: 0,
-		servingDemand: tuning.baseUsers * tuning.servingComputePerUser,
+		servingDemand: servingDemandForModel(
+			model,
+			request.channel,
+			tuning.baseUsers,
+		),
 		effectiveQuality: quality,
 		price,
 		lastMargin: 0,
@@ -266,7 +272,7 @@ export function applyProductResume(
 		status: "operating",
 		users,
 		lastRevenue: 0,
-		servingDemand: users * tuning.servingComputePerUser,
+		servingDemand: servingDemandForModel(model, product.channel, users),
 		price,
 		lastMargin: 0,
 		cumulativeMargin:
@@ -515,6 +521,34 @@ export function effectiveProductQuality(
 	);
 }
 
+/**
+ * Compute integer serving demand from channel economics and model-family
+ * delivery efficiency. The percentage stays inside the numerator so a local
+ * model can reduce demand even on the one-unit chat channel.
+ */
+export function servingDemandForModel(
+	model: Pick<Model, "family">,
+	channel: ProductChannel,
+	users: number,
+	demandFactor = 100,
+	path = "Model serving demand",
+): number {
+	const family = getModelFamily(model.family ?? "text");
+	const channelDemand = safeMultiply(
+		users,
+		BALANCE.productChannels[channel].servingComputePerUser,
+		`${path} users`,
+	);
+	const familyDemand = safeMultiply(
+		channelDemand,
+		family.servingComputePerUserPercent,
+		`${path} family efficiency`,
+	);
+	return Math.trunc(
+		safeMultiply(familyDemand, demandFactor, `${path} demand factor`) / 10_000,
+	);
+}
+
 function normalizeRequest(
 	modelOrRequest: string | ProductLaunchRequest,
 	channel?: LaunchChannelInput,
@@ -572,6 +606,14 @@ function normalizeChannel(value: unknown): ProductChannel {
 	return value;
 }
 
+function getModelFamily(id: string): ModelFamilyDefinition {
+	const family = MODEL_FAMILIES.find((candidate) => candidate.id === id);
+	if (family === undefined) {
+		throw new Error(`Unknown model family: ${id}`);
+	}
+	return family;
+}
+
 function effectiveQuality(
 	model: Model,
 	dimensions: readonly ModelDimension[],
@@ -610,6 +652,14 @@ function assertChannelScore(
 
 function eraIndex(era: "text" | "assistant" | "multimodal"): number {
 	return era === "text" ? 0 : era === "assistant" ? 1 : 2;
+}
+
+function safeMultiply(left: number, right: number, path: string): number {
+	const result = left * right;
+	if (!Number.isSafeInteger(result)) {
+		throw new Error(`${path} exceeded the safe integer limit`);
+	}
+	return result;
 }
 
 function cloneProduct(product: Product): Product {

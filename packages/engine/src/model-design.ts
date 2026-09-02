@@ -195,7 +195,9 @@ export function designModel(
 		dataDebt,
 		tier: normalized.tier,
 		scoreCeiling: clamp(
-			tier.scoreCeiling + researchEffects.modelScoreCeilingBonus,
+			tier.scoreCeiling +
+				family.scoreCeilingAdjustment +
+				researchEffects.modelScoreCeilingBonus,
 			0,
 			100,
 		),
@@ -301,7 +303,15 @@ export function generateTrueScores(
 ): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
-	const scoreCeiling = model.scoreCeiling ?? tier.scoreCeiling;
+	const scoreCeiling =
+		model.scoreCeiling ??
+		clamp(
+			tier.scoreCeiling +
+				family.scoreCeilingAdjustment +
+				researchEffects.modelScoreCeilingBonus,
+			0,
+			100,
+		);
 	const dataMix = model.dataMix ?? DEFAULT_DATA_MIX;
 	const emphasis = model.emphasis ?? DEFAULT_EMPHASIS;
 	assertInteger(dataEffects.quality, "Training data quality");

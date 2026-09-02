@@ -185,7 +185,7 @@ function completePrerequisites(
 
 describe("LLM-history research data", () => {
 	it("contains the ten content groups folded into three engine eras", () => {
-		expect(RESEARCH_NODES).toHaveLength(48);
+		expect(RESEARCH_NODES).toHaveLength(49);
 		expect(new Set(RESEARCH_NODES.map((node) => node.era))).toEqual(
 			new Set([TEXT_ERA, ASSISTANT_ERA, "multimodal"]),
 		);
@@ -197,7 +197,7 @@ describe("LLM-history research data", () => {
 		);
 		expect(
 			RESEARCH_NODES.filter((node) => node.era === ASSISTANT_ERA),
-		).toHaveLength(25);
+		).toHaveLength(26);
 		expect(
 			RESEARCH_NODES.filter((node) => node.era === "multimodal"),
 		).toHaveLength(14);

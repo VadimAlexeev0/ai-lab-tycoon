@@ -14,6 +14,7 @@ import { deriveKnowledgePressure } from "../knowledge-cutoff.js";
 import {
 	effectiveProductQuality,
 	isProductLaunchEligible,
+	servingDemandForModel,
 } from "../products.js";
 import type { GameState } from "../state.js";
 import type { GameSystem } from "./types.js";
@@ -49,9 +50,11 @@ export const productsSystem: GameSystem = (state, context) => {
 			tuning.usersPerWeek,
 			`Product ${product.id} nominal users`,
 		);
-		const nominalDemand = safeMultiply(
+		const nominalDemand = servingDemandForModel(
+			model,
+			product.channel,
 			nominalGrowthUsers,
-			tuning.servingComputePerUser,
+			100,
 			`Product ${product.id} nominal serving demand`,
 		);
 		const price = product.price ?? pricing.defaultPrice;
@@ -78,9 +81,10 @@ export const productsSystem: GameSystem = (state, context) => {
 				price,
 				marketDemandFactor,
 				demandFactor,
-				projectedDemand: demandForUsers(
+				projectedDemand: servingDemandForModel(
+					model,
+					product.channel,
 					nominalGrowthUsers,
-					tuning.servingComputePerUser,
 					demandFactor,
 					`Product ${product.id} projected demand`,
 				),
@@ -198,9 +202,10 @@ export const productsSystem: GameSystem = (state, context) => {
 		(total, projection) =>
 			safeAdd(
 				total,
-				demandForUsers(
+				servingDemandForModel(
+					projection.model,
+					projection.product.channel,
 					projection.users,
-					projection.tuning.servingComputePerUser,
 					projection.demandFactor,
 					`Product ${projection.product.id} serving demand`,
 				),
@@ -239,9 +244,10 @@ export const productsSystem: GameSystem = (state, context) => {
 		}
 
 		activeProductCount += 1;
-		const servingDemand = demandForUsers(
+		const servingDemand = servingDemandForModel(
+			operating.model,
+			product.channel,
 			operating.users,
-			operating.tuning.servingComputePerUser,
 			operating.demandFactor,
 			`Product ${product.id} serving demand`,
 		);
@@ -623,21 +629,6 @@ function marketDemandFactorFor(
 		Math.trunc((priceDemandFactor * hypeDemandFactor) / 100),
 		BALANCE.productPressure.minimumDemandFactor,
 		BALANCE.productPressure.maximumDemandFactor,
-	);
-}
-
-function demandForUsers(
-	users: number,
-	computePerUser: number,
-	demandFactor: number,
-	path: string,
-): number {
-	return Math.trunc(
-		safeMultiply(
-			safeMultiply(users, computePerUser, `${path} users`),
-			demandFactor,
-			`${path} factor`,
-		) / 100,
 	);
 }
 

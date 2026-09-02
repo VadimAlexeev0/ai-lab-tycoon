@@ -54,11 +54,12 @@ function spec(overrides: Partial<ModelDesignSpec> = {}): ModelDesignSpec {
 }
 
 describe("model family data", () => {
-	it("defines the three V1 model families with research gates and score hints", () => {
+	it("defines the V1 model families with research gates, tradeoffs, and score hints", () => {
 		expect(MODEL_FAMILIES.map((family) => family.id)).toEqual([
 			"text",
 			"assistant",
 			"multimodal",
+			"local_edge",
 		]);
 		for (const family of MODEL_FAMILIES) {
 			expect(family.displayName.length).toBeGreaterThan(0);
@@ -66,6 +67,8 @@ describe("model family data", () => {
 			expect(family.unlockedByResearchNodeId.length).toBeGreaterThan(0);
 			expect(Object.keys(family.baseScoreProfile).length).toBeGreaterThan(0);
 			expect(Object.keys(family.dataMixRequirements).length).toBe(3);
+			expect(Number.isInteger(family.servingComputePerUserPercent)).toBe(true);
+			expect(Number.isInteger(family.scoreCeilingAdjustment)).toBe(true);
 		}
 	});
 });

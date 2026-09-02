@@ -1,6 +1,7 @@
 import {
 	ASSISTANT_ERA,
 	INFRASTRUCTURE_BRANCH,
+	LOCAL_EDGE_INFERENCE_ID,
 	PRODUCTS_SAFETY_BRANCH,
 	RESEARCH_CATEGORY_LABELS,
 	type ResearchDefinition,
@@ -116,5 +117,18 @@ export const EFFICIENCY_SCHOOL_NODES = [
 		],
 		description:
 			"Tools, fine-tunes, and local deployments multiply around public weights, making capability a shared substrate.",
+	},
+	{
+		id: LOCAL_EDGE_INFERENCE_ID,
+		label: "Local and edge inference",
+		era: ASSISTANT_ERA,
+		eraLabel: ERA_LABEL,
+		category: "efficiency_school",
+		branch: INFRASTRUCTURE_BRANCH,
+		status: "locked",
+		insightCost: 2,
+		prerequisites: [TEXT_MODELS_KEYSTONE_ID, "int4_quantization"],
+		description:
+			"Quantized weights fit closer to the user, trading some ceiling for lower central serving demand.",
 	},
 ] as const satisfies readonly ResearchDefinition[];
