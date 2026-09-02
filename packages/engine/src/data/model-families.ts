@@ -1,7 +1,20 @@
 import type { ResearchEra } from "../components/research.js";
 import {
+	assertArray,
+	assertEnum,
+	assertExactObject,
+	assertIdentifier,
+	assertInteger,
+	assertNonNegativeInteger,
+	assertPositiveInteger,
+	assertString,
+} from "../validation.js";
+import {
+	getResearchDefinition,
 	LOCAL_EDGE_INFERENCE_ID,
 	MULTIMODAL_MODELS_FUSION_ID,
+	RESEARCH_ERAS,
+	VIDEO_WORLD_MODELS_ID,
 } from "./research.js";
 
 export const MODEL_DIMENSIONS = [
@@ -30,6 +43,7 @@ export const MODEL_FAMILY_IDS = [
 	"assistant",
 	"multimodal",
 	"local_edge",
+	"video",
 ] as const;
 export type ModelFamilyId = (typeof MODEL_FAMILY_IDS)[number];
 
@@ -128,7 +142,136 @@ export const MODEL_FAMILIES = [
 		scoreCeilingAdjustment: -12,
 		unlockedByResearchNodeId: LOCAL_EDGE_INFERENCE_ID,
 	},
+	// ponytail: Video reuses the broad chat, developer API, and enterprise
+	// channels in this bounded slice. Upgrade path: add a dedicated video
+	// studio channel with its own launch, pricing, and capacity contract.
+	{
+		id: "video",
+		displayName: "Video Model",
+		allowedEras: ["multimodal"],
+		baseScoreProfile: {
+			capability: 4,
+			coding: 1,
+			reliability: 1,
+			safety: 1,
+			efficiency: 1,
+			multimodal: 8,
+		},
+		dataMixRequirements: { general: 15, code: 5, multimodal: 40 },
+		servingComputePerUserPercent: 250,
+		scoreCeilingAdjustment: -8,
+		unlockedByResearchNodeId: VIDEO_WORLD_MODELS_ID,
+	},
 ] as const satisfies readonly ModelFamilyDefinition[];
+
+const MODEL_FAMILY_DEFINITION_KEYS = [
+	"id",
+	"displayName",
+	"allowedEras",
+	"baseScoreProfile",
+	"dataMixRequirements",
+	"servingComputePerUserPercent",
+	"scoreCeilingAdjustment",
+	"unlockedByResearchNodeId",
+] as const;
+
+/** Fail fast when authored model-family content drifts from runtime contracts. */
+export function assertModelFamilyDefinitions(
+	value: readonly ModelFamilyDefinition[],
+): void {
+	assertArray(value, "Model family definitions");
+	const ids = new Set<string>();
+	for (const family of value) {
+		assertExactObject(family, MODEL_FAMILY_DEFINITION_KEYS, "model family");
+		assertEnum(family.id, MODEL_FAMILY_IDS, "Model family id");
+		if (ids.has(family.id)) {
+			throw new Error(`Duplicate model family id: ${family.id}`);
+		}
+		ids.add(family.id);
+		assertString(family.displayName, `Model family ${family.id} display name`);
+		if (family.displayName.trim().length === 0) {
+			throw new Error(
+				`Model family ${family.id} display name must not be empty`,
+			);
+		}
+		assertArray(family.allowedEras, `Model family ${family.id} allowed eras`);
+		if (family.allowedEras.length === 0) {
+			throw new Error(`Model family ${family.id} needs an allowed era`);
+		}
+		const eras = new Set<string>();
+		for (const era of family.allowedEras) {
+			assertEnum(era, RESEARCH_ERAS, `Model family ${family.id} era`);
+			if (eras.has(era)) {
+				throw new Error(`Model family ${family.id} repeats an allowed era`);
+			}
+			eras.add(era);
+		}
+		assertExactObject(
+			family.baseScoreProfile,
+			MODEL_DIMENSIONS,
+			`Model family ${family.id} score profile`,
+		);
+		for (const dimension of MODEL_DIMENSIONS) {
+			assertNonNegativeInteger(
+				family.baseScoreProfile[dimension],
+				`Model family ${family.id} ${dimension} profile`,
+			);
+			if (family.baseScoreProfile[dimension] > 100) {
+				throw new Error(
+					`Model family ${family.id} ${dimension} profile must be at most 100`,
+				);
+			}
+		}
+		assertExactObject(
+			family.dataMixRequirements,
+			DATA_MIX_DIMENSIONS,
+			`Model family ${family.id} data mix requirements`,
+		);
+		let requirementTotal = 0;
+		for (const dimension of DATA_MIX_DIMENSIONS) {
+			assertNonNegativeInteger(
+				family.dataMixRequirements[dimension],
+				`Model family ${family.id} ${dimension} data requirement`,
+			);
+			if (family.dataMixRequirements[dimension] > 100) {
+				throw new Error(
+					`Model family ${family.id} ${dimension} data requirement must be at most 100`,
+				);
+			}
+			requirementTotal += family.dataMixRequirements[dimension];
+		}
+		if (requirementTotal > 100) {
+			throw new Error(
+				`Model family ${family.id} data mix requirements cannot exceed 100`,
+			);
+		}
+		assertPositiveInteger(
+			family.servingComputePerUserPercent,
+			`Model family ${family.id} serving compute multiplier`,
+		);
+		assertInteger(
+			family.scoreCeilingAdjustment,
+			`Model family ${family.id} score ceiling adjustment`,
+		);
+		assertIdentifier(
+			family.unlockedByResearchNodeId,
+			`Model family ${family.id} research unlock id`,
+		);
+		const unlock = getResearchDefinition(family.unlockedByResearchNodeId);
+		if (unlock === undefined) {
+			throw new Error(
+				`Model family ${family.id} references an unknown research unlock node`,
+			);
+		}
+		if (!family.allowedEras.includes(unlock.era)) {
+			throw new Error(
+				`Model family ${family.id} research unlock era must be one of its allowed eras`,
+			);
+		}
+	}
+}
+
+assertModelFamilyDefinitions(MODEL_FAMILIES);
 
 /** Compatibility alias for callers that prefer the longer content name. */
 export const MODEL_FAMILY_DEFINITIONS = MODEL_FAMILIES;

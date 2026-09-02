@@ -247,6 +247,8 @@ export const ASSISTANT_MODELS_KEYSTONE_ID = "assistant_models_keystone";
 export const MULTIMODAL_MODELS_FUSION_ID = "multimodal_models_fusion";
 /** The Assistant-era Local/Edge model research node gates the family. */
 export const LOCAL_EDGE_INFERENCE_ID = "local_edge_inference";
+/** The Multimodal-era Video model research node gates the family. */
+export const VIDEO_WORLD_MODELS_ID = "video_world_models";
 
 /** Stable ids retain save and model-family references while gaining historical labels. */
 export const WORD_VECTORS_ID = "text_models_principles";

@@ -5,6 +5,7 @@ import {
 	PRODUCTS_SAFETY_BRANCH,
 	RESEARCH_CATEGORY_LABELS,
 	type ResearchDefinition,
+	VIDEO_WORLD_MODELS_ID,
 } from "./types.js";
 
 const ERA_LABEL = RESEARCH_CATEGORY_LABELS.multimodal_agents;
@@ -121,5 +122,22 @@ export const MULTIMODAL_AGENTS_NODES = [
 		],
 		description:
 			"The working memory stretches across a book, a codebase, and a meeting without losing the thread at the binding.",
+	},
+	{
+		id: VIDEO_WORLD_MODELS_ID,
+		label: "Video world models",
+		era: "multimodal" as const,
+		eraLabel: ERA_LABEL,
+		category: "multimodal_agents",
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 2,
+		prerequisites: [
+			ASSISTANT_MODELS_KEYSTONE_ID,
+			"multimodal_models_fusion",
+			"vision_encoders",
+		],
+		description:
+			"The model learns motion and continuity, turning licensed visual sequences into a costly but coherent world forecast.",
 	},
 ] as const satisfies readonly ResearchDefinition[];

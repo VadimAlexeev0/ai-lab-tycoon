@@ -60,6 +60,7 @@ describe("model family data", () => {
 			"assistant",
 			"multimodal",
 			"local_edge",
+			"video",
 		]);
 		for (const family of MODEL_FAMILIES) {
 			expect(family.displayName.length).toBeGreaterThan(0);
