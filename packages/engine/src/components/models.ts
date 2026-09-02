@@ -61,6 +61,14 @@ export type Model = {
 	projectId: string | null;
 	family?: ModelFamilyId;
 	parentModelId?: string | null;
+	/** Market identity shared by models in the same public brand line. */
+	brandId?: string;
+	/** Technical identity shared by models in the same foundation line. */
+	foundationId?: string;
+	/** Bounded technical debt inherited from the foundation lineage. */
+	foundationDebt?: number;
+	/** Bounded hidden risk inherited from the foundation lineage. */
+	foundationRisk?: number;
 	tier?: ModelTier;
 	scoreCeiling?: number;
 	dataMix?: DataMix;
@@ -131,6 +139,7 @@ export function assertModelsState(
 				assertIdentifier(item.parentModelId, "Model parent id");
 			}
 		}
+		assertModelLineageFields(item);
 		if (Object.hasOwn(item, "tier")) {
 			assertEnum(item.tier, MODEL_TIERS, "Model compute tier");
 		}
@@ -190,11 +199,137 @@ export function assertModelsState(
 	}
 }
 
+/**
+ * ponytail: foundation risk is a bounded model-linked scalar for this wave,
+ * while the persistent risk component remains the authoritative incident
+ * history. Upgrade path: attach lineage-scoped inherited risk records when a
+ * later model-family wave needs per-risk provenance.
+ */
+function assertModelLineageFields(value: Record<string, unknown>): void {
+	const fields = [
+		"brandId",
+		"foundationId",
+		"foundationDebt",
+		"foundationRisk",
+	];
+	const present = fields.filter((field) => Object.hasOwn(value, field));
+	if (present.length === 0) return;
+	if (present.length !== fields.length) {
+		throw new Error(
+			`Model ${String(value.id)} lineage fields must be recorded together`,
+		);
+	}
+	assertIdentifier(value.brandId, `Model ${String(value.id)} brand id`);
+	assertIdentifier(
+		value.foundationId,
+		`Model ${String(value.id)} foundation id`,
+	);
+	assertBoundedInteger(
+		value.foundationDebt,
+		`Model ${String(value.id)} foundation debt`,
+	);
+	assertBoundedInteger(
+		value.foundationRisk,
+		`Model ${String(value.id)} foundation risk`,
+	);
+}
+
+function retainedFoundationValue(
+	parentValue: number,
+	retentionPercent: number,
+): number {
+	if (retentionPercent === 0) return 0;
+	const retained = Math.trunc((parentValue * retentionPercent) / 100);
+	return parentValue > 0 ? Math.max(1, retained) : retained;
+}
+
+function assertLineageRelation(model: Model, parent: Model): void {
+	const modelHasLineage = hasCompleteLineageTuple(model);
+	const parentHasLineage = hasCompleteLineageTuple(parent);
+	if (!modelHasLineage && !parentHasLineage) {
+		// Legacy model and parent pairs predate the v9 lineage tuple. Migration
+		// supplies their deterministic values before they are persisted.
+		return;
+	}
+	if (!modelHasLineage) {
+		throw new Error(
+			`Legacy model ${model.id} cannot attach to current lineage parent ${parent.id}`,
+		);
+	}
+	if (!parentHasLineage) {
+		throw new Error(
+			`Model ${model.id} requires parent ${parent.id} to have a complete lineage tuple`,
+		);
+	}
+	if (model.foundationId !== parent.foundationId) {
+		throw new Error(
+			`Model ${model.id} foundation lineage must match parent ${parent.id}`,
+		);
+	}
+	const balance = BALANCE.modelFoundations[model.foundation];
+	const expectedDebt = retainedFoundationValue(
+		parent.foundationDebt,
+		balance.debtRetentionPercent,
+	);
+	const expectedRisk = retainedFoundationValue(
+		parent.foundationRisk,
+		balance.riskRetentionPercent,
+	);
+	if (model.foundationDebt !== expectedDebt) {
+		throw new Error(
+			`Model ${model.id} foundation debt does not match its ${model.foundation} retention rule`,
+		);
+	}
+	if (model.foundationRisk !== expectedRisk) {
+		throw new Error(
+			`Model ${model.id} foundation risk does not match its ${model.foundation} retention rule`,
+		);
+	}
+	if (parent.dataDebt !== undefined) {
+		const expectedDataDebt = retainedFoundationValue(
+			parent.dataDebt,
+			balance.dataDebtRetentionPercent,
+		);
+		if (model.dataDebt === undefined || model.dataDebt < expectedDataDebt) {
+			throw new Error(
+				`Model ${model.id} data debt cannot fall below its ${model.foundation} retention rule`,
+			);
+		}
+	}
+}
+
+function hasCompleteLineageTuple(model: Model): model is Model & {
+	brandId: string;
+	foundationId: string;
+	foundationDebt: number;
+	foundationRisk: number;
+} {
+	return (
+		model.brandId !== undefined &&
+		model.foundationId !== undefined &&
+		model.foundationDebt !== undefined &&
+		model.foundationRisk !== undefined
+	);
+}
+
 function assertFoundationParentReferences(items: readonly Model[]): void {
 	for (const model of items) {
 		if (model.foundation === "fresh") {
 			if (model.parentModelId !== undefined && model.parentModelId !== null) {
 				throw new Error(`Fresh model ${model.id} cannot reference a parent`);
+			}
+			if (model.foundationId !== undefined) {
+				const expectedFoundationId = `foundation_${model.id}`;
+				if (model.foundationId !== expectedFoundationId) {
+					throw new Error(
+						`Fresh model ${model.id} must use foundation identity ${expectedFoundationId}`,
+					);
+				}
+				if (model.foundationDebt !== 0 || model.foundationRisk !== 0) {
+					throw new Error(
+						`Fresh model ${model.id} foundation debt and risk must be zero`,
+					);
+				}
 			}
 			continue;
 		}
@@ -215,14 +350,52 @@ function assertFoundationParentReferences(items: readonly Model[]): void {
 				`${model.foundation} model ${model.id} references an unknown parent model`,
 			);
 		}
-		if (parent.status !== "ready" && parent.status !== "launched") {
+		if (
+			parent.status !== "ready" &&
+			parent.status !== "launched" &&
+			parent.status !== "shelved"
+		) {
 			throw new Error(
-				`Parent model ${parent.id} must be ready or launched before it can be used`,
+				`Parent model ${parent.id} must be ready, launched, or a scored shelved ancestor`,
 			);
 		}
 		if (parent.trueScores === undefined) {
 			throw new Error(`Parent model ${parent.id} must have true scores`);
 		}
+		assertLineageRelation(model, parent);
+	}
+
+	const byId = new Map(items.map((model) => [model.id, model]));
+	const visiting = new Set<string>();
+	const visited = new Set<string>();
+	const visit = (modelId: string): void => {
+		if (visiting.has(modelId)) {
+			throw new Error(`Foundation lineage contains a cycle at ${modelId}`);
+		}
+		if (visited.has(modelId)) return;
+		const model = byId.get(modelId);
+		if (model === undefined) return;
+		visiting.add(modelId);
+		if (model.parentModelId !== undefined && model.parentModelId !== null) {
+			visit(model.parentModelId);
+		}
+		visiting.delete(modelId);
+		visited.add(modelId);
+	};
+	for (const model of items) visit(model.id);
+
+	const freshFoundationOwners = new Map<string, string>();
+	for (const model of items) {
+		if (model.foundation !== "fresh" || model.foundationId === undefined) {
+			continue;
+		}
+		const existingOwner = freshFoundationOwners.get(model.foundationId);
+		if (existingOwner !== undefined) {
+			throw new Error(
+				`Fresh models ${existingOwner} and ${model.id} share foundation identity ${model.foundationId}`,
+			);
+		}
+		freshFoundationOwners.set(model.foundationId, model.id);
 	}
 }
 
@@ -272,6 +445,10 @@ function assertAllowedModelKeys(value: Record<string, unknown>): void {
 		"projectId",
 		"family",
 		"parentModelId",
+		"brandId",
+		"foundationId",
+		"foundationDebt",
+		"foundationRisk",
 		"tier",
 		"scoreCeiling",
 		"dataMix",

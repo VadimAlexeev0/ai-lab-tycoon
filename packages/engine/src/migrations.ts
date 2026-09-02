@@ -10,7 +10,7 @@ import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
-import { PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
+import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
 	assertGameState,
@@ -45,6 +45,7 @@ const STATE_SCHEMA_VERSION_V5 = 5 as const;
 const STATE_SCHEMA_VERSION_V6 = 6 as const;
 const STATE_SCHEMA_VERSION_V7 = 7 as const;
 const STATE_SCHEMA_VERSION_V8 = 8 as const;
+const STATE_SCHEMA_VERSION_V9 = 9 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
@@ -53,6 +54,7 @@ const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V5]: migrateV5ToV6,
 	[STATE_SCHEMA_VERSION_V6]: migrateV6ToV7,
 	[STATE_SCHEMA_VERSION_V7]: migrateV7ToV8,
+	[STATE_SCHEMA_VERSION_V8]: migrateV8ToV9,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -105,7 +107,10 @@ export function deserializeGameStateWithMetadata(
  * schema v7 adds the persistent incident risk component; v6 saves receive an
  * empty memory/crisis component. Schema v8 adds product operating pressure,
  * explicit pricing, and retirement. V7 saves receive deterministic defaults;
- * future-shaped V7 saves are rejected rather than silently downgraded.
+ * future-shaped V7 saves are rejected rather than silently downgraded. Schema v9
+ * adds explicit brand/foundation identities and bounded foundation debt/risk;
+ * V8 saves receive lineage defaults and design commands receive their brand id.
+ * Future-shaped V8 lineage fields are rejected before defaults are applied.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -365,6 +370,175 @@ function migrateV7ToV8(value: unknown): unknown {
 	}
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V8;
 	return migrated;
+}
+
+function migrateV8ToV9(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v8 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v8 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V8) {
+		throw new Error("v8 game state has an invalid schema version");
+	}
+	assertNoV9FieldsInV8(migrated);
+
+	const models = migrated.models;
+	assertObject(models, "v8 game state models");
+	assertModelsState(models);
+	const modelItems = models.items as unknown as Record<string, unknown>[];
+	const modelsById = new Map<string, Record<string, unknown>>();
+	for (const item of modelItems) {
+		assertObject(item, "v8 model");
+		assertIdentifier(item.id, "v8 model id");
+		modelsById.set(item.id, item);
+	}
+
+	const resolving = new Set<string>();
+	const resolved = new Map<string, { brandId: string; foundationId: string }>();
+	const resolveLineage = (
+		item: Record<string, unknown>,
+	): { brandId: string; foundationId: string } => {
+		assertIdentifier(item.id, "v8 model id");
+		const existing = resolved.get(item.id);
+		if (existing !== undefined) return existing;
+		if (resolving.has(item.id)) {
+			throw new Error(`v8 model lineage contains a cycle at ${item.id}`);
+		}
+		resolving.add(item.id);
+		let lineage: { brandId: string; foundationId: string };
+		if (item.foundation === "fresh") {
+			lineage = {
+				brandId: `brand_${item.id}`,
+				foundationId: `foundation_${item.id}`,
+			};
+		} else {
+			if (typeof item.parentModelId !== "string") {
+				throw new Error(
+					`v8 ${String(item.foundation)} model ${item.id} must reference a parent`,
+				);
+			}
+			const parent = modelsById.get(item.parentModelId);
+			if (parent === undefined) {
+				throw new Error(
+					`v8 model ${item.id} references unknown parent ${item.parentModelId}`,
+				);
+			}
+			const parentLineage = resolveLineage(parent);
+			lineage = { ...parentLineage };
+		}
+		resolving.delete(item.id);
+		resolved.set(item.id, lineage);
+		return lineage;
+	};
+
+	const dataDebtResolving = new Set<string>();
+	const dataDebtResolved = new Set<string>();
+	const normalizeDataDebt = (item: Record<string, unknown>): void => {
+		assertIdentifier(item.id, "v8 model id");
+		if (dataDebtResolved.has(item.id)) return;
+		if (dataDebtResolving.has(item.id)) {
+			throw new Error(`v8 model data debt contains a cycle at ${item.id}`);
+		}
+		dataDebtResolving.add(item.id);
+
+		if (item.foundation === "continued" || item.foundation === "distilled") {
+			if (typeof item.parentModelId !== "string") {
+				throw new Error(
+					`v8 ${String(item.foundation)} model ${item.id} must reference a parent`,
+				);
+			}
+			const parent = modelsById.get(item.parentModelId);
+			if (parent === undefined) {
+				throw new Error(
+					`v8 model ${item.id} references unknown parent ${item.parentModelId}`,
+				);
+			}
+			normalizeDataDebt(parent);
+		}
+
+		normalizeV8DataDebt(item, modelsById);
+		dataDebtResolving.delete(item.id);
+		dataDebtResolved.add(item.id);
+	};
+
+	for (const item of modelItems) {
+		const lineage = resolveLineage(item);
+		normalizeDataDebt(item);
+		item.brandId = lineage.brandId;
+		item.foundationId = lineage.foundationId;
+		item.foundationDebt = 0;
+		item.foundationRisk = 0;
+	}
+
+	const commandLog = migrated.commandLog;
+	assertArray(commandLog, "v8 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v8 command log entry");
+		if (command.kind !== "design_model") continue;
+		assertIdentifier(command.modelId, "v8 design model id");
+		const model = modelsById.get(command.modelId);
+		if (model === undefined) {
+			throw new Error(
+				`v8 design command references unknown model ${command.modelId}`,
+			);
+		}
+		assertIdentifier(model.brandId, "v8 migrated model brand id");
+		command.brandId = model.brandId;
+	}
+
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V9;
+	return migrated;
+}
+
+function normalizeV8DataDebt(
+	model: Record<string, unknown>,
+	modelsById: ReadonlyMap<string, Record<string, unknown>>,
+): void {
+	if (model.foundation !== "continued" && model.foundation !== "distilled") {
+		return;
+	}
+	if (typeof model.parentModelId !== "string") return;
+	const parent = modelsById.get(model.parentModelId);
+	if (parent === undefined || typeof parent.dataDebt !== "number") return;
+
+	const retentionPercent =
+		BALANCE.modelFoundations[model.foundation].dataDebtRetentionPercent;
+	const retained = Math.trunc((parent.dataDebt * retentionPercent) / 100);
+	const expectedDataDebt =
+		parent.dataDebt > 0 ? Math.max(1, retained) : retained;
+	if (typeof model.dataDebt !== "number" || model.dataDebt < expectedDataDebt) {
+		model.dataDebt = expectedDataDebt;
+	}
+}
+
+function assertNoV9FieldsInV8(state: Record<string, unknown>): void {
+	const models = state.models;
+	assertObject(models, "v8 models");
+	assertArray(models.items, "v8 models items");
+	for (const item of models.items) {
+		assertObject(item, "v8 model");
+		for (const field of [
+			"brandId",
+			"foundationId",
+			"foundationDebt",
+			"foundationRisk",
+		]) {
+			if (Object.hasOwn(item, field)) {
+				throw new Error(`v8 model contains unexpected lineage field: ${field}`);
+			}
+		}
+	}
+
+	const commandLog = state.commandLog;
+	assertArray(commandLog, "v8 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v8 command log entry");
+		if (command.kind === "design_model" && Object.hasOwn(command, "brandId")) {
+			throw new Error(
+				"v8 design command contains unexpected lineage field: brandId",
+			);
+		}
+	}
 }
 
 function assertNoV8FieldsInV7(state: Record<string, unknown>): void {

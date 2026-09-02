@@ -272,6 +272,10 @@ describe("model designer", () => {
 			foundation: "fresh",
 			status: "ready",
 			projectId: null,
+			brandId: "brand_model_001",
+			foundationId: "foundation_model_001",
+			foundationDebt: 0,
+			foundationRisk: 0,
 			tier: "lean",
 			trueScores: {
 				capability: 70,

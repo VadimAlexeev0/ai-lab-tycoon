@@ -50,9 +50,30 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 		},
 	},
 	modelFoundations: {
-		fresh: { duration: 0, cost: 0, floorPercent: 0 },
-		continued: { duration: 1, cost: 120, floorPercent: 60 },
-		distilled: { duration: 2, cost: 180, floorPercent: 30 },
+		fresh: {
+			duration: 0,
+			cost: 0,
+			floorPercent: 0,
+			debtRetentionPercent: 0,
+			dataDebtRetentionPercent: 0,
+			riskRetentionPercent: 0,
+		},
+		continued: {
+			duration: 1,
+			cost: 120,
+			floorPercent: 60,
+			debtRetentionPercent: 100,
+			dataDebtRetentionPercent: 100,
+			riskRetentionPercent: 100,
+		},
+		distilled: {
+			duration: 2,
+			cost: 180,
+			floorPercent: 30,
+			debtRetentionPercent: 50,
+			dataDebtRetentionPercent: 50,
+			riskRetentionPercent: 50,
+		},
 	},
 	modelScore: {
 		base: 20,

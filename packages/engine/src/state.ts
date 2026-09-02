@@ -51,7 +51,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 8 as const;
+export const GAME_STATE_SCHEMA_VERSION = 9 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -132,6 +132,7 @@ export type CommandLogEntry =
 			family: ModelFamilyId;
 			foundation: ModelFoundation;
 			parentModelId: string | null;
+			brandId: string;
 			tier: ModelTier;
 			dataMix: DataMix;
 			emphasis: ModelEmphasis;

@@ -131,7 +131,10 @@ export const trainingSystem: GameSystem = (state, context) => {
 			);
 		}
 		if (dataEffects.debtAdded > 0) {
-			model.dataDebt = dataEffects.debtAdded;
+			model.dataDebt = Math.min(
+				100,
+				(model.dataDebt ?? 0) + dataEffects.debtAdded,
+			);
 			facts.push({
 				kind: "synthetic_data_overuse",
 				modelId: model.id,

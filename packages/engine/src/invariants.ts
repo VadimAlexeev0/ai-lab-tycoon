@@ -1048,6 +1048,7 @@ function assertCommandLog(
 						"family",
 						"foundation",
 						"parentModelId",
+						"brandId",
 						"tier",
 						"dataMix",
 						"emphasis",
@@ -1071,6 +1072,7 @@ function assertCommandLog(
 				if (item.parentModelId !== null) {
 					assertIdentifier(item.parentModelId, "Design parent model id");
 				}
+				assertIdentifier(item.brandId, "Design model brand id");
 				assertEnum(item.tier, MODEL_TIERS, "Design model compute tier");
 				assertDesignMix(item.dataMix);
 				assertDesignEmphasis(item.emphasis);
@@ -1430,6 +1432,7 @@ function assertDesignCommandReferences(
 		model.family !== command.family ||
 		model.foundation !== command.foundation ||
 		model.parentModelId !== command.parentModelId ||
+		model.brandId !== command.brandId ||
 		model.tier !== command.tier ||
 		!matchesDesignMix(model.dataMix, command.dataMix) ||
 		!matchesDesignEmphasis(model.emphasis, command.emphasis)
