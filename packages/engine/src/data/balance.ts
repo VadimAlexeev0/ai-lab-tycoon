@@ -45,6 +45,12 @@ export type ModelFoundationBalance = Readonly<{
 	duration: number;
 	cost: number;
 	floorPercent: number;
+	/** Percentage of parent foundation debt retained by this mode. */
+	debtRetentionPercent: number;
+	/** Percentage of parent synthetic data debt retained by this mode. */
+	dataDebtRetentionPercent: number;
+	/** Percentage of parent foundation risk retained by this mode. */
+	riskRetentionPercent: number;
 }>;
 
 type ModelScoreDataMixWeights = Readonly<Record<DataMixDimension, number>>;
@@ -274,22 +280,35 @@ export const MODEL_TIER_BALANCE = {
 		scoreCeiling: 100,
 	},
 } as const satisfies Readonly<Record<ModelTier, ModelTierBalance>>;
-/** Foundation-specific time, cash, and inheritance tuning. */
+/**
+ * Foundation-specific incremental time, cash, and inheritance tuning.
+ * Fresh uses the model tier's full clean-foundation cost/time; its zero mode
+ * surcharge is intentional, while successor modes add their explicit work.
+ */
 export const MODEL_FOUNDATION_BALANCE = {
 	fresh: {
 		duration: 0,
 		cost: 0,
 		floorPercent: 0,
+		debtRetentionPercent: 0,
+		dataDebtRetentionPercent: 0,
+		riskRetentionPercent: 0,
 	},
 	continued: {
 		duration: 1,
 		cost: 120,
 		floorPercent: 60,
+		debtRetentionPercent: 100,
+		dataDebtRetentionPercent: 100,
+		riskRetentionPercent: 100,
 	},
 	distilled: {
 		duration: 2,
 		cost: 180,
 		floorPercent: 30,
+		debtRetentionPercent: 50,
+		dataDebtRetentionPercent: 50,
+		riskRetentionPercent: 50,
 	},
 } as const satisfies Readonly<Record<ModelFoundation, ModelFoundationBalance>>;
 /** Score-generation tuning. Keep formula constants in data, not systems. */
@@ -773,7 +792,14 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 	for (const [foundation, tuning] of Object.entries(value.modelFoundations)) {
 		assertExactObject(
 			tuning,
-			["duration", "cost", "floorPercent"],
+			[
+				"duration",
+				"cost",
+				"floorPercent",
+				"debtRetentionPercent",
+				"dataDebtRetentionPercent",
+				"riskRetentionPercent",
+			],
 			`Model foundation ${foundation}`,
 		);
 		assertNonNegativeInteger(
@@ -791,6 +817,27 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		if (tuning.floorPercent > 100) {
 			throw new Error(
 				`Model foundation ${foundation} floor percent must be at most 100`,
+			);
+		}
+		assertNonNegativeInteger(
+			tuning.debtRetentionPercent,
+			`Model foundation ${foundation} debt retention percent`,
+		);
+		assertNonNegativeInteger(
+			tuning.dataDebtRetentionPercent,
+			`Model foundation ${foundation} data debt retention percent`,
+		);
+		assertNonNegativeInteger(
+			tuning.riskRetentionPercent,
+			`Model foundation ${foundation} risk retention percent`,
+		);
+		if (
+			tuning.debtRetentionPercent > 100 ||
+			tuning.dataDebtRetentionPercent > 100 ||
+			tuning.riskRetentionPercent > 100
+		) {
+			throw new Error(
+				`Model foundation ${foundation} retention percentages must be at most 100`,
 			);
 		}
 	}

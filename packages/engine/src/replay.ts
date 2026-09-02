@@ -192,6 +192,7 @@ function replayCommand(
 				family: command.family,
 				foundation: command.foundation,
 				parentModelId: command.parentModelId,
+				brandId: command.brandId,
 				tier: command.tier,
 				dataMix: command.dataMix,
 				emphasis: command.emphasis,

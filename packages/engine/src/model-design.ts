@@ -70,6 +70,8 @@ export type ModelDesignSpec = Readonly<{
 	modelFamily?: ModelFamilyId;
 	foundation: ModelFoundation;
 	parentModelId?: string | null;
+	/** Explicit market identity; omitted inputs inherit a parent or start one. */
+	brandId?: string;
 	/** Alias accepted for clients that call the parent a foundation model. */
 	foundationModelId?: string | null;
 	/** Short alias for parentModelId. */
@@ -89,6 +91,7 @@ type NormalizedModelDesignSpec = Readonly<{
 	family: ModelFamilyId;
 	foundation: ModelFoundation;
 	parentModelId: string | null;
+	brandId?: string;
 	tier: ModelTier;
 	dataMix: DataMix;
 	emphasis: ModelEmphasis;
@@ -143,7 +146,7 @@ export function designModel(
 		throw new Error("Only one active training run is allowed");
 	}
 
-	validateFoundation(state, normalized);
+	const parent = validateFoundation(state, normalized);
 	const foundationBalance = BALANCE.modelFoundations[normalized.foundation];
 	const totalCost = tier.cost + foundationBalance.cost;
 	const team = selectTeam(state, normalized.teamId);
@@ -156,6 +159,24 @@ export function designModel(
 
 	let allocated = allocateId(dataReservation.state, "model");
 	const modelId = allocated.id;
+	const brandId =
+		normalized.brandId ?? parent?.brandId ?? `brand_${parent?.id ?? modelId}`;
+	const foundationId =
+		normalized.foundation === "fresh"
+			? `foundation_${modelId}`
+			: (parent?.foundationId ?? `foundation_${parent?.id}`);
+	const foundationDebt = inheritFoundationValue(
+		parent?.foundationDebt,
+		foundationBalance.debtRetentionPercent,
+	);
+	const foundationRisk = inheritFoundationValue(
+		parent?.foundationRisk,
+		foundationBalance.riskRetentionPercent,
+	);
+	const dataDebt = inheritFoundationValue(
+		parent?.dataDebt,
+		foundationBalance.dataDebtRetentionPercent,
+	);
 	allocated = allocateId(allocated.state, "project");
 	const projectId = allocated.id;
 	allocated = allocateId(allocated.state, "command");
@@ -167,6 +188,11 @@ export function designModel(
 		family: normalized.family,
 		foundation: normalized.foundation,
 		parentModelId: normalized.parentModelId,
+		brandId,
+		foundationId,
+		foundationDebt,
+		foundationRisk,
+		dataDebt,
 		tier: normalized.tier,
 		scoreCeiling: clamp(
 			tier.scoreCeiling + researchEffects.modelScoreCeilingBonus,
@@ -230,6 +256,7 @@ export function designModel(
 				family: normalized.family,
 				foundation: normalized.foundation,
 				parentModelId: normalized.parentModelId,
+				brandId,
 				tier: normalized.tier,
 				dataMix: { ...normalized.dataMix },
 				emphasis: { ...normalized.emphasis },
@@ -288,11 +315,13 @@ export function generateTrueScores(
 	if (
 		model.foundation !== "fresh" &&
 		(parent === undefined ||
-			(parent.status !== "ready" && parent.status !== "launched") ||
+			(parent.status !== "ready" &&
+				parent.status !== "launched" &&
+				parent.status !== "shelved") ||
 			parent.trueScores === undefined)
 	) {
 		throw new Error(
-			`The ${model.foundation} foundation requires a ready or launched scored parent model`,
+			`The ${model.foundation} foundation requires a ready, launched, or shelved scored parent model`,
 		);
 	}
 
@@ -438,6 +467,7 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		"modelFamily",
 		"foundation",
 		"parentModelId",
+		"brandId",
 		"foundationModelId",
 		"parentId",
 		"tier",
@@ -486,12 +516,14 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		MODEL_TIERS,
 	);
 	const parentModelId = normalizeParentId(value);
+	const brandId = normalizeBrandId(value);
 	const teamId = normalizeTeamId(value);
 	return {
 		name: value.name,
 		family,
 		foundation: value.foundation,
 		parentModelId,
+		...(brandId === undefined ? {} : { brandId }),
 		tier,
 		dataMix,
 		emphasis,
@@ -546,6 +578,14 @@ function normalizeEmphasis(value: unknown): ModelEmphasis {
 		safety: emphasis.safety,
 		efficiency: emphasis.efficiency,
 	};
+}
+
+function normalizeBrandId(value: Record<string, unknown>): string | undefined {
+	if (!Object.hasOwn(value, "brandId")) {
+		return undefined;
+	}
+	assertIdentifier(value.brandId, "Model brand id");
+	return value.brandId;
 }
 
 function normalizeParentId(value: Record<string, unknown>): string | null {
@@ -718,6 +758,17 @@ function emphasisContributionFor(
 			total + emphasis[emphasisDimension] * weights[emphasisDimension],
 		0,
 	);
+}
+
+function inheritFoundationValue(
+	parentValue: number | undefined,
+	retentionPercent: number,
+): number {
+	if (parentValue === undefined || retentionPercent === 0) {
+		return 0;
+	}
+	const retained = Math.trunc((parentValue * retentionPercent) / 100);
+	return parentValue > 0 ? Math.max(1, retained) : retained;
 }
 
 function foundationFloorFor(

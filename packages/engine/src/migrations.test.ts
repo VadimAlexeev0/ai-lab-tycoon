@@ -27,6 +27,26 @@ function asRecord(value: unknown): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
+function stripV9LineageFields(state: Record<string, unknown>): void {
+	const models = asRecord(state.models);
+	if (Array.isArray(models.items)) {
+		for (const item of models.items) {
+			const model = asRecord(item);
+			delete model.brandId;
+			delete model.foundationId;
+			delete model.foundationDebt;
+			delete model.foundationRisk;
+		}
+	}
+	const commandLog = state.commandLog;
+	if (Array.isArray(commandLog)) {
+		for (const entry of commandLog) {
+			const command = asRecord(entry);
+			if (command.kind === "design_model") delete command.brandId;
+		}
+	}
+}
+
 function currentV1Fixture(): unknown {
 	// Schema v1 is the first accepted persisted format. This fixture is a JSON
 	// snapshot of the actual current startRun shape before the migration boundary;
@@ -99,6 +119,7 @@ function trainedV5Fixture(): unknown {
 	const model = asRecord((models.items as unknown[])[0]);
 	delete model.knowledgeCutoff;
 	delete model.knowledgeFreshness;
+	stripV9LineageFields(fixture);
 	meta.schemaVersion = 5;
 	return fixture;
 }
@@ -122,6 +143,7 @@ function currentV7FixtureWithModel(): Record<string, unknown> {
 		string,
 		unknown
 	>;
+	stripV9LineageFields(fixture);
 	asRecord(fixture.meta).schemaVersion = 7;
 	return fixture;
 }
