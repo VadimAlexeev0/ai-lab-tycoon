@@ -1,10 +1,17 @@
+import type { Model } from "../components/models.js";
 import type { Project } from "../components/projects.js";
 import type { Fact } from "../components/reports.js";
 import {
 	applyInfrastructureGain,
+	computeReservations,
 	withRecomputedCompute,
 } from "../compute-reservations.js";
 import { BALANCE } from "../data/balance.js";
+import {
+	consumeDataAllocations,
+	profileTrainingData,
+	syntheticDataEffects,
+} from "../data-inventory.js";
 import { completeEvaluationModel } from "../evaluations.js";
 import { assertGameState } from "../invariants.js";
 import { deriveResearchEffects } from "../research-effects.js";
@@ -23,13 +30,21 @@ export const projectsSystem: GameSystem = (state, context) => {
 	const completedInfrastructureProjectIds = new Set<string>();
 	const completedModelProjectIds = new Set<string>();
 	const researchEffects = deriveResearchEffects(state.research);
-	const nextModels = state.models.items.map((model) => ({ ...model }));
+	const reservations = computeReservations(state);
+	let nextDataInventory = state.dataInventory;
+	const nextModels = state.models.items.map(cloneModel);
 	const nextProjects: Project[] = state.projects.items.map((project) => {
 		if (project.status !== "active" || project.kind === "training") {
-			return { ...project };
+			return cloneProject(project);
 		}
 
-		const rate = BALANCE.projectProgressPerWeek[project.kind];
+		const rate =
+			project.kind === "refresh" &&
+			reservations.totalDemand > state.compute.capacity
+				? 0
+				: project.kind === "refresh"
+					? BALANCE.knowledgeCutoff.refreshDuration
+					: BALANCE.projectProgressPerWeek[project.kind];
 		const nextProgress = Math.min(project.duration, project.progress + rate);
 		const progressedBy = nextProgress - project.progress;
 		if (progressedBy > 0) {
@@ -56,6 +71,46 @@ export const projectsSystem: GameSystem = (state, context) => {
 		});
 		if (project.kind === "model") {
 			completedModelProjectIds.add(project.id);
+		}
+		if (project.kind === "refresh") {
+			const modelIndex = nextModels.findIndex(
+				(model) => model.id === project.modelId,
+			);
+			const model = nextModels[modelIndex];
+			if (model === undefined) {
+				throw new Error(
+					`Refresh project ${project.id} references an unknown model`,
+				);
+			}
+			const dataProfile = profileTrainingData(state, {
+				...model,
+				dataAllocation: project.dataAllocation,
+			});
+			const dataEffects = syntheticDataEffects(dataProfile);
+			const knowledgeCutoff =
+				dataProfile.newestAvailableFromWeek ?? context.week;
+			const knowledgeFreshness = dataProfile.weightedFreshness;
+			model.knowledgeCutoff = knowledgeCutoff;
+			model.knowledgeFreshness = knowledgeFreshness;
+			if (dataEffects.debtAdded > 0) {
+				model.dataDebt = Math.min(
+					100,
+					(model.dataDebt ?? 0) + dataEffects.debtAdded,
+				);
+			}
+			nextDataInventory = consumeDataAllocations(
+				nextDataInventory,
+				project.dataAllocation,
+			);
+			completedModelProjectIds.add(project.id);
+			facts.push({
+				kind: "model_refreshed",
+				modelId: model.id,
+				projectId: project.id,
+				knowledgeCutoff,
+				knowledgeFreshness,
+				week: context.week,
+			});
 		}
 		if (project.kind === "evaluation") {
 			const modelIndex = nextModels.findIndex(
@@ -103,10 +158,16 @@ export const projectsSystem: GameSystem = (state, context) => {
 			items: nextModels.map((model) =>
 				model.projectId !== null &&
 				completedModelProjectIds.has(model.projectId)
-					? { ...model, projectId: null }
-					: { ...model },
+					? { ...cloneModel(model), projectId: null }
+					: cloneModel(model),
 			),
 			activeModelId: state.models.activeModelId,
+		},
+		dataInventory: {
+			items: nextDataInventory.items.map((record) => ({
+				...record,
+				usageRestrictions: [...record.usageRestrictions],
+			})),
 		},
 		compute: {
 			...state.compute,
@@ -125,3 +186,52 @@ export const projectsSystem: GameSystem = (state, context) => {
 	});
 	return { state: recomputedState, facts, pending: [] };
 };
+
+function cloneProject(project: Project): Project {
+	return project.kind === "refresh"
+		? {
+				...project,
+				dataMix: { ...project.dataMix },
+				dataAllocation: project.dataAllocation.map((allocation) => ({
+					...allocation,
+				})),
+			}
+		: { ...project };
+}
+
+function cloneModel(model: Model): Model {
+	return {
+		...model,
+		...(model.dataMix === undefined ? {} : { dataMix: { ...model.dataMix } }),
+		...(model.dataAllocation === undefined
+			? {}
+			: {
+					dataAllocation: model.dataAllocation.map((allocation) => ({
+						...allocation,
+					})),
+				}),
+		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
+		...(model.knowledgeCutoff === undefined
+			? {}
+			: { knowledgeCutoff: model.knowledgeCutoff }),
+		...(model.knowledgeFreshness === undefined
+			? {}
+			: { knowledgeFreshness: model.knowledgeFreshness }),
+		...(model.emphasis === undefined
+			? {}
+			: { emphasis: { ...model.emphasis } }),
+		...(model.trueScores === undefined
+			? {}
+			: { trueScores: { ...model.trueScores } }),
+		...(model.estimates === undefined
+			? {}
+			: {
+					estimates: Object.fromEntries(
+						Object.entries(model.estimates).map(([dimension, band]) => [
+							dimension,
+							{ ...band },
+						]),
+					) as Model["estimates"],
+				}),
+	};
+}

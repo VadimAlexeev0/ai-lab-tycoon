@@ -9,6 +9,7 @@ import {
 import { acquireData, consumeDataAllocations } from "./data-inventory.js";
 import {
 	assertGameState,
+	GAME_STATE_SCHEMA_VERSION,
 	serializeGameState,
 	startRun,
 	upgradeGameStateWithMetadata,
@@ -388,7 +389,7 @@ describe("strategic data inventory", () => {
 		const upgraded = upgradeGameStateWithMetadata(fixture);
 
 		expect(upgraded.sourceSchemaVersion).toBe(4);
-		expect(upgraded.currentSchemaVersion).toBe(5);
+		expect(upgraded.currentSchemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.state.dataInventory.items).toHaveLength(3);
 		expect(upgraded.state.counters.data).toBe(4);
 		expect(JSON.stringify(fixture)).toBe(before);

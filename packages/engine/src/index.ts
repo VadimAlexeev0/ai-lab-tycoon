@@ -5,6 +5,7 @@ import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel } from "./model-design.js";
 import { launchProduct } from "./products.js";
+import { refreshModel } from "./refresh-model.js";
 import { startRun } from "./start-run.js";
 
 export const ENGINE_PACKAGE_NAME = "@ai-lab-tycoon/engine";
@@ -53,6 +54,10 @@ export type {
 } from "./data/research.js";
 export type { DataAcquisitionRequest } from "./data-inventory.js";
 export { assertGameState, setAssertionsEnabled } from "./invariants.js";
+export type {
+	KnowledgeFreshnessStatus,
+	KnowledgePressure,
+} from "./knowledge-cutoff.js";
 export type { GameStateUpgradeResult } from "./migrations.js";
 export {
 	deserializeGameState,
@@ -63,6 +68,7 @@ export {
 } from "./migrations.js";
 export type { ModelDesignSpec } from "./model-design.js";
 export { applyProductResume } from "./products.js";
+export type { ModelRefreshRequest } from "./refresh-model.js";
 export type {
 	CommandLogEnvelope,
 	ReplayCommandLogInput,
@@ -126,6 +132,7 @@ export {
 	cancelProject,
 	designModel,
 	launchProduct,
+	refreshModel,
 	runEvaluation,
 	startRun,
 };

@@ -318,6 +318,12 @@ function cloneModel(model: Model): Model {
 					})),
 				}),
 		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
+		...(model.knowledgeCutoff === undefined
+			? {}
+			: { knowledgeCutoff: model.knowledgeCutoff }),
+		...(model.knowledgeFreshness === undefined
+			? {}
+			: { knowledgeFreshness: model.knowledgeFreshness }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),

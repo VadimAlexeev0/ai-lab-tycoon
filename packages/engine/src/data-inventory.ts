@@ -36,11 +36,18 @@ export type DataReservation = Readonly<{
 	staleRecordIds: string[];
 }>;
 
+export type DataReservationOptions = Readonly<{
+	/** Require every reserved record to meet this freshness percentage. */
+	minimumFreshness?: number;
+}>;
+
 export type TrainingDataProfile = Readonly<{
 	totalAmount: number;
 	syntheticAmount: number;
 	weightedQuality: number;
 	weightedFreshness: number;
+	/** Latest in-game availability week among the records actually allocated. */
+	newestAvailableFromWeek: number | null;
 	staleRecordIds: string[];
 }>;
 
@@ -163,8 +170,10 @@ export function acquireData(
 export function reserveDataForMix(
 	state: GameState,
 	dataMix: DataMix,
+	options: DataReservationOptions = {},
 ): DataReservation {
 	assertDataMix(dataMix);
+	assertReservationOptions(options);
 	const nextItems = state.dataInventory.items.map(cloneDataRecord);
 	const allocations: DataAllocation[] = [];
 	const staleRecordIds: string[] = [];
@@ -180,7 +189,9 @@ export function reserveDataForMix(
 				record.availableFromWeek <= state.meta.week &&
 				record.usageRestrictions.every(
 					(restriction) => !TRAINING_BLOCKING_RESTRICTIONS.has(restriction),
-				),
+				) &&
+				(options.minimumFreshness === undefined ||
+					record.freshness >= options.minimumFreshness),
 		);
 		const availableAmount = usable.reduce(
 			(total, record) =>
@@ -258,6 +269,7 @@ export function profileTrainingData(
 	let syntheticAmount = 0;
 	let qualityTotal = 0;
 	let freshnessTotal = 0;
+	let newestAvailableFromWeek: number | null = null;
 	const staleRecordIds: string[] = [];
 	for (const allocation of allocations) {
 		const record = state.dataInventory.items.find(
@@ -271,6 +283,10 @@ export function profileTrainingData(
 		totalAmount += allocation.amount;
 		qualityTotal += record.quality * allocation.amount;
 		freshnessTotal += record.freshness * allocation.amount;
+		newestAvailableFromWeek =
+			newestAvailableFromWeek === null
+				? record.availableFromWeek
+				: Math.max(newestAvailableFromWeek, record.availableFromWeek);
 		if (record.provenance === "synthetic") syntheticAmount += allocation.amount;
 		if (
 			record.freshness < BALANCE.dataInventory.stalenessThreshold &&
@@ -286,6 +302,7 @@ export function profileTrainingData(
 			totalAmount === 0 ? 100 : Math.trunc(qualityTotal / totalAmount),
 		weightedFreshness:
 			totalAmount === 0 ? 100 : Math.trunc(freshnessTotal / totalAmount),
+		newestAvailableFromWeek,
 		staleRecordIds,
 	};
 }
@@ -347,6 +364,23 @@ function updateDataAllocations(
 		}
 	}
 	return { items: nextItems };
+}
+
+function assertReservationOptions(value: DataReservationOptions): void {
+	assertExactObject(
+		value,
+		Object.hasOwn(value, "minimumFreshness") ? ["minimumFreshness"] : [],
+		"Data reservation options",
+	);
+	if (Object.hasOwn(value, "minimumFreshness")) {
+		assertNonNegativeInteger(
+			value.minimumFreshness,
+			"Data reservation minimum freshness",
+		);
+		if (value.minimumFreshness > 100) {
+			throw new Error("Data reservation minimum freshness must be at most 100");
+		}
+	}
 }
 
 function assertDataMix(value: DataMix): void {

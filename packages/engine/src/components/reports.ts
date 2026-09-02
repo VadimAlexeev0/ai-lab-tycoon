@@ -10,6 +10,7 @@ import {
 	isResearchParadigmId,
 	type ResearchEffect,
 } from "../data/research.js";
+import type { KnowledgeFreshnessStatus } from "../knowledge-cutoff.js";
 import {
 	assertArray,
 	assertBoolean,
@@ -38,11 +39,15 @@ const FACT_KINDS = [
 	"paradigm_selected",
 	"research_spark_discovered",
 	"model_trained",
+	"knowledge_cutoff_recorded",
+	"model_refresh_started",
+	"model_refreshed",
 	"evaluation_completed",
 	"product_launched",
 	"product_resumed",
 	"data_acquired",
 	"data_stale_warning",
+	"model_staleness",
 	"synthetic_data_overuse",
 	"revenue",
 	"serving_throttled",
@@ -125,6 +130,29 @@ export type Fact =
 			week: number;
 	  }
 	| {
+			kind: "knowledge_cutoff_recorded";
+			modelId: string;
+			knowledgeCutoff: number;
+			knowledgeFreshness: number;
+			week: number;
+	  }
+	| {
+			kind: "model_refresh_started";
+			modelId: string;
+			projectId: string;
+			dataAmount: number;
+			compute: number;
+			week: number;
+	  }
+	| {
+			kind: "model_refreshed";
+			modelId: string;
+			projectId: string;
+			knowledgeCutoff: number;
+			knowledgeFreshness: number;
+			week: number;
+	  }
+	| {
 			kind: "evaluation_completed";
 			modelId: string;
 			evaluation: "capability" | "safety_reliability";
@@ -158,6 +186,18 @@ export type Fact =
 			kind: "data_stale_warning";
 			dataIds: readonly string[];
 			threshold: number;
+			week: number;
+	  }
+	| {
+			kind: "model_staleness";
+			modelId: string;
+			productId: string;
+			status: KnowledgeFreshnessStatus;
+			ageWeeks: number;
+			knowledgeCutoff: number;
+			knowledgeFreshness: number;
+			demandFactor: number;
+			qualityFactor: number;
 			week: number;
 	  }
 	| {
@@ -470,6 +510,66 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.modelId, "Trained model id");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "knowledge_cutoff_recorded":
+			assertExactObject(
+				value,
+				["kind", "modelId", "knowledgeCutoff", "knowledgeFreshness", "week"],
+				"knowledge cutoff recorded fact",
+			);
+			assertIdentifier(value.modelId, "Knowledge cutoff model id");
+			assertPositiveInteger(
+				value.knowledgeCutoff,
+				"Knowledge cutoff fact cutoff",
+			);
+			assertNonNegativeInteger(
+				value.knowledgeFreshness,
+				"Knowledge cutoff fact freshness",
+			);
+			if (value.knowledgeFreshness > 100) {
+				throw new Error("Knowledge cutoff fact freshness must be at most 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "model_refresh_started":
+			assertExactObject(
+				value,
+				["kind", "modelId", "projectId", "dataAmount", "compute", "week"],
+				"model refresh started fact",
+			);
+			assertIdentifier(value.modelId, "Refresh started model id");
+			assertIdentifier(value.projectId, "Refresh started project id");
+			assertPositiveInteger(value.dataAmount, "Refresh data amount");
+			assertPositiveInteger(value.compute, "Refresh compute amount");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		case "model_refreshed":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"modelId",
+					"projectId",
+					"knowledgeCutoff",
+					"knowledgeFreshness",
+					"week",
+				],
+				"model refreshed fact",
+			);
+			assertIdentifier(value.modelId, "Refreshed model id");
+			assertIdentifier(value.projectId, "Refreshed project id");
+			assertPositiveInteger(
+				value.knowledgeCutoff,
+				"Refreshed knowledge cutoff",
+			);
+			assertNonNegativeInteger(
+				value.knowledgeFreshness,
+				"Refreshed knowledge freshness",
+			);
+			if (value.knowledgeFreshness > 100) {
+				throw new Error("Refreshed knowledge freshness must be at most 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "evaluation_completed":
 			assertExactObject(
 				value,
@@ -598,6 +698,40 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertPositiveInteger(value.week, "Fact week");
 			return;
 		}
+		case "model_staleness":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"modelId",
+					"productId",
+					"status",
+					"ageWeeks",
+					"knowledgeCutoff",
+					"knowledgeFreshness",
+					"demandFactor",
+					"qualityFactor",
+					"week",
+				],
+				"model staleness fact",
+			);
+			assertIdentifier(value.modelId, "Staleness model id");
+			assertIdentifier(value.productId, "Staleness product id");
+			assertEnum(value.status, ["fresh", "aging", "stale"], "Staleness status");
+			assertNonNegativeInteger(value.ageWeeks, "Staleness age");
+			assertPositiveInteger(value.knowledgeCutoff, "Staleness cutoff");
+			assertNonNegativeInteger(value.knowledgeFreshness, "Staleness freshness");
+			assertNonNegativeInteger(value.demandFactor, "Staleness demand factor");
+			assertNonNegativeInteger(value.qualityFactor, "Staleness quality factor");
+			if (
+				value.knowledgeFreshness > 100 ||
+				value.demandFactor > 100 ||
+				value.qualityFactor > 100
+			) {
+				throw new Error("Staleness values must be between 0 and 100");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "synthetic_data_overuse":
 			assertExactObject(
 				value,

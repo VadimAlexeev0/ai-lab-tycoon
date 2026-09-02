@@ -1,12 +1,17 @@
+import { BALANCE } from "../data/balance.js";
+import { DATA_MIX_DIMENSIONS, type DataMix } from "../data/model-families.js";
 import {
 	assertArray,
 	assertEnum,
 	assertExactObject,
 	assertIdentifier,
 	assertInteger,
+	assertNonNegativeInteger,
 	assertNullableString,
 	assertObject,
+	assertPositiveInteger,
 } from "../validation.js";
+import type { DataAllocation } from "./models.js";
 import type { ProductChannel } from "./products.js";
 
 export type ProjectStatus = "available" | "active" | "completed" | "cancelled";
@@ -16,6 +21,7 @@ export type ProjectKind =
 	| "infrastructure"
 	| "model"
 	| "training"
+	| "refresh"
 	| "evaluation"
 	| "product";
 
@@ -24,6 +30,7 @@ const PROJECT_KINDS = [
 	"infrastructure",
 	"model",
 	"training",
+	"refresh",
 	"evaluation",
 	"product",
 ] as const satisfies readonly ProjectKind[];
@@ -66,6 +73,12 @@ export type Project =
 			modelId: string;
 	  })
 	| (ProjectBase & {
+			kind: "refresh";
+			modelId: string;
+			dataMix: DataMix;
+			dataAllocation: DataAllocation[];
+	  })
+	| (ProjectBase & {
 			kind: "evaluation";
 			modelId: string;
 			evaluation: "capability" | "safety_reliability";
@@ -82,7 +95,17 @@ export type ProjectsState = {
 
 export function createProjectsState(items: Project[] = []): ProjectsState {
 	return {
-		items: items.map((project) => ({ ...project })),
+		items: items.map((project) =>
+			project.kind === "refresh"
+				? {
+						...project,
+						dataMix: { ...project.dataMix },
+						dataAllocation: project.dataAllocation.map((allocation) => ({
+							...allocation,
+						})),
+					}
+				: { ...project },
+		),
 	};
 }
 
@@ -119,6 +142,23 @@ export function assertProjectsState(
 					item,
 					["kind", "id", "teamId", "status", "progress", "duration", "modelId"],
 					`${kind} project`,
+				);
+				break;
+			case "refresh":
+				assertExactObject(
+					item,
+					[
+						"kind",
+						"id",
+						"teamId",
+						"status",
+						"progress",
+						"duration",
+						"modelId",
+						"dataMix",
+						"dataAllocation",
+					],
+					"refresh project",
 				);
 				break;
 			case "evaluation":
@@ -166,6 +206,14 @@ export function assertProjectsState(
 			case "model":
 			case "training":
 				assertIdentifier(item.modelId, `${kind} project model id`);
+				break;
+			case "refresh":
+				assertIdentifier(item.modelId, "Refresh project model id");
+				assertDataMix(item.dataMix, "Refresh project data mix");
+				assertDataAllocation(
+					item.dataAllocation,
+					"Refresh project data allocation",
+				);
 				break;
 			case "evaluation":
 				assertIdentifier(item.modelId, "Evaluation project model id");
@@ -218,5 +266,36 @@ function assertProjectBase(
 	}
 	if (value.status === "completed" && value.progress !== value.duration) {
 		throw new Error(`Completed project ${value.id} must reach its duration`);
+	}
+}
+
+function assertDataMix(value: unknown, path: string): asserts value is DataMix {
+	assertExactObject(value, DATA_MIX_DIMENSIONS, path);
+	let total = 0;
+	for (const dimension of DATA_MIX_DIMENSIONS) {
+		assertNonNegativeInteger(value[dimension], `${path} ${dimension}`);
+		total += value[dimension];
+	}
+	if (total !== BALANCE.dataInventory.trainingUnits) {
+		throw new Error(
+			`${path} must total exactly ${BALANCE.dataInventory.trainingUnits}`,
+		);
+	}
+}
+
+function assertDataAllocation(
+	value: unknown,
+	path: string,
+): asserts value is DataAllocation[] {
+	assertArray(value, path);
+	const recordIds = new Set<string>();
+	for (const allocation of value) {
+		assertExactObject(allocation, ["recordId", "amount"], `${path} item`);
+		assertIdentifier(allocation.recordId, `${path} record id`);
+		if (recordIds.has(allocation.recordId)) {
+			throw new Error(`${path} repeats record id: ${allocation.recordId}`);
+		}
+		recordIds.add(allocation.recordId);
+		assertPositiveInteger(allocation.amount, `${path} amount`);
 	}
 }

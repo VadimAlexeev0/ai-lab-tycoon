@@ -67,6 +67,10 @@ export type Model = {
 	dataAllocation?: DataAllocation[];
 	/** Bounded technical debt caused by overusing synthetic training data. */
 	dataDebt?: number;
+	/** In-game week of the newest allocated training data. */
+	knowledgeCutoff?: number;
+	/** Weighted freshness of the allocated training data at completion. */
+	knowledgeFreshness?: number;
 	emphasis?: ModelEmphasis;
 	/** Hidden until training completes; never project this field to a selector. */
 	trueScores?: ModelTrueScores;
@@ -145,6 +149,26 @@ export function assertModelsState(
 		if (Object.hasOwn(item, "dataDebt")) {
 			assertBoundedInteger(item.dataDebt, `Model ${item.id} data debt`);
 		}
+		if (Object.hasOwn(item, "knowledgeCutoff")) {
+			assertPositiveInteger(
+				item.knowledgeCutoff,
+				`Model ${item.id} knowledge cutoff`,
+			);
+		}
+		if (Object.hasOwn(item, "knowledgeFreshness")) {
+			assertBoundedInteger(
+				item.knowledgeFreshness,
+				`Model ${item.id} knowledge freshness`,
+			);
+		}
+		if (
+			Object.hasOwn(item, "knowledgeCutoff") !==
+			Object.hasOwn(item, "knowledgeFreshness")
+		) {
+			throw new Error(
+				`Model ${item.id} knowledge cutoff and freshness must be recorded together`,
+			);
+		}
 		if (Object.hasOwn(item, "emphasis")) {
 			assertEmphasis(item.emphasis, `Model ${item.id} emphasis`);
 		}
@@ -214,6 +238,12 @@ function cloneModel(model: Model): Model {
 					})),
 				}),
 		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
+		...(model.knowledgeCutoff === undefined
+			? {}
+			: { knowledgeCutoff: model.knowledgeCutoff }),
+		...(model.knowledgeFreshness === undefined
+			? {}
+			: { knowledgeFreshness: model.knowledgeFreshness }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),
@@ -247,6 +277,8 @@ function assertAllowedModelKeys(value: Record<string, unknown>): void {
 		"dataMix",
 		"dataAllocation",
 		"dataDebt",
+		"knowledgeCutoff",
+		"knowledgeFreshness",
 		"emphasis",
 		"trueScores",
 		"estimates",

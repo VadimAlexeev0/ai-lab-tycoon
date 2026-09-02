@@ -70,6 +70,7 @@ const COMMAND_KINDS = [
 	"assign_project",
 	"cancel_project",
 	"design_model",
+	"refresh_model",
 	"run_evaluation",
 	"launch_product",
 	"acquire_data",
@@ -83,6 +84,7 @@ const WARNING_CODES = [
 	"compute_shortage",
 	"trust_low",
 	"stale_data",
+	"stale_model",
 	"blocking_decision",
 ] as const;
 const WARNING_SEVERITIES = ["info", "warning", "critical"] as const;
@@ -151,6 +153,7 @@ export function assertGameState(
 	deriveResearchEffects(state.research);
 	assertModelsState(state.models);
 	assertModelDataRelations(state);
+	assertRefreshProjectDataRelations(state);
 	assertProductsState(state.products);
 	assertDataInventoryProductRelations(state);
 	assertRivalsState(state.rivals);
@@ -413,6 +416,14 @@ function assertModelRelations(state: GameState): void {
 				`Model ${model.id} must have true scores and estimates together`,
 			);
 		}
+		if (
+			model.knowledgeCutoff !== undefined &&
+			model.knowledgeCutoff > state.meta.week
+		) {
+			throw new Error(
+				`Model ${model.id} knowledge cutoff cannot be from a future week`,
+			);
+		}
 		if (model.status === "launched" && (!hasTrueScores || !hasEstimates)) {
 			throw new Error(
 				`Launched model ${model.id} must retain true scores and estimates`,
@@ -537,6 +548,80 @@ function assertModelDataRelations(state: GameState): void {
 			if (heldAmount < allocation.amount) {
 				throw new Error(
 					`Model ${model.id} data allocation exceeds its record ${activeTraining ? "reservation" : "consumption"}`,
+				);
+			}
+		}
+	}
+}
+
+function assertRefreshProjectDataRelations(state: GameState): void {
+	for (const project of state.projects.items) {
+		if (project.kind !== "refresh") continue;
+		const total = project.dataAllocation.reduce(
+			(sum, allocation) => sum + allocation.amount,
+			0,
+		);
+		if (total !== BALANCE.dataInventory.trainingUnits) {
+			throw new Error(
+				`Refresh project ${project.id} data allocation must total exactly ${BALANCE.dataInventory.trainingUnits} training units`,
+			);
+		}
+		const model = state.models.items.find(
+			(candidate) => candidate.id === project.modelId,
+		);
+		if (model === undefined) {
+			throw new Error(
+				`Refresh project ${project.id} references an unknown model`,
+			);
+		}
+		if (project.status === "active" && model.projectId !== project.id) {
+			throw new Error(
+				`Active refresh project ${project.id} must be reciprocal with its model`,
+			);
+		}
+		const allocatedMix = { general: 0, code: 0, multimodal: 0 };
+		for (const allocation of project.dataAllocation) {
+			const record = state.dataInventory.items.find(
+				(candidate) => candidate.id === allocation.recordId,
+			);
+			if (record === undefined) {
+				throw new Error(
+					`Refresh project ${project.id} references unknown data record ${allocation.recordId}`,
+				);
+			}
+			allocatedMix[record.modality] += allocation.amount;
+			if (project.status === "active") {
+				if (record.availableFromWeek > state.meta.week) {
+					throw new Error(
+						`Active refresh project ${project.id} references unavailable data record ${record.id}`,
+					);
+				}
+				if (
+					record.usageRestrictions.some((restriction) =>
+						TRAINING_BLOCKING_DATA_RESTRICTIONS.has(restriction),
+					)
+				) {
+					throw new Error(
+						`Active refresh project ${project.id} references restricted data record ${record.id}`,
+					);
+				}
+				if (
+					record.freshness < BALANCE.knowledgeCutoff.refreshMinimumFreshness
+				) {
+					throw new Error(
+						`Active refresh project ${project.id} requires fresh data record ${record.id}`,
+					);
+				}
+			}
+			const heldAmount =
+				project.status === "active"
+					? record.reservedAmount
+					: project.status === "completed"
+						? record.consumedAmount
+						: record.reservedAmount + record.consumedAmount;
+			if (project.status !== "cancelled" && heldAmount < allocation.amount) {
+				throw new Error(
+					`Refresh project ${project.id} exceeds its record ${project.status === "active" ? "reservation" : "consumption"}`,
 				);
 			}
 		}
@@ -734,6 +819,7 @@ function isModelRelatedProject(
 	return (
 		project.kind === "model" ||
 		project.kind === "training" ||
+		project.kind === "refresh" ||
 		project.kind === "evaluation" ||
 		project.kind === "product"
 	);
@@ -915,6 +1001,18 @@ function assertCommandLog(
 				assertDesignMix(item.dataMix);
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
+				break;
+			case "refresh_model":
+				assertExactObject(
+					item,
+					["id", "kind", "week", "modelId", "projectId", "teamId", "dataMix"],
+					"refresh_model command",
+				);
+				assertIdentifier(item.modelId, "Refresh command model id");
+				assertIdentifier(item.projectId, "Refresh command project id");
+				assertIdentifier(item.teamId, "Refresh command team id");
+				assertDesignMix(item.dataMix);
+				assertRefreshCommandReferences(item, state);
 				break;
 			case "run_evaluation": {
 				assertExactObject(
@@ -1124,6 +1222,55 @@ function assertAdvanceWeekCommand(command: Record<string, unknown>): void {
 			throw new Error("Advance incident roll must be between 0 and 99");
 		}
 	}
+}
+
+function assertRefreshCommandReferences(
+	command: Record<string, unknown>,
+	state: Pick<GameState, "models" | "projects" | "teams">,
+): void {
+	const model = state.models.items.find((item) => item.id === command.modelId);
+	if (model === undefined) {
+		throw new Error(
+			`Refresh model command references an unknown model: ${String(command.modelId)}`,
+		);
+	}
+	if (model.status !== "ready" && model.status !== "launched") {
+		throw new Error(
+			`Refresh model command references an ineligible model: ${String(command.modelId)}`,
+		);
+	}
+	const project = state.projects.items.find(
+		(item) => item.id === command.projectId,
+	);
+	if (project === undefined || project.kind !== "refresh") {
+		throw new Error(
+			`Refresh model command references a non-refresh project: ${String(command.projectId)}`,
+		);
+	}
+	if (
+		project.modelId !== model.id ||
+		!matchesDataMix(project.dataMix, command.dataMix)
+	) {
+		throw new Error(
+			`Refresh model command payload does not match project ${project.id}`,
+		);
+	}
+	if (!state.teams.items.some((team) => team.id === command.teamId)) {
+		throw new Error(
+			`Refresh model command references an unknown team: ${String(command.teamId)}`,
+		);
+	}
+}
+
+function matchesDataMix(
+	projectMix: { general: number; code: number; multimodal: number },
+	commandMix: unknown,
+): boolean {
+	if (commandMix === null || typeof commandMix !== "object") return false;
+	const mix = commandMix as Record<string, unknown>;
+	return DATA_MIX_DIMENSIONS.every(
+		(dimension) => projectMix[dimension] === mix[dimension],
+	);
 }
 
 function assertDesignCommandReferences(

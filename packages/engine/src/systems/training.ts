@@ -120,6 +120,10 @@ export const trainingSystem: GameSystem = (state, context) => {
 		model.projectId = null;
 		model.trueScores = generated.trueScores;
 		model.estimates = generated.estimates;
+		const knowledgeCutoff = dataProfile.newestAvailableFromWeek ?? context.week;
+		const knowledgeFreshness = dataProfile.weightedFreshness;
+		model.knowledgeCutoff = knowledgeCutoff;
+		model.knowledgeFreshness = knowledgeFreshness;
 		if (model.dataAllocation !== undefined) {
 			nextDataInventory = consumeDataAllocations(
 				nextDataInventory,
@@ -148,6 +152,13 @@ export const trainingSystem: GameSystem = (state, context) => {
 			{
 				kind: "model_trained",
 				modelId: model.id,
+				week: context.week,
+			},
+			{
+				kind: "knowledge_cutoff_recorded",
+				modelId: model.id,
+				knowledgeCutoff,
+				knowledgeFreshness,
 				week: context.week,
 			},
 		);
@@ -225,6 +236,12 @@ function cloneModel(model: Model): Model {
 					})),
 				}),
 		...(model.dataDebt === undefined ? {} : { dataDebt: model.dataDebt }),
+		...(model.knowledgeCutoff === undefined
+			? {}
+			: { knowledgeCutoff: model.knowledgeCutoff }),
+		...(model.knowledgeFreshness === undefined
+			? {}
+			: { knowledgeFreshness: model.knowledgeFreshness }),
 		...(model.emphasis === undefined
 			? {}
 			: { emphasis: { ...model.emphasis } }),

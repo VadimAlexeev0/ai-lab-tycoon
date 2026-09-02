@@ -7,6 +7,7 @@ import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel } from "./model-design.js";
 import { applyProductResume, launchProduct } from "./products.js";
+import { refreshModel } from "./refresh-model.js";
 import { startRun } from "./start-run.js";
 import type { CommandLogEntry, EngineResult, GameState } from "./state.js";
 import { GAME_STATE_SCHEMA_VERSION } from "./state.js";
@@ -191,6 +192,12 @@ function replayCommand(
 				dataMix: command.dataMix,
 				emphasis: command.emphasis,
 				teamId: command.teamId,
+			});
+		case "refresh_model":
+			return refreshModel(state, {
+				modelId: command.modelId,
+				teamId: command.teamId,
+				dataMix: command.dataMix,
 			});
 		case "run_evaluation":
 			return runEvaluation(state, command.modelId, command.evaluation);
