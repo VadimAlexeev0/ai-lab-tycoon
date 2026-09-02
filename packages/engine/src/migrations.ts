@@ -390,6 +390,18 @@ function assertNoV8FieldsInV7(state: Record<string, unknown>): void {
 		}
 	}
 
+	const decisions = state.decisions;
+	assertObject(decisions, "v7 decisions");
+	assertArray(decisions.pending, "v7 pending decisions");
+	for (const decision of decisions.pending) {
+		assertObject(decision, "v7 pending decision");
+		if (decision.kind === "launch" && Object.hasOwn(decision, "price")) {
+			throw new Error(
+				"v7 pending launch decision contains unexpected price field",
+			);
+		}
+	}
+
 	const commandLog = state.commandLog;
 	assertArray(commandLog, "v7 command log");
 	for (const command of commandLog) {
@@ -401,6 +413,15 @@ function assertNoV8FieldsInV7(state: Record<string, unknown>): void {
 		}
 		if (command.kind === "launch_product" && Object.hasOwn(command, "price")) {
 			throw new Error("v7 launch command contains unexpected price field");
+		}
+		if (command.kind === "apply_decision") {
+			const choice = command.choice;
+			assertObject(choice, "v7 apply_decision choice");
+			if (choice.kind === "launch" && Object.hasOwn(choice, "price")) {
+				throw new Error(
+					"v7 apply_decision launch choice contains unexpected price field",
+				);
+			}
 		}
 	}
 

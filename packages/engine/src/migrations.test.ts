@@ -103,6 +103,29 @@ function trainedV5Fixture(): unknown {
 	return fixture;
 }
 
+function currentV7FixtureWithModel(): Record<string, unknown> {
+	const state = startRun({ companyName: "Migration Labs" }, 23);
+	const familyUnlock = state.research.nodes.find(
+		(node) => node.id === "text_models_principles",
+	);
+	if (familyUnlock === undefined) throw new Error("Expected model unlock");
+	familyUnlock.status = "completed";
+	const designed = designModel(state, {
+		name: "Legacy-1",
+		family: "text",
+		foundation: "fresh",
+		tier: "standard",
+		dataMix: { general: 60, code: 30, multimodal: 10 },
+		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	}).state;
+	const fixture = JSON.parse(serializeGameState(designed)) as Record<
+		string,
+		unknown
+	>;
+	asRecord(fixture.meta).schemaVersion = 7;
+	return fixture;
+}
+
 describe("GameState migration and serialization", () => {
 	it("migrates a v5 trained model by deriving its cutoff and freshness", () => {
 		const fixture = trainedV5Fixture();
@@ -128,6 +151,59 @@ describe("GameState migration and serialization", () => {
 
 		expect(() => upgradeGameState(fixture)).toThrow(/unexpected|knowledge/i);
 	});
+
+	it("rejects v8 pricing nested in a v7 pending launch decision", () => {
+		const fixture = currentV7FixtureWithModel();
+		const decisions = asRecord(fixture.decisions);
+		decisions.pending = [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				channel: "chat",
+				price: 10,
+				blocking: true,
+			},
+		];
+		asRecord(fixture.queue).decisionIds = ["decision_001"];
+
+		expect(() => upgradeGameState(fixture)).toThrow(
+			/v7.*launch.*price|unexpected.*price/i,
+		);
+	});
+
+	it("rejects v8 pricing nested in a v7 apply_decision launch choice", () => {
+		const fixture = currentV7FixtureWithModel();
+		const decisions = asRecord(fixture.decisions);
+		decisions.pending = [
+			{
+				kind: "launch",
+				id: "decision_001",
+				modelId: "model_001",
+				channel: "chat",
+				blocking: true,
+			},
+		];
+		asRecord(fixture.queue).decisionIds = ["decision_001"];
+		const commandLog = fixture.commandLog;
+		if (!Array.isArray(commandLog)) throw new Error("Expected command log");
+		commandLog.push({
+			id: "command_003",
+			kind: "apply_decision",
+			week: 1,
+			choice: {
+				kind: "launch",
+				decisionId: "decision_001",
+				channel: "chat",
+				price: 10,
+			},
+		});
+
+		expect(() => upgradeGameState(fixture)).toThrow(
+			/v7.*apply_decision.*price|unexpected.*price/i,
+		);
+	});
+
 	it("migrates a v3 state to an unresolved paradigm without mutation", () => {
 		const fixture = currentV3Fixture();
 		const before = JSON.stringify(fixture);
