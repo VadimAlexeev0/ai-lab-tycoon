@@ -61,6 +61,7 @@ describe("model family data", () => {
 			"multimodal",
 			"local_edge",
 			"video",
+			"agent",
 		]);
 		for (const family of MODEL_FAMILIES) {
 			expect(family.displayName.length).toBeGreaterThan(0);
@@ -70,6 +71,7 @@ describe("model family data", () => {
 			expect(Object.keys(family.dataMixRequirements).length).toBe(3);
 			expect(Number.isInteger(family.servingComputePerUserPercent)).toBe(true);
 			expect(Number.isInteger(family.scoreCeilingAdjustment)).toBe(true);
+			expect(Number.isInteger(family.incidentExposurePercent)).toBe(true);
 		}
 	});
 });

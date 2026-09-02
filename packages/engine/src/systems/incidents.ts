@@ -5,6 +5,7 @@ import type {
 	IncidentType,
 	PendingDecision,
 } from "../components/decisions.js";
+import type { Model } from "../components/models.js";
 import type { Fact } from "../components/reports.js";
 import {
 	assertRiskCrisisChoice,
@@ -26,6 +27,10 @@ import {
 	incidentDefinition,
 	incidentDefinitionForCondition,
 } from "../data/incidents.js";
+import {
+	DEFAULT_INCIDENT_EXPOSURE_PERCENT,
+	MODEL_FAMILIES,
+} from "../data/model-families.js";
 import { assertRunActive } from "../guards.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
@@ -92,6 +97,8 @@ export const incidentsSystem: GameSystem = (state, context) => {
 			definition,
 			memory,
 			state.risk.crises,
+			state.models.items,
+			evidence.affectedModelId,
 		);
 		if (rollValue >= probability) continue;
 
@@ -518,6 +525,8 @@ function incidentProbability(
 	definition: IncidentDefinition,
 	memory: RiskMemory | undefined,
 	crises: readonly RiskCrisis[],
+	models: readonly Pick<Model, "id" | "family">[],
+	affectedModelId: string | null,
 ): number {
 	const bonus =
 		memory?.unresolved === true && !hasResolvedCrisis(memory, crises)
@@ -529,7 +538,22 @@ function incidentProbability(
 					) * BALANCE.riskMemory.recurrenceProbabilityBonus,
 				)
 			: 0;
-	return Math.min(100, definition.baseProbability + bonus);
+	const baseProbability = definition.baseProbability + bonus;
+	const exposure = incidentExposureForModel(models, affectedModelId);
+	return Math.min(100, Math.trunc((baseProbability * exposure) / 100));
+}
+
+function incidentExposureForModel(
+	models: readonly Pick<Model, "id" | "family">[],
+	affectedModelId: string | null,
+): number {
+	if (affectedModelId === null) return DEFAULT_INCIDENT_EXPOSURE_PERCENT;
+	const model = models.find((candidate) => candidate.id === affectedModelId);
+	if (model?.family === undefined) return DEFAULT_INCIDENT_EXPOSURE_PERCENT;
+	const family = MODEL_FAMILIES.find(
+		(candidate) => candidate.id === model.family,
+	);
+	return family?.incidentExposurePercent ?? DEFAULT_INCIDENT_EXPOSURE_PERCENT;
 }
 
 function incidentEffect(

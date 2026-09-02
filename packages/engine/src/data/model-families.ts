@@ -10,6 +10,7 @@ import {
 	assertString,
 } from "../validation.js";
 import {
+	AGENT_RUNTIME_ID,
 	getResearchDefinition,
 	LOCAL_EDGE_INFERENCE_ID,
 	MULTIMODAL_MODELS_FUSION_ID,
@@ -44,6 +45,7 @@ export const MODEL_FAMILY_IDS = [
 	"multimodal",
 	"local_edge",
 	"video",
+	"agent",
 ] as const;
 export type ModelFamilyId = (typeof MODEL_FAMILY_IDS)[number];
 
@@ -52,6 +54,9 @@ export type ModelTier = (typeof MODEL_TIERS)[number];
 
 export type DataMix = Readonly<Record<DataMixDimension, number>>;
 export type ModelEmphasis = Readonly<Record<ModelEmphasisDimension, number>>;
+
+export const DEFAULT_INCIDENT_EXPOSURE_PERCENT = 100;
+export const MAX_INCIDENT_EXPOSURE_PERCENT = 1_000;
 
 export type ModelFamilyDefinition = Readonly<{
 	id: ModelFamilyId;
@@ -65,6 +70,8 @@ export type ModelFamilyDefinition = Readonly<{
 	servingComputePerUserPercent: number;
 	/** Signed adjustment applied to the selected compute tier's score ceiling. */
 	scoreCeilingAdjustment: number;
+	/** Percentage multiplier applied to incident probability for this family. */
+	incidentExposurePercent: number;
 	unlockedByResearchNodeId: string;
 }>;
 
@@ -85,6 +92,7 @@ export const MODEL_FAMILIES = [
 		dataMixRequirements: { general: 50, code: 0, multimodal: 0 },
 		servingComputePerUserPercent: 100,
 		scoreCeilingAdjustment: 0,
+		incidentExposurePercent: DEFAULT_INCIDENT_EXPOSURE_PERCENT,
 		unlockedByResearchNodeId: "text_models_principles",
 	},
 	{
@@ -102,6 +110,7 @@ export const MODEL_FAMILIES = [
 		dataMixRequirements: { general: 30, code: 10, multimodal: 0 },
 		servingComputePerUserPercent: 100,
 		scoreCeilingAdjustment: 0,
+		incidentExposurePercent: DEFAULT_INCIDENT_EXPOSURE_PERCENT,
 		unlockedByResearchNodeId: "assistant_models_reasoning",
 	},
 	{
@@ -119,6 +128,7 @@ export const MODEL_FAMILIES = [
 		dataMixRequirements: { general: 20, code: 5, multimodal: 20 },
 		servingComputePerUserPercent: 100,
 		scoreCeilingAdjustment: 0,
+		incidentExposurePercent: DEFAULT_INCIDENT_EXPOSURE_PERCENT,
 		unlockedByResearchNodeId: MULTIMODAL_MODELS_FUSION_ID,
 	},
 	// ponytail: Local/edge delivery intentionally reuses the broad chat,
@@ -140,6 +150,7 @@ export const MODEL_FAMILIES = [
 		dataMixRequirements: { general: 30, code: 10, multimodal: 0 },
 		servingComputePerUserPercent: 50,
 		scoreCeilingAdjustment: -12,
+		incidentExposurePercent: DEFAULT_INCIDENT_EXPOSURE_PERCENT,
 		unlockedByResearchNodeId: LOCAL_EDGE_INFERENCE_ID,
 	},
 	// ponytail: Video reuses the broad chat, developer API, and enterprise
@@ -160,7 +171,29 @@ export const MODEL_FAMILIES = [
 		dataMixRequirements: { general: 15, code: 5, multimodal: 40 },
 		servingComputePerUserPercent: 250,
 		scoreCeilingAdjustment: -8,
+		incidentExposurePercent: DEFAULT_INCIDENT_EXPOSURE_PERCENT,
 		unlockedByResearchNodeId: VIDEO_WORLD_MODELS_ID,
+	},
+	// ponytail: Agent reuses the broad chat, developer API, and enterprise
+	// channels in this bounded slice. Upgrade path: add a dedicated tool-market
+	// channel with its own launch, pricing, and approval contract.
+	{
+		id: "agent",
+		displayName: "Agent Model",
+		allowedEras: ["multimodal"],
+		baseScoreProfile: {
+			capability: 5,
+			coding: 6,
+			reliability: 2,
+			safety: 1,
+			efficiency: 1,
+			multimodal: 3,
+		},
+		dataMixRequirements: { general: 15, code: 30, multimodal: 25 },
+		servingComputePerUserPercent: 300,
+		scoreCeilingAdjustment: -4,
+		incidentExposurePercent: 200,
+		unlockedByResearchNodeId: AGENT_RUNTIME_ID,
 	},
 ] as const satisfies readonly ModelFamilyDefinition[];
 
@@ -172,6 +205,7 @@ const MODEL_FAMILY_DEFINITION_KEYS = [
 	"dataMixRequirements",
 	"servingComputePerUserPercent",
 	"scoreCeilingAdjustment",
+	"incidentExposurePercent",
 	"unlockedByResearchNodeId",
 ] as const;
 
@@ -253,6 +287,15 @@ export function assertModelFamilyDefinitions(
 			family.scoreCeilingAdjustment,
 			`Model family ${family.id} score ceiling adjustment`,
 		);
+		assertPositiveInteger(
+			family.incidentExposurePercent,
+			`Model family ${family.id} incident exposure multiplier`,
+		);
+		if (family.incidentExposurePercent > MAX_INCIDENT_EXPOSURE_PERCENT) {
+			throw new Error(
+				`Model family ${family.id} incident exposure multiplier must be at most ${MAX_INCIDENT_EXPOSURE_PERCENT}`,
+			);
+		}
 		assertIdentifier(
 			family.unlockedByResearchNodeId,
 			`Model family ${family.id} research unlock id`,
