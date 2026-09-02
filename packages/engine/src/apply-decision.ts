@@ -44,7 +44,13 @@ export function applyDecision(
 		try {
 			resolved = applyProductLaunch(
 				state,
-				{ modelId: pendingModelId(pending), channel: choice.channel },
+				{
+					modelId: pendingModelId(pending),
+					channel: choice.channel,
+					price:
+						choice.price ??
+						(pending.kind === "launch" ? pending.price : undefined),
+				},
 				false,
 			);
 		} catch (error) {

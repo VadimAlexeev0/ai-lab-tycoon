@@ -34,7 +34,12 @@ export type {
 	ModelStatus,
 	ModelTrueScores,
 } from "./components/models.js";
-export type { ProductChannel } from "./components/products.js";
+export type {
+	Product,
+	ProductChannel,
+	ProductStatus,
+	ProductsState,
+} from "./components/products.js";
 export type { Fact } from "./components/reports.js";
 export type {
 	Crisis,
@@ -80,7 +85,11 @@ export {
 	upgradeGameStateWithMetadata,
 } from "./migrations.js";
 export type { ModelDesignSpec } from "./model-design.js";
-export { applyProductResume } from "./products.js";
+export type { ProductLaunchRequest } from "./products.js";
+export {
+	applyProductResume,
+	retireProduct,
+} from "./products.js";
 export type { ModelRefreshRequest } from "./refresh-model.js";
 export type {
 	CommandLogEnvelope,

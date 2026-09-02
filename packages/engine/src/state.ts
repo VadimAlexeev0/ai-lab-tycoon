@@ -51,7 +51,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 7 as const;
+export const GAME_STATE_SCHEMA_VERSION = 8 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -90,7 +90,8 @@ export type CommandKind =
 	| "acquire_data"
 	| "buy_compute"
 	| "hire_team"
-	| "product_resume";
+	| "product_resume"
+	| "product_retire";
 
 type CommandLogBase = {
 	id: string;
@@ -152,6 +153,7 @@ export type CommandLogEntry =
 			productId: string;
 			modelId: string;
 			channel: "chat" | "developer_api" | "enterprise";
+			price: number;
 	  })
 	| (CommandLogBase & {
 			kind: "acquire_data";
@@ -170,6 +172,10 @@ export type CommandLogEntry =
 	| (CommandLogBase & {
 			kind: "product_resume";
 			productId: string;
+	  })
+	| (CommandLogBase & {
+			kind: "product_retire";
+			productId: string;
 	  });
 
 export type WarningCode =
@@ -179,7 +185,8 @@ export type WarningCode =
 	| "stale_data"
 	| "stale_model"
 	| "blocking_decision"
-	| "risk_escalation";
+	| "risk_escalation"
+	| "compute_conflict";
 export type WarningSeverity = "info" | "warning" | "critical";
 
 export type Warning = {

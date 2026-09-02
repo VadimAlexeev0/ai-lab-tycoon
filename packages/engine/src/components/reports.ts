@@ -1,3 +1,4 @@
+import { PRODUCT_PRESSURE_BALANCE } from "../data/balance.js";
 import {
 	DATA_PROVENANCES,
 	getDataSourceDefinition,
@@ -49,12 +50,15 @@ const FACT_KINDS = [
 	"evaluation_completed",
 	"product_launched",
 	"product_resumed",
+	"product_pressure",
+	"product_retired",
 	"data_acquired",
 	"data_stale_warning",
 	"model_staleness",
 	"synthetic_data_overuse",
 	"revenue",
 	"serving_throttled",
+	"compute_conflict",
 	"training_starved",
 	"rival_progressed",
 	"rival_milestone",
@@ -179,6 +183,35 @@ export type Fact =
 			week: number;
 	  }
 	| {
+			kind: "product_pressure";
+			productId: string;
+			channel: ProductChannel;
+			price: number;
+			freshnessStatus: KnowledgeFreshnessStatus;
+			quality: number;
+			reliability: number;
+			latency: number;
+			satisfaction: number;
+			churnRate: number;
+			fulfilledDemand: number;
+			servedShare: number;
+			churnedUsers: number;
+			newUsers: number;
+			margin: number;
+			week: number;
+	  }
+	| {
+			kind: "product_retired";
+			productId: string;
+			modelId: string;
+			channel: ProductChannel;
+			lostUsers: number;
+			releasedCompute: number;
+			trustPenalty: number;
+			hypePenalty: number;
+			week: number;
+	  }
+	| {
 			kind: "data_acquired";
 			dataId: string;
 			sourceId: string;
@@ -231,6 +264,16 @@ export type Fact =
 			productId: string;
 			week: number;
 			unmetDemand: number;
+	  }
+	| {
+			kind: "compute_conflict";
+			week: number;
+			capacity: number;
+			servingDemand: number;
+			trainingDemand: number;
+			evaluationDemand: number;
+			viral: boolean;
+			choice: "serving_throttled" | "training_starved";
 	  }
 	| {
 			kind: "training_starved";
@@ -650,6 +693,99 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertEnum(value.channel, PRODUCT_CHANNELS, "Resumed product channel");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "product_pressure": {
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"productId",
+					"channel",
+					"price",
+					"freshnessStatus",
+					"quality",
+					"reliability",
+					"latency",
+					"satisfaction",
+					"churnRate",
+					"fulfilledDemand",
+					"servedShare",
+					"churnedUsers",
+					"newUsers",
+					"margin",
+					"week",
+				],
+				"product pressure fact",
+			);
+			assertIdentifier(value.productId, "Product pressure product id");
+			assertEnum(value.channel, PRODUCT_CHANNELS, "Product pressure channel");
+			assertPositiveInteger(value.price, "Product pressure price");
+			const pricing = PRODUCT_PRESSURE_BALANCE.channels[value.channel];
+			if (
+				value.price < pricing.minimumPrice ||
+				value.price > pricing.maximumPrice
+			) {
+				throw new Error("Product pressure price is outside channel bounds");
+			}
+			assertEnum(
+				value.freshnessStatus,
+				["fresh", "aging", "stale"],
+				"Product pressure freshness status",
+			);
+			for (const metric of [
+				"quality",
+				"reliability",
+				"latency",
+				"satisfaction",
+				"churnRate",
+				"servedShare",
+			] as const) {
+				assertNonNegativeInteger(value[metric], `Product pressure ${metric}`);
+				if (value[metric] > 100) {
+					throw new Error(
+						`Product pressure ${metric} must be between 0 and 100`,
+					);
+				}
+			}
+			for (const metric of [
+				"fulfilledDemand",
+				"churnedUsers",
+				"newUsers",
+			] as const) {
+				assertNonNegativeInteger(value[metric], `Product pressure ${metric}`);
+			}
+			assertInteger(value.margin, "Product pressure margin");
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		}
+		case "product_retired":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"productId",
+					"modelId",
+					"channel",
+					"lostUsers",
+					"releasedCompute",
+					"trustPenalty",
+					"hypePenalty",
+					"week",
+				],
+				"product retired fact",
+			);
+			assertIdentifier(value.productId, "Retired product id");
+			assertIdentifier(value.modelId, "Retired product model id");
+			assertEnum(value.channel, PRODUCT_CHANNELS, "Retired product channel");
+			for (const metric of [
+				"lostUsers",
+				"releasedCompute",
+				"trustPenalty",
+				"hypePenalty",
+			] as const) {
+				assertNonNegativeInteger(value[metric], `Product retirement ${metric}`);
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
 		case "data_acquired": {
 			assertExactObject(
 				value,
@@ -851,6 +987,37 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.productId, "Serving throttle product id");
 			assertPositiveInteger(value.week, "Fact week");
 			assertNonNegativeInteger(value.unmetDemand, "Serving unmet demand");
+			return;
+		case "compute_conflict":
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"week",
+					"capacity",
+					"servingDemand",
+					"trainingDemand",
+					"evaluationDemand",
+					"viral",
+					"choice",
+				],
+				"compute conflict fact",
+			);
+			assertPositiveInteger(value.week, "Fact week");
+			for (const metric of [
+				"capacity",
+				"servingDemand",
+				"trainingDemand",
+				"evaluationDemand",
+			] as const) {
+				assertNonNegativeInteger(value[metric], `Compute conflict ${metric}`);
+			}
+			assertBoolean(value.viral, "Compute conflict viral marker");
+			assertEnum(
+				value.choice,
+				["serving_throttled", "training_starved"],
+				"Compute conflict consequence",
+			);
 			return;
 		case "training_starved":
 			assertExactObject(

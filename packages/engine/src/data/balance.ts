@@ -120,6 +120,43 @@ export type ProductChannelBalance = Readonly<{
 	trustPerWeek: number;
 }>;
 
+export type ProductPressureChannelBalance = Readonly<{
+	/** Player-facing integer price in channel currency units. */
+	defaultPrice: number;
+	minimumPrice: number;
+	maximumPrice: number;
+	/** Demand percentage points moved by a one-default-price delta. */
+	priceDemandSensitivity: number;
+	/** Fixed weekly accounting cost for this channel. */
+	weeklyOperatingCost: number;
+	/** Variable cost per fulfilled serving-demand unit. */
+	servingCostPerDemand: number;
+}>;
+
+export type ProductPressureBalance = Readonly<{
+	hypeBaseline: number;
+	hypeDemandPerPoint: number;
+	minimumDemandFactor: number;
+	maximumDemandFactor: number;
+	hypeDecayPerWeek: number;
+	hypeSatisfactionThreshold: number;
+	satisfactionWeights: Readonly<{
+		quality: number;
+		reliability: number;
+		latency: number;
+		freshness: number;
+		fulfillment: number;
+		price: number;
+	}>;
+	churnSatisfactionThreshold: number;
+	churnPerSatisfactionPoint: number;
+	maximumChurnRate: number;
+	retirementTrustPenalty: number;
+	retirementHypePenalty: number;
+	viralDemandThreshold: number;
+	channels: Readonly<Record<ProductChannel, ProductPressureChannelBalance>>;
+}>;
+
 export type RivalClockBalance = Readonly<{
 	progressPerWeek: number;
 }>;
@@ -168,6 +205,7 @@ export type BalanceConstants = Readonly<{
 	modelEmphasisPoints: number;
 	defaultEstimateBandWidth: number;
 	productChannels: Readonly<Record<ProductChannel, ProductChannelBalance>>;
+	productPressure?: ProductPressureBalance;
 	rivalClocks: Readonly<Record<RivalArchetype, RivalClockBalance>>;
 	funding: Readonly<Record<"seed" | "series_a", FundingRoundBalance>>;
 	evaluations: Readonly<Record<EvaluationKind, EvaluationBalance>>;
@@ -368,6 +406,59 @@ export const PRODUCT_CHANNEL_BALANCE = {
 	},
 } as const satisfies Readonly<Record<ProductChannel, ProductChannelBalance>>;
 
+/** Product pricing, retention, and shared-compute pressure tuning. */
+// ponytail: This wave models broad channel economics rather than individual
+// customers or markets. Upgrade path: add persisted market-segment demand and
+// per-segment contracts when a later wave needs customer-level simulation.
+export const PRODUCT_PRESSURE_BALANCE = {
+	hypeBaseline: 50,
+	hypeDemandPerPoint: 1,
+	minimumDemandFactor: 50,
+	maximumDemandFactor: 220,
+	hypeDecayPerWeek: 1,
+	hypeSatisfactionThreshold: 50,
+	satisfactionWeights: {
+		quality: 25,
+		reliability: 20,
+		latency: 15,
+		freshness: 15,
+		fulfillment: 15,
+		price: 10,
+	},
+	churnSatisfactionThreshold: 60,
+	churnPerSatisfactionPoint: 2,
+	maximumChurnRate: 50,
+	retirementTrustPenalty: 5,
+	retirementHypePenalty: 10,
+	viralDemandThreshold: 150,
+	channels: {
+		chat: {
+			defaultPrice: 10,
+			minimumPrice: 1,
+			maximumPrice: 50,
+			priceDemandSensitivity: 50,
+			weeklyOperatingCost: 0,
+			servingCostPerDemand: 0,
+		},
+		developer_api: {
+			defaultPrice: 20,
+			minimumPrice: 5,
+			maximumPrice: 100,
+			priceDemandSensitivity: 50,
+			weeklyOperatingCost: 0,
+			servingCostPerDemand: 0,
+		},
+		enterprise: {
+			defaultPrice: 50,
+			minimumPrice: 10,
+			maximumPrice: 250,
+			priceDemandSensitivity: 50,
+			weeklyOperatingCost: 0,
+			servingCostPerDemand: 0,
+		},
+	},
+} as const satisfies ProductPressureBalance;
+
 /** Deterministic public progress clocks for each rival archetype. */
 export const RIVAL_CLOCK_BALANCE = {
 	research_lab: { progressPerWeek: 7 },
@@ -521,6 +612,10 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	},
 	hireTeamCost: { value: HIRE_TEAM_COST, enumerable: false },
 	productChannels: { value: PRODUCT_CHANNEL_BALANCE, enumerable: false },
+	productPressure: {
+		value: PRODUCT_PRESSURE_BALANCE,
+		enumerable: false,
+	},
 	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
 	funding: { value: FUNDING_BALANCE, enumerable: false },
 	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
@@ -550,6 +645,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly computePurchaseUnits: typeof COMPUTE_PURCHASE_UNITS;
 	readonly hireTeamCost: typeof HIRE_TEAM_COST;
 	readonly productChannels: typeof PRODUCT_CHANNEL_BALANCE;
+	readonly productPressure: typeof PRODUCT_PRESSURE_BALANCE;
 	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
@@ -564,41 +660,41 @@ assertBalanceConstants(BALANCE);
 
 /** Fail fast if a tuning table contains non-integer or non-positive values. */
 export function assertBalanceConstants(value: BalanceConstants): void {
-	assertExactObject(
-		value,
-		[
-			"startingCash",
-			"startingComputeCapacity",
-			"infrastructureCapacityGain",
-			"computePurchaseCost",
-			"computePurchaseUnits",
-			"hireTeamCost",
-			"startingInsight",
-			"startingTrust",
-			"startingHype",
-			"startingProjectProgress",
-			"salaries",
-			"upkeep",
-			"projectProgressPerWeek",
-			"researchInsightPerWeek",
-			"researchProjectDuration",
-			"modelTiers",
-			"modelFoundations",
-			"modelScore",
-			"dataInventory",
-			"knowledgeCutoff",
-			"modelEmphasisPoints",
-			"defaultEstimateBandWidth",
-			"productChannels",
-			"rivalClocks",
-			"funding",
-			"evaluations",
-			"researchParadigms",
-			"publication",
-			"riskMemory",
-		],
-		"balance",
-	);
+	const keys = [
+		"startingCash",
+		"startingComputeCapacity",
+		"infrastructureCapacityGain",
+		"computePurchaseCost",
+		"computePurchaseUnits",
+		"hireTeamCost",
+		"startingInsight",
+		"startingTrust",
+		"startingHype",
+		"startingProjectProgress",
+		"salaries",
+		"upkeep",
+		"projectProgressPerWeek",
+		"researchInsightPerWeek",
+		"researchProjectDuration",
+		"modelTiers",
+		"modelFoundations",
+		"modelScore",
+		"dataInventory",
+		"knowledgeCutoff",
+		"modelEmphasisPoints",
+		"defaultEstimateBandWidth",
+		"productChannels",
+		"rivalClocks",
+		"funding",
+		"evaluations",
+		"researchParadigms",
+		"publication",
+		"riskMemory",
+	];
+	if (Object.hasOwn(value, "productPressure")) {
+		keys.splice(keys.indexOf("rivalClocks"), 0, "productPressure");
+	}
+	assertExactObject(value, keys, "balance");
 	assertNonNegativeInteger(value.startingCash, "Starting cash");
 	assertNonNegativeInteger(
 		value.startingComputeCapacity,
@@ -710,6 +806,9 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		throw new Error("Default estimate band width must be at most 100");
 	}
 	assertProductChannelBalance(value.productChannels);
+	if (value.productPressure !== undefined) {
+		assertProductPressureBalance(value.productPressure);
+	}
 	assertRivalClockBalance(value.rivalClocks);
 	assertFundingBalance(value.funding);
 	assertEvaluationBalance(value.evaluations);
@@ -949,6 +1048,153 @@ function assertProductChannelBalance(
 				);
 			}
 		}
+	}
+}
+
+function assertProductPressureBalance(value: ProductPressureBalance): void {
+	assertExactObject(
+		value,
+		[
+			"hypeBaseline",
+			"hypeDemandPerPoint",
+			"minimumDemandFactor",
+			"maximumDemandFactor",
+			"hypeDecayPerWeek",
+			"hypeSatisfactionThreshold",
+			"satisfactionWeights",
+			"churnSatisfactionThreshold",
+			"churnPerSatisfactionPoint",
+			"maximumChurnRate",
+			"retirementTrustPenalty",
+			"retirementHypePenalty",
+			"viralDemandThreshold",
+			"channels",
+		],
+		"Product pressure balance",
+	);
+	assertNonNegativeInteger(value.hypeBaseline, "Product hype baseline");
+	if (value.hypeBaseline > 100) {
+		throw new Error("Product hype baseline must be at most 100");
+	}
+	assertNonNegativeInteger(
+		value.hypeDemandPerPoint,
+		"Product hype demand per point",
+	);
+	assertPositiveInteger(
+		value.minimumDemandFactor,
+		"Product minimum demand factor",
+	);
+	assertPositiveInteger(
+		value.maximumDemandFactor,
+		"Product maximum demand factor",
+	);
+	if (value.minimumDemandFactor > value.maximumDemandFactor) {
+		throw new Error("Product demand factor range is reversed");
+	}
+	assertPositiveInteger(value.hypeDecayPerWeek, "Product hype decay");
+	assertNonNegativeInteger(
+		value.hypeSatisfactionThreshold,
+		"Product hype satisfaction threshold",
+	);
+	if (value.hypeSatisfactionThreshold > 100) {
+		throw new Error("Product hype satisfaction threshold must be at most 100");
+	}
+	assertExactObject(
+		value.satisfactionWeights,
+		["quality", "reliability", "latency", "freshness", "fulfillment", "price"],
+		"Product satisfaction weights",
+	);
+	let weightTotal = 0;
+	for (const [name, weight] of Object.entries(value.satisfactionWeights)) {
+		assertNonNegativeInteger(weight, `Product satisfaction weight ${name}`);
+		weightTotal += weight;
+	}
+	if (weightTotal !== 100) {
+		throw new Error("Product satisfaction weights must total exactly 100");
+	}
+	assertNonNegativeInteger(
+		value.churnSatisfactionThreshold,
+		"Product churn satisfaction threshold",
+	);
+	if (value.churnSatisfactionThreshold > 100) {
+		throw new Error("Product churn satisfaction threshold must be at most 100");
+	}
+	assertPositiveInteger(
+		value.churnPerSatisfactionPoint,
+		"Product churn per satisfaction point",
+	);
+	assertNonNegativeInteger(
+		value.maximumChurnRate,
+		"Product maximum churn rate",
+	);
+	if (value.maximumChurnRate > 100) {
+		throw new Error("Product maximum churn rate must be at most 100");
+	}
+	assertNonNegativeInteger(
+		value.retirementTrustPenalty,
+		"Product retirement trust penalty",
+	);
+	assertNonNegativeInteger(
+		value.retirementHypePenalty,
+		"Product retirement hype penalty",
+	);
+	if (value.retirementTrustPenalty > 100 || value.retirementHypePenalty > 100) {
+		throw new Error("Product retirement penalties must be at most 100");
+	}
+	assertPositiveInteger(
+		value.viralDemandThreshold,
+		"Product viral demand threshold",
+	);
+	assertExactObject(
+		value.channels,
+		["chat", "developer_api", "enterprise"],
+		"Product pressure channels",
+	);
+	for (const [channel, tuning] of Object.entries(value.channels)) {
+		assertExactObject(
+			tuning,
+			[
+				"defaultPrice",
+				"minimumPrice",
+				"maximumPrice",
+				"priceDemandSensitivity",
+				"weeklyOperatingCost",
+				"servingCostPerDemand",
+			],
+			`Product pressure channel ${channel}`,
+		);
+		assertPositiveInteger(
+			tuning.defaultPrice,
+			`Product pressure channel ${channel} default price`,
+		);
+		assertPositiveInteger(
+			tuning.minimumPrice,
+			`Product pressure channel ${channel} minimum price`,
+		);
+		assertPositiveInteger(
+			tuning.maximumPrice,
+			`Product pressure channel ${channel} maximum price`,
+		);
+		if (
+			tuning.minimumPrice > tuning.defaultPrice ||
+			tuning.defaultPrice > tuning.maximumPrice
+		) {
+			throw new Error(
+				`Product pressure channel ${channel} prices must be ordered minimum <= default <= maximum`,
+			);
+		}
+		assertNonNegativeInteger(
+			tuning.priceDemandSensitivity,
+			`Product pressure channel ${channel} price sensitivity`,
+		);
+		assertNonNegativeInteger(
+			tuning.weeklyOperatingCost,
+			`Product pressure channel ${channel} operating cost`,
+		);
+		assertNonNegativeInteger(
+			tuning.servingCostPerDemand,
+			`Product pressure channel ${channel} serving cost`,
+		);
 	}
 }
 

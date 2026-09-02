@@ -791,6 +791,7 @@ describe("hardened component contract", () => {
 			"launchProduct",
 			"refreshModel",
 			"replayCommandLog",
+			"retireProduct",
 			"runEvaluation",
 			"selectAvailableProjects",
 			"selectDataInventory",

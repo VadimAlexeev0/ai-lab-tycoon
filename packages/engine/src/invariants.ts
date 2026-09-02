@@ -7,7 +7,10 @@ import {
 } from "./components/decisions.js";
 import { assertFundingState } from "./components/funding.js";
 import { assertModelsState } from "./components/models.js";
-import { assertProductsState } from "./components/products.js";
+import {
+	assertProductPrice,
+	assertProductsState,
+} from "./components/products.js";
 import { assertProjectsState, type Project } from "./components/projects.js";
 import { assertReportsState } from "./components/reports.js";
 import { assertResearchState } from "./components/research.js";
@@ -78,6 +81,7 @@ const COMMAND_KINDS = [
 	"buy_compute",
 	"hire_team",
 	"product_resume",
+	"product_retire",
 ] as const;
 const MODEL_FOUNDATIONS = ["fresh", "continued", "distilled"] as const;
 const WARNING_CODES = [
@@ -88,6 +92,7 @@ const WARNING_CODES = [
 	"stale_model",
 	"blocking_decision",
 	"risk_escalation",
+	"compute_conflict",
 ] as const;
 const WARNING_SEVERITIES = ["info", "warning", "critical"] as const;
 const GAME_STATE_KEYS = [
@@ -163,6 +168,7 @@ export function assertGameState(
 	assertFundingState(state.funding);
 	assertDecisionsState(state.decisions);
 	assertReportsState(state.reports);
+	assertProductFactRelations(state);
 	assertRiskState(state.risk, { currentWeek: state.meta.week });
 	assertTerminalState(state.terminal);
 	assertQueueShape(state.queue);
@@ -446,15 +452,9 @@ function assertModelRelations(state: GameState): void {
 		const referencedProducts = state.products.items.filter(
 			(product) => product.modelId === model.id,
 		);
-		if (
-			model.status === "launched" &&
-			!referencedProducts.some(
-				(product) =>
-					product.status === "operating" || product.status === "paused",
-			)
-		) {
+		if (model.status === "launched" && referencedProducts.length === 0) {
 			throw new Error(
-				`Launched model ${model.id} must retain an operating or paused product`,
+				`Launched model ${model.id} must retain a product record`,
 			);
 		}
 		if (
@@ -468,7 +468,12 @@ function assertModelRelations(state: GameState): void {
 	}
 
 	for (const product of state.products.items) {
-		if (product.status !== "operating" && product.status !== "paused") continue;
+		if (
+			product.status !== "operating" &&
+			product.status !== "paused" &&
+			product.status !== "retired"
+		)
+			continue;
 		const model = state.models.items.find(
 			(candidate) => candidate.id === product.modelId,
 		);
@@ -503,6 +508,68 @@ function assertDataInventoryProductRelations(state: GameState): void {
 		) {
 			throw new Error(
 				`Product-derived data record ${record.id} references an ineligible product channel`,
+			);
+		}
+	}
+}
+
+function assertProductFactRelations(state: GameState): void {
+	for (const report of state.reports.items) {
+		const fact = report.fact;
+		const productId =
+			fact.kind === "product_launched" ||
+			fact.kind === "product_resumed" ||
+			fact.kind === "product_pressure" ||
+			fact.kind === "product_retired" ||
+			fact.kind === "revenue" ||
+			fact.kind === "model_staleness"
+				? fact.productId
+				: null;
+		if (productId === null) continue;
+		const product = state.products.items.find((item) => item.id === productId);
+		if (product === undefined) {
+			throw new Error(
+				`Product fact ${fact.kind} references unknown product ${productId}`,
+			);
+		}
+		if (fact.week > state.meta.week) {
+			throw new Error(`Product fact ${fact.kind} cannot be from a future week`);
+		}
+		if (
+			(fact.kind === "product_launched" ||
+				fact.kind === "product_resumed" ||
+				fact.kind === "revenue" ||
+				fact.kind === "product_pressure" ||
+				fact.kind === "product_retired") &&
+			fact.channel !== product.channel
+		) {
+			throw new Error(
+				`Product fact ${fact.kind} does not match product ${product.id} channel`,
+			);
+		}
+		if (fact.kind === "product_pressure") {
+			if (product.price !== undefined && product.price !== fact.price) {
+				throw new Error(
+					`Product pressure fact price does not match product ${product.id}`,
+				);
+			}
+			continue;
+		}
+		if (fact.kind === "product_retired") {
+			if (
+				product.status !== "retired" ||
+				product.modelId !== fact.modelId ||
+				product.retiredUsers !== fact.lostUsers
+			) {
+				throw new Error(
+					`Product retirement fact does not match product ${product.id}`,
+				);
+			}
+			continue;
+		}
+		if (fact.kind === "model_staleness" && product.modelId !== fact.modelId) {
+			throw new Error(
+				`Model staleness fact does not match product ${product.id}`,
 			);
 		}
 	}
@@ -1056,7 +1123,7 @@ function assertCommandLog(
 			case "launch_product": {
 				assertExactObject(
 					item,
-					["id", "kind", "week", "productId", "modelId", "channel"],
+					["id", "kind", "week", "productId", "modelId", "channel", "price"],
 					"launch_product command",
 				);
 				assertIdentifier(item.productId, "Launch command product id");
@@ -1066,6 +1133,7 @@ function assertCommandLog(
 					["chat", "developer_api", "enterprise"],
 					"Launch command channel",
 				);
+				assertProductPrice(item.channel, item.price);
 				const launchModel = state.models.items.find(
 					(model) => model.id === item.modelId,
 				);
@@ -1084,7 +1152,8 @@ function assertCommandLog(
 				}
 				if (
 					launchProduct.modelId !== launchModel.id ||
-					launchProduct.channel !== item.channel
+					launchProduct.channel !== item.channel ||
+					launchProduct.price !== item.price
 				) {
 					throw new Error(
 						`Launch command product ${launchProduct.id} does not match its model or channel`,
@@ -1149,6 +1218,45 @@ function assertCommandLog(
 				);
 				assertIdentifier(item.productId, "Resume product id");
 				break;
+			case "product_retire": {
+				assertExactObject(
+					item,
+					["id", "kind", "week", "productId"],
+					"product_retire command",
+				);
+				assertIdentifier(item.productId, "Retire product id");
+				const retiredProduct = state.products.items.find(
+					(product) => product.id === item.productId,
+				);
+				if (retiredProduct === undefined) {
+					throw new Error(
+						`Retire command references an unknown product: ${String(item.productId)}`,
+					);
+				}
+				if (retiredProduct.status !== "retired") {
+					throw new Error(
+						`Retire command product ${retiredProduct.id} must be retired`,
+					);
+				}
+				if (
+					value.some((candidate: unknown, candidateIndex) => {
+						if (candidate === null || typeof candidate !== "object") {
+							return false;
+						}
+						const prior = candidate as Record<string, unknown>;
+						return (
+							candidateIndex < index &&
+							prior.kind === "product_retire" &&
+							prior.productId === item.productId
+						);
+					})
+				) {
+					throw new Error(
+						`Product ${item.productId} cannot be retired more than once`,
+					);
+				}
+				break;
+			}
 		}
 	}
 

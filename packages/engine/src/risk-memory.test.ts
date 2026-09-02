@@ -16,6 +16,7 @@ import {
 	buyCompute,
 	deserializeGameState,
 	designModel,
+	GAME_STATE_SCHEMA_VERSION,
 	launchProduct,
 	runEvaluation,
 	selectAvailableProjects,
@@ -748,7 +749,7 @@ describe("persistent incident risk memory", () => {
 		const v6Meta = v6.meta as Record<string, unknown>;
 		v6Meta.schemaVersion = 6;
 		const upgraded = upgradeGameState(v6) as StateWithRisk;
-		expect(upgraded.meta.schemaVersion).toBe(7);
+		expect(upgraded.meta.schemaVersion).toBe(GAME_STATE_SCHEMA_VERSION);
 		expect(upgraded.risk).toEqual({ memories: [], crises: [] });
 
 		const futureShaped = JSON.parse(JSON.stringify(v6)) as Record<

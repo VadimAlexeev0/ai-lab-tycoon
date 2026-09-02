@@ -10,6 +10,7 @@ import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
+import { PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
 	assertGameState,
@@ -42,6 +43,8 @@ const STATE_SCHEMA_VERSION_V3 = 3 as const;
 const STATE_SCHEMA_VERSION_V4 = 4 as const;
 const STATE_SCHEMA_VERSION_V5 = 5 as const;
 const STATE_SCHEMA_VERSION_V6 = 6 as const;
+const STATE_SCHEMA_VERSION_V7 = 7 as const;
+const STATE_SCHEMA_VERSION_V8 = 8 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
@@ -49,6 +52,7 @@ const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V4]: migrateV4ToV5,
 	[STATE_SCHEMA_VERSION_V5]: migrateV5ToV6,
 	[STATE_SCHEMA_VERSION_V6]: migrateV6ToV7,
+	[STATE_SCHEMA_VERSION_V7]: migrateV7ToV8,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -99,7 +103,9 @@ export function deserializeGameStateWithMetadata(
  * models that already have hidden scores derive their legacy cutoff from the
  * newest allocated inventory record and weighted source freshness. State
  * schema v7 adds the persistent incident risk component; v6 saves receive an
- * empty memory/crisis component. There is no deployed pre-v1 format to support.
+ * empty memory/crisis component. Schema v8 adds product operating pressure,
+ * explicit pricing, and retirement. V7 saves receive deterministic defaults;
+ * future-shaped V7 saves are rejected rather than silently downgraded.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -316,8 +322,132 @@ function migrateV6ToV7(value: unknown): unknown {
 		throw new Error("v6 game state contains unexpected field: risk");
 	}
 	migrated.risk = { memories: [], crises: [] };
-	meta.schemaVersion = GAME_STATE_SCHEMA_VERSION;
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V7;
 	return migrated;
+}
+
+function migrateV7ToV8(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v7 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v7 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V7) {
+		throw new Error("v7 game state has an invalid schema version");
+	}
+	assertNoV8FieldsInV7(migrated);
+
+	const products = migrated.products;
+	assertProductsState(products);
+	for (const product of products.items) {
+		const pricing = PRODUCT_PRESSURE_BALANCE.channels[product.channel];
+		product.price = pricing.defaultPrice;
+		product.lastMargin = product.lastRevenue ?? 0;
+		product.cumulativeMargin = product.cumulativeRevenue ?? 0;
+		product.satisfaction = 100;
+		product.churnRate = 0;
+		product.retiredUsers = 0;
+	}
+
+	const commandLog = migrated.commandLog;
+	assertArray(commandLog, "v7 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v7 command log entry");
+		if (command.kind !== "launch_product") continue;
+		const product = products.items.find(
+			(candidate) => candidate.id === command.productId,
+		);
+		if (product === undefined) {
+			throw new Error(
+				`v7 launch command references unknown product ${String(command.productId)}`,
+			);
+		}
+		command.price = product.price;
+	}
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V8;
+	return migrated;
+}
+
+function assertNoV8FieldsInV7(state: Record<string, unknown>): void {
+	const products = state.products;
+	assertObject(products, "v7 products");
+	assertArray(products.items, "v7 products items");
+	for (const item of products.items) {
+		assertObject(item, "v7 product");
+		for (const field of [
+			"price",
+			"lastMargin",
+			"cumulativeMargin",
+			"satisfaction",
+			"churnRate",
+			"retiredUsers",
+		]) {
+			if (Object.hasOwn(item, field)) {
+				throw new Error(`v7 product contains unexpected field: ${field}`);
+			}
+		}
+		if (item.status === "retired") {
+			throw new Error("v7 product contains unexpected retired status");
+		}
+	}
+
+	const decisions = state.decisions;
+	assertObject(decisions, "v7 decisions");
+	assertArray(decisions.pending, "v7 pending decisions");
+	for (const decision of decisions.pending) {
+		assertObject(decision, "v7 pending decision");
+		if (decision.kind === "launch" && Object.hasOwn(decision, "price")) {
+			throw new Error(
+				"v7 pending launch decision contains unexpected price field",
+			);
+		}
+	}
+
+	const commandLog = state.commandLog;
+	assertArray(commandLog, "v7 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v7 command log entry");
+		if (command.kind === "product_retire") {
+			throw new Error(
+				"v7 command log contains unexpected product_retire command",
+			);
+		}
+		if (command.kind === "launch_product" && Object.hasOwn(command, "price")) {
+			throw new Error("v7 launch command contains unexpected price field");
+		}
+		if (command.kind === "apply_decision") {
+			const choice = command.choice;
+			assertObject(choice, "v7 apply_decision choice");
+			if (choice.kind === "launch" && Object.hasOwn(choice, "price")) {
+				throw new Error(
+					"v7 apply_decision launch choice contains unexpected price field",
+				);
+			}
+		}
+	}
+
+	const reports = state.reports;
+	assertObject(reports, "v7 reports");
+	assertArray(reports.items, "v7 reports items");
+	for (const report of reports.items) {
+		assertObject(report, "v7 report");
+		assertObject(report.fact, "v7 report fact");
+		if (
+			report.fact.kind === "product_pressure" ||
+			report.fact.kind === "product_retired" ||
+			report.fact.kind === "compute_conflict"
+		) {
+			throw new Error("v7 reports contain unexpected product pressure fact");
+		}
+	}
+
+	const warnings = state.warnings;
+	assertArray(warnings, "v7 warnings");
+	for (const warning of warnings) {
+		assertObject(warning, "v7 warning");
+		if (warning.code === "compute_conflict") {
+			throw new Error("v7 warnings contain unexpected compute conflict");
+		}
+	}
 }
 
 function assertNoV6FieldsInV5(state: Record<string, unknown>): void {
