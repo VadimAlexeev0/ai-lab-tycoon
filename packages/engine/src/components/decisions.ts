@@ -344,10 +344,7 @@ function assertPendingDecision(
 			assertExactObject(value, keys, "incident decision");
 			if (Object.hasOwn(value, "incidentId")) {
 				assertIdentifier(value.incidentId, "Incident id");
-				if (
-					Object.hasOwn(value, "riskMemoryId") &&
-					value.incidentId !== value.id
-				) {
+				if (value.incidentId !== value.id) {
 					throw new Error(
 						`Incident decision ${value.id} must use its own id as incident id`,
 					);

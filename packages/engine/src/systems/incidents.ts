@@ -246,9 +246,7 @@ export function applyIncidentResponse(
 		pendingIncident = pendingIncidents.find(
 			(decision) =>
 				decision.incidentId === incidentId ||
-				((decision.incidentId === undefined ||
-					decision.riskMemoryId === undefined) &&
-					decision.id === incidentId),
+				(decision.incidentId === undefined && decision.id === incidentId),
 		);
 		if (pendingIncident === undefined) {
 			throw new Error(
@@ -273,7 +271,6 @@ export function applyIncidentResponse(
 	}
 	if (
 		pendingIncident.incidentId !== undefined &&
-		pendingIncident.riskMemoryId !== undefined &&
 		pendingIncident.incidentId !== pendingIncident.id
 	) {
 		throw new Error(

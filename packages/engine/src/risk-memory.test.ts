@@ -513,17 +513,32 @@ describe("persistent incident risk memory", () => {
 		).toThrow(/canonical|crisis.*identity|crisis.*id/i);
 	});
 
-	it("rejects a pending incident id that disagrees with its decision id", () => {
+	it("rejects a forged incident id on a legacy-shaped pending incident", () => {
 		const malformed = pendingIncidentState();
 		const decision = malformed.decisions.pending[0];
 		if (decision?.kind !== "incident") {
 			throw new Error("Expected incident decision");
 		}
+		delete decision.riskMemoryId;
 		decision.incidentId = "incident_forged";
 
 		expect(() => assertGameState(malformed)).toThrow(
 			/incident.*id|decision.*id|match/i,
 		);
+	});
+
+	it("does not resolve a legacy incident by decision id when its incident id is forged", () => {
+		const malformed = pendingIncidentState();
+		const decision = malformed.decisions.pending[0];
+		if (decision?.kind !== "incident") {
+			throw new Error("Expected incident decision");
+		}
+		delete decision.riskMemoryId;
+		decision.incidentId = "incident_forged";
+
+		expect(() =>
+			applyIncidentResponse(malformed, "outage", "repair", decision.id),
+		).toThrow(/incident.*id|decision.*id|match|pending/i);
 	});
 
 	it("rejects a crisis decision identity that is not canonical for its risk memory", () => {
