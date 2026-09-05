@@ -16,7 +16,7 @@ const nodeById = (id: string): ContentNode => {
 
 describe("LLM-history research content", () => {
 	it("ships the ten requested content groups across the three engine eras", () => {
-		expect(nodes).toHaveLength(50);
+		expect(nodes).toHaveLength(51);
 		expect(new Set(nodes.map((node) => node.category))).toEqual(
 			new Set([
 				"foundations",

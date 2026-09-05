@@ -1,4 +1,5 @@
 import {
+	AGENT_RUNTIME_ID,
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	INFRASTRUCTURE_BRANCH,
 	MODELS_BRANCH,
@@ -71,6 +72,24 @@ export const MULTIMODAL_AGENTS_NODES = [
 		],
 		description:
 			"A sandbox runs the tedious calculation, giving the agent a path from plausible text to checked work.",
+	},
+	{
+		id: AGENT_RUNTIME_ID,
+		label: "Agent runtime",
+		era: "multimodal" as const,
+		eraLabel: ERA_LABEL,
+		category: "multimodal_agents",
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 2,
+		prerequisites: [
+			ASSISTANT_MODELS_KEYSTONE_ID,
+			"tool_calling",
+			"code_execution",
+			"verification",
+		],
+		description:
+			"Tool calls become a reliable loop: the agent plans, checks the result, and hands control back with its side effects accounted for.",
 	},
 	{
 		id: "computer_use",

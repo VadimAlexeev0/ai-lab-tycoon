@@ -249,6 +249,8 @@ export const MULTIMODAL_MODELS_FUSION_ID = "multimodal_models_fusion";
 export const LOCAL_EDGE_INFERENCE_ID = "local_edge_inference";
 /** The Multimodal-era Video model research node gates the family. */
 export const VIDEO_WORLD_MODELS_ID = "video_world_models";
+/** The Multimodal-era Agent model research node gates the family. */
+export const AGENT_RUNTIME_ID = "agent_runtime";
 
 /** Stable ids retain save and model-family references while gaining historical labels. */
 export const WORD_VECTORS_ID = "text_models_principles";
