@@ -16,7 +16,7 @@ const nodeById = (id: string): ContentNode => {
 
 describe("LLM-history research content", () => {
 	it("ships the ten requested content groups across the three engine eras", () => {
-		expect(nodes).toHaveLength(52);
+		expect(nodes).toHaveLength(53);
 		expect(new Set(nodes.map((node) => node.category))).toEqual(
 			new Set([
 				"foundations",
@@ -79,7 +79,7 @@ describe("LLM-history research content", () => {
 		).toBeGreaterThanOrEqual(70);
 		expect(
 			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
-		).toBeLessThanOrEqual(80);
+		).toBeLessThanOrEqual(84);
 	});
 
 	it("makes capability and efficiency schools depend on each other across branches", () => {

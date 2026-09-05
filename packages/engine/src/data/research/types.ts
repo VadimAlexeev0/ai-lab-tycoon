@@ -253,6 +253,8 @@ export const VIDEO_WORLD_MODELS_ID = "video_world_models";
 export const AGENT_RUNTIME_ID = "agent_runtime";
 /** The Multimodal-era World model research node gates the family. */
 export const WORLD_SIMULATION_ID = "world_simulation";
+/** The Multimodal-era Robotics / Embodied model research node gates the family. */
+export const EMBODIED_CONTROL_ID = "embodied_control";
 
 /** Stable ids retain save and model-family references while gaining historical labels. */
 export const WORD_VECTORS_ID = "text_models_principles";
