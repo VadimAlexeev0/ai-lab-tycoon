@@ -11,6 +11,7 @@ import {
 } from "../validation.js";
 import {
 	AGENT_RUNTIME_ID,
+	EMBODIED_CONTROL_ID,
 	getResearchDefinition,
 	LOCAL_EDGE_INFERENCE_ID,
 	MULTIMODAL_MODELS_FUSION_ID,
@@ -48,6 +49,7 @@ export const MODEL_FAMILY_IDS = [
 	"video",
 	"agent",
 	"world",
+	"robotics",
 ] as const;
 export type ModelFamilyId = (typeof MODEL_FAMILY_IDS)[number];
 
@@ -217,6 +219,28 @@ export const MODEL_FAMILIES = [
 		scoreCeilingAdjustment: -15,
 		incidentExposurePercent: 250,
 		unlockedByResearchNodeId: WORLD_SIMULATION_ID,
+	},
+	// ponytail: Robotics / Embodied reuses the broad chat, developer API, and
+	// enterprise channels in this bounded slice. Upgrade path: add a dedicated
+	// robotics deployment and embodied-safety channel with its own launch,
+	// approval, and capacity contract.
+	{
+		id: "robotics",
+		displayName: "Robotics / Embodied Model",
+		allowedEras: ["multimodal"],
+		baseScoreProfile: {
+			capability: 7,
+			coding: 1,
+			reliability: 4,
+			safety: 5,
+			efficiency: 1,
+			multimodal: 12,
+		},
+		dataMixRequirements: { general: 10, code: 5, multimodal: 75 },
+		servingComputePerUserPercent: 500,
+		scoreCeilingAdjustment: -20,
+		incidentExposurePercent: 300,
+		unlockedByResearchNodeId: EMBODIED_CONTROL_ID,
 	},
 ] as const satisfies readonly ModelFamilyDefinition[];
 

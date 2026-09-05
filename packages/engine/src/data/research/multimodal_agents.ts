@@ -1,6 +1,7 @@
 import {
 	AGENT_RUNTIME_ID,
 	ASSISTANT_MODELS_KEYSTONE_ID,
+	EMBODIED_CONTROL_ID,
 	INFRASTRUCTURE_BRANCH,
 	MODELS_BRANCH,
 	PRODUCTS_SAFETY_BRANCH,
@@ -176,5 +177,23 @@ export const MULTIMODAL_AGENTS_NODES = [
 		],
 		description:
 			"A grounded simulator predicts how scenes, tools, and agents change together, making planning more coherent and compute-intensive.",
+	},
+	{
+		id: EMBODIED_CONTROL_ID,
+		label: "Embodied control",
+		era: "multimodal" as const,
+		eraLabel: ERA_LABEL,
+		category: "multimodal_agents",
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 4,
+		prerequisites: [
+			ASSISTANT_MODELS_KEYSTONE_ID,
+			WORLD_SIMULATION_ID,
+			AGENT_RUNTIME_ID,
+			"verification",
+		],
+		description:
+			"A policy closes the loop between perception and safe action, grounding learned control in verified embodied behavior.",
 	},
 ] as const satisfies readonly ResearchDefinition[];

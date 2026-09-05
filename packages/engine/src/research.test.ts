@@ -185,7 +185,7 @@ function completePrerequisites(
 
 describe("LLM-history research data", () => {
 	it("contains the ten content groups folded into three engine eras", () => {
-		expect(RESEARCH_NODES).toHaveLength(52);
+		expect(RESEARCH_NODES).toHaveLength(53);
 		expect(new Set(RESEARCH_NODES.map((node) => node.era))).toEqual(
 			new Set([TEXT_ERA, ASSISTANT_ERA, "multimodal"]),
 		);
@@ -200,7 +200,7 @@ describe("LLM-history research data", () => {
 		).toHaveLength(26);
 		expect(
 			RESEARCH_NODES.filter((node) => node.era === "multimodal"),
-		).toHaveLength(17);
+		).toHaveLength(18);
 		expect(
 			RESEARCH_NODES.every(
 				(node) => node.description.length > 0 && node.description.length < 160,
@@ -214,7 +214,7 @@ describe("LLM-history research data", () => {
 		).toBeGreaterThanOrEqual(70);
 		expect(
 			RESEARCH_NODES.reduce((total, node) => total + node.insightCost, 0),
-		).toBeLessThanOrEqual(80);
+		).toBeLessThanOrEqual(84);
 
 		const keystone = RESEARCH_NODES.find(
 			(node) => node.id === TEXT_MODELS_KEYSTONE_ID,
