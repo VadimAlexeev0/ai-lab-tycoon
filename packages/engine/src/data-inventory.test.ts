@@ -381,6 +381,14 @@ describe("strategic data inventory", () => {
 		) as Record<string, unknown>;
 		const meta = fixture.meta as Record<string, unknown>;
 		const counters = fixture.counters as Record<string, unknown>;
+		const rivals = fixture.rivals as {
+			items: Record<string, unknown>[];
+		};
+		for (const rival of rivals.items) {
+			delete rival.publishedNodeIds;
+			delete rival.launchedFamilyIds;
+			delete rival.eventCursor;
+		}
 		delete fixture.dataInventory;
 		delete fixture.risk;
 		delete counters.data;

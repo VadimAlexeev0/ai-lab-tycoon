@@ -184,6 +184,10 @@ const EXPECTED_ECONOMY: BalanceConstants = {
 		platform: { progressPerWeek: 9 },
 		efficiency: { progressPerWeek: 6 },
 	},
+	rivalStrategy: {
+		publicationPressure: 1,
+		launchPressure: 1,
+	},
 	funding: {
 		seed: {
 			minimumHype: 20,

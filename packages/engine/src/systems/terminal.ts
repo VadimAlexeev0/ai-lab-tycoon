@@ -92,6 +92,9 @@ function impactForFact(fact: Fact): number {
 		case "project_progressed":
 		case "rival_progressed":
 			return fact.amount;
+		case "rival_published":
+		case "rival_launched":
+			return fact.pressure;
 		case "revenue":
 			return fact.amount;
 		case "incident_occurred":

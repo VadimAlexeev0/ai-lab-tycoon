@@ -46,6 +46,10 @@ import {
 	TEXT_MODELS_KEYSTONE_ID,
 } from "./data/research.js";
 import {
+	getRivalStrategyAction,
+	getRivalStrategyActions,
+} from "./data/rivals.js";
+import {
 	hasCompletedModelFamilyUnlock,
 	hasRequiredShippedModelProof,
 } from "./era-proof.js";
@@ -183,6 +187,7 @@ export function assertGameState(
 	assertQueueShape(state.queue);
 	assertCommandLog(state.commandLog, state);
 	assertPublicationHistory(state);
+	assertRivalStrategyHistory(state);
 	assertRiskRelations(state);
 	assertWarnings(state.warnings);
 	assertComputeReservations(state);
@@ -1390,6 +1395,62 @@ function assertPublicationHistory(state: GameState): void {
 				`Retained publication fact for node ${fact.nodeId} has no matching publication command`,
 			);
 		}
+	}
+}
+
+function assertRivalStrategyHistory(state: GameState): void {
+	const reportedActions = new Set<string>();
+	for (const report of state.reports.items) {
+		const fact = report.fact;
+		if (fact.kind !== "rival_published" && fact.kind !== "rival_launched") {
+			continue;
+		}
+		const rival = state.rivals.items.find(
+			(candidate) => candidate.id === fact.rivalId,
+		);
+		if (rival === undefined) {
+			throw new Error(
+				`Rival strategy fact references an unknown rival: ${fact.rivalId}`,
+			);
+		}
+		const action = getRivalStrategyAction(fact.actionId);
+		if (action === undefined) {
+			throw new Error(
+				`Rival strategy fact references an unknown action: ${fact.actionId}`,
+			);
+		}
+		const actionIndex = getRivalStrategyActions(rival.archetype).findIndex(
+			(candidate) => candidate.id === action.id,
+		);
+		if (actionIndex < 0 || actionIndex >= rival.eventCursor) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} is not backed by the rival event cursor`,
+			);
+		}
+		if (fact.progress > rival.progress || fact.week > state.meta.week) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} reports impossible progress or week`,
+			);
+		}
+		if (
+			(action.kind === "publication" &&
+				(fact.kind !== "rival_published" ||
+					!rival.publishedNodeIds.includes(action.nodeId))) ||
+			(action.kind === "launch" &&
+				(fact.kind !== "rival_launched" ||
+					!rival.launchedFamilyIds.includes(action.familyId)))
+		) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} does not match persisted action history`,
+			);
+		}
+		const reportKey = `${rival.id}:${action.id}`;
+		if (reportedActions.has(reportKey)) {
+			throw new Error(
+				`Duplicate rival strategy report for action ${action.id}`,
+			);
+		}
+		reportedActions.add(reportKey);
 	}
 }
 

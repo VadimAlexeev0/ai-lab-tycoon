@@ -523,6 +523,14 @@ describe("foundation and brand lineage", () => {
 		const models = fixture.models as { items: Record<string, unknown>[] };
 		const model = models.items[0];
 		if (model === undefined) throw new Error("Expected a legacy model");
+		const rivals = fixture.rivals as {
+			items: Record<string, unknown>[];
+		};
+		for (const rival of rivals.items) {
+			delete rival.publishedNodeIds;
+			delete rival.launchedFamilyIds;
+			delete rival.eventCursor;
+		}
 		delete model.brandId;
 		delete model.foundationId;
 		delete model.foundationDebt;
@@ -540,8 +548,8 @@ describe("foundation and brand lineage", () => {
 		const migrated = upgraded.models.items[0];
 		if (migrated === undefined) throw new Error("Expected migrated model");
 
-		expect(GAME_STATE_SCHEMA_VERSION).toBe(10);
-		expect(upgraded.meta.schemaVersion).toBe(10);
+		expect(GAME_STATE_SCHEMA_VERSION).toBe(11);
+		expect(upgraded.meta.schemaVersion).toBe(11);
 		expect(migrated).toMatchObject({
 			brandId: "brand_model_001",
 			foundationId: "foundation_model_001",
@@ -566,6 +574,14 @@ describe("foundation and brand lineage", () => {
 			unknown
 		>;
 		const models = fixture.models as { items: Record<string, unknown>[] };
+		const rivals = fixture.rivals as {
+			items: Record<string, unknown>[];
+		};
+		for (const rival of rivals.items) {
+			delete rival.publishedNodeIds;
+			delete rival.launchedFamilyIds;
+			delete rival.eventCursor;
+		}
 		for (const model of models.items) {
 			delete model.brandId;
 			delete model.foundationId;

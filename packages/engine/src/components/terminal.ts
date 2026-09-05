@@ -37,6 +37,8 @@ const FACT_KINDS: readonly Fact["kind"][] = [
 	"training_starved",
 	"rival_progressed",
 	"rival_milestone",
+	"rival_published",
+	"rival_launched",
 	"funding_resolved",
 	"incident_occurred",
 	"incident_resolved",

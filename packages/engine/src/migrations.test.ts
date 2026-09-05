@@ -47,6 +47,17 @@ function stripV9LineageFields(state: Record<string, unknown>): void {
 	}
 }
 
+function stripV11RivalStrategyFields(state: Record<string, unknown>): void {
+	const rivals = asRecord(state.rivals);
+	if (!Array.isArray(rivals.items)) return;
+	for (const item of rivals.items) {
+		const rival = asRecord(item);
+		delete rival.publishedNodeIds;
+		delete rival.launchedFamilyIds;
+		delete rival.eventCursor;
+	}
+}
+
 function v8LineageDebtFixture(): Record<string, unknown> {
 	const state = startRun({ companyName: "Migration Labs" }, 23);
 	const familyUnlock = state.research.nodes.find(
@@ -91,6 +102,7 @@ function v8LineageDebtFixture(): Record<string, unknown> {
 		unknown
 	>;
 	stripV9LineageFields(fixture);
+	stripV11RivalStrategyFields(fixture);
 	const models = asRecord(fixture.models);
 	if (!Array.isArray(models.items) || models.items.length !== 2) {
 		throw new Error("Expected a parent and successor model");
@@ -163,6 +175,7 @@ function v8ReverseOrderThreeGenerationFixture(): Record<string, unknown> {
 		unknown
 	>;
 	stripV9LineageFields(fixture);
+	stripV11RivalStrategyFields(fixture);
 	const models = asRecord(fixture.models);
 	if (!Array.isArray(models.items) || models.items.length !== 3) {
 		throw new Error("Expected a three-generation model chain");
@@ -205,6 +218,7 @@ function currentV2Fixture(): unknown {
 	delete counters.data;
 	delete research.discoveredSparkIds;
 	delete research.paradigmId;
+	stripV11RivalStrategyFields(state);
 	meta.schemaVersion = 2;
 	return state;
 }
@@ -220,6 +234,7 @@ function currentV3Fixture(): unknown {
 	delete state.risk;
 	delete counters.data;
 	delete research.paradigmId;
+	stripV11RivalStrategyFields(state);
 	meta.schemaVersion = 3;
 	return state;
 }
@@ -259,6 +274,7 @@ function trainedV5Fixture(): unknown {
 	delete model.knowledgeCutoff;
 	delete model.knowledgeFreshness;
 	stripV9LineageFields(fixture);
+	stripV11RivalStrategyFields(fixture);
 	meta.schemaVersion = 5;
 	return fixture;
 }
@@ -283,6 +299,7 @@ function currentV7FixtureWithModel(): Record<string, unknown> {
 		unknown
 	>;
 	stripV9LineageFields(fixture);
+	stripV11RivalStrategyFields(fixture);
 	asRecord(fixture.meta).schemaVersion = 7;
 	return fixture;
 }

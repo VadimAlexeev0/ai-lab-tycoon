@@ -460,7 +460,22 @@ export function rivalLaunchPressure(
 			rival.active ? Math.max(maximum, rival.progress) : maximum,
 		0,
 	);
-	return baseMinimumHype + Math.floor(maximumProgress / 25);
+	const strategyPressure = state.rivals.items.reduce((maximum, rival) => {
+		if (!rival.active) return maximum;
+		// Match the existing max-progress gate: several rivals raise the
+		// gate to the strongest current strategic pressure, not once per
+		// report or rival.
+		const rivalPressure = Math.max(
+			rival.publishedNodeIds.length > 0
+				? BALANCE.rivalStrategy.publicationPressure
+				: 0,
+			rival.launchedFamilyIds.length > 0
+				? BALANCE.rivalStrategy.launchPressure
+				: 0,
+		);
+		return Math.max(maximum, rivalPressure);
+	}, 0);
+	return baseMinimumHype + Math.floor(maximumProgress / 25) + strategyPressure;
 }
 
 export function isProductLaunchEligible(

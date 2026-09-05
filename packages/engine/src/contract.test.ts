@@ -273,6 +273,9 @@ describe("hardened component contract", () => {
 							focus: "capability",
 							progress: 0,
 							active: true,
+							publishedNodeIds: [],
+							launchedFamilyIds: [],
+							eventCursor: 0,
 						},
 					];
 				},
@@ -289,6 +292,9 @@ describe("hardened component contract", () => {
 							focus: "invalid" as never,
 							progress: 0,
 							active: true,
+							publishedNodeIds: [],
+							launchedFamilyIds: [],
+							eventCursor: 0,
 						},
 					];
 				},
@@ -305,6 +311,9 @@ describe("hardened component contract", () => {
 							focus: "capability",
 							progress: 0,
 							active: 1 as never,
+							publishedNodeIds: [],
+							launchedFamilyIds: [],
+							eventCursor: 0,
 						},
 					];
 				},

@@ -122,7 +122,8 @@ function normalizeCommandLog(
 	assertSafeInteger(envelope.schemaVersion, "Command log schema version");
 	if (
 		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION &&
-		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION - 1
+		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION - 1 &&
+		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION - 2
 	) {
 		throw new Error(
 			`Unsupported command log schema version: ${String(envelope.schemaVersion)}`,
@@ -149,7 +150,7 @@ function normalizeCommandLog(
 	assertArray(envelope[payloadKey], "Command log envelope commands");
 	const rawEntries = envelope[payloadKey] as unknown as CommandLogEntry[];
 	const normalized =
-		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 1
+		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 2
 			? normalizeLegacyCommandEntries(rawEntries, true)
 			: {
 					entries: rawEntries,

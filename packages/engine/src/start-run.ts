@@ -90,7 +90,13 @@ export function startRun(setup: RunSetup, seed: number): GameState {
 			rivals: {
 				items: [
 					...rivalAllocation.state.rivals.items,
-					{ id: rivalAllocation.id, ...rival },
+					{
+						id: rivalAllocation.id,
+						...rival,
+						publishedNodeIds: [],
+						launchedFamilyIds: [],
+						eventCursor: 0,
+					},
 				],
 			},
 		};

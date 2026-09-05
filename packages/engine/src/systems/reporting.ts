@@ -96,6 +96,8 @@ export function priorityForFact(fact: Fact): ReportPriority {
 		case "product_resumed":
 		case "product_retired":
 		case "rival_milestone":
+		case "rival_published":
+		case "rival_launched":
 		case "incident_resolved":
 		case "risk_memory_updated":
 		case "crisis_resolved":

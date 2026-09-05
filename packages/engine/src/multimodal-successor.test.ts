@@ -156,6 +156,14 @@ function legacyV9MultimodalFixture(
 		}
 	}
 	const commandLog = fixture.commandLog as Record<string, unknown>[];
+	const rivals = fixture.rivals as {
+		items: Record<string, unknown>[];
+	};
+	for (const rival of rivals.items) {
+		delete rival.publishedNodeIds;
+		delete rival.launchedFamilyIds;
+		delete rival.eventCursor;
+	}
 	for (const command of commandLog) {
 		if (command.kind === "design_model") {
 			command.dataMix = { ...dataMix };
@@ -550,8 +558,8 @@ describe("multimodal successor architecture paths", () => {
 			(entry) => entry.kind === "design_model",
 		);
 
-		expect(GAME_STATE_SCHEMA_VERSION).toBe(10);
-		expect(upgraded.meta.schemaVersion).toBe(10);
+		expect(GAME_STATE_SCHEMA_VERSION).toBe(11);
+		expect(upgraded.meta.schemaVersion).toBe(11);
 		expect(model).toMatchObject({
 			architecturePath: "unified",
 			architectureDebt: 0,

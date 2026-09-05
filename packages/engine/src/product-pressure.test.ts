@@ -236,12 +236,20 @@ describe("product operating pressure", () => {
 		);
 		if (command === undefined) throw new Error("Expected launch command");
 		delete command.price;
+		const rivals = legacy.rivals as {
+			items: Array<Record<string, unknown>>;
+		};
+		for (const rival of rivals.items) {
+			delete rival.publishedNodeIds;
+			delete rival.launchedFamilyIds;
+			delete rival.eventCursor;
+		}
 		(legacy.meta as Record<string, unknown>).schemaVersion = 7;
 
 		const upgraded = upgradeGameState(legacy);
 		const migrated = upgraded.products.items[0] as Record<string, unknown>;
-		expect(GAME_STATE_SCHEMA_VERSION).toBe(10);
-		expect(upgraded.meta.schemaVersion).toBe(10);
+		expect(GAME_STATE_SCHEMA_VERSION).toBe(11);
+		expect(upgraded.meta.schemaVersion).toBe(11);
 		expect(migrated.price).toBe(10);
 		expect(migrated.satisfaction).toBe(100);
 		expect(migrated.retiredUsers).toBe(0);

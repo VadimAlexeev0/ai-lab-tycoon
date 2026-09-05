@@ -167,6 +167,13 @@ export type RivalClockBalance = Readonly<{
 	progressPerWeek: number;
 }>;
 
+export type RivalStrategyBalance = Readonly<{
+	/** Launch-gate pressure added by one rival research publication. */
+	publicationPressure: number;
+	/** Launch-gate pressure added by one rival family launch. */
+	launchPressure: number;
+}>;
+
 export type FundingRoundBalance = Readonly<{
 	minimumHype: number;
 	minimumTrust: number;
@@ -213,6 +220,7 @@ export type BalanceConstants = Readonly<{
 	productChannels: Readonly<Record<ProductChannel, ProductChannelBalance>>;
 	productPressure?: ProductPressureBalance;
 	rivalClocks: Readonly<Record<RivalArchetype, RivalClockBalance>>;
+	rivalStrategy: RivalStrategyBalance;
 	funding: Readonly<Record<"seed" | "series_a", FundingRoundBalance>>;
 	evaluations: Readonly<Record<EvaluationKind, EvaluationBalance>>;
 	researchParadigms: Readonly<
@@ -485,6 +493,12 @@ export const RIVAL_CLOCK_BALANCE = {
 	efficiency: { progressPerWeek: 6 },
 } as const satisfies Readonly<Record<RivalArchetype, RivalClockBalance>>;
 
+/** Integer launch-gate pressure produced by rival strategy actions. */
+export const RIVAL_STRATEGY_BALANCE = {
+	publicationPressure: 1,
+	launchPressure: 1,
+} as const satisfies RivalStrategyBalance;
+
 /** Seed and Series A eligibility thresholds and grant sizes. */
 export const FUNDING_BALANCE = {
 	seed: {
@@ -636,6 +650,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 		enumerable: false,
 	},
 	rivalClocks: { value: RIVAL_CLOCK_BALANCE, enumerable: false },
+	rivalStrategy: { value: RIVAL_STRATEGY_BALANCE, enumerable: false },
 	funding: { value: FUNDING_BALANCE, enumerable: false },
 	evaluations: { value: EVALUATION_BALANCE, enumerable: false },
 	dataInventory: {
@@ -666,6 +681,7 @@ export const BALANCE = Object.defineProperties(LEGACY_BALANCE, {
 	readonly productChannels: typeof PRODUCT_CHANNEL_BALANCE;
 	readonly productPressure: typeof PRODUCT_PRESSURE_BALANCE;
 	readonly rivalClocks: typeof RIVAL_CLOCK_BALANCE;
+	readonly rivalStrategy: typeof RIVAL_STRATEGY_BALANCE;
 	readonly funding: typeof FUNDING_BALANCE;
 	readonly evaluations: typeof EVALUATION_BALANCE;
 	readonly dataInventory: typeof DATA_INVENTORY_BALANCE;
@@ -704,6 +720,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		"defaultEstimateBandWidth",
 		"productChannels",
 		"rivalClocks",
+		"rivalStrategy",
 		"funding",
 		"evaluations",
 		"researchParadigms",
@@ -857,6 +874,7 @@ export function assertBalanceConstants(value: BalanceConstants): void {
 		assertProductPressureBalance(value.productPressure);
 	}
 	assertRivalClockBalance(value.rivalClocks);
+	assertRivalStrategyBalance(value.rivalStrategy);
 	assertFundingBalance(value.funding);
 	assertEvaluationBalance(value.evaluations);
 	assertResearchParadigmBalance(value.researchParadigms);
@@ -1260,6 +1278,19 @@ function assertRivalClockBalance(
 			`Rival clock ${archetype} progress`,
 		);
 	}
+}
+
+function assertRivalStrategyBalance(value: RivalStrategyBalance): void {
+	assertExactObject(
+		value,
+		["publicationPressure", "launchPressure"],
+		"Rival strategy balance",
+	);
+	assertPositiveInteger(
+		value.publicationPressure,
+		"Rival publication pressure",
+	);
+	assertPositiveInteger(value.launchPressure, "Rival launch pressure");
 }
 
 function assertResearchParadigmBalance(

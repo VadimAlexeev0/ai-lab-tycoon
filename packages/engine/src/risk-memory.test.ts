@@ -745,6 +745,14 @@ describe("persistent incident risk memory", () => {
 		const v6 = JSON.parse(
 			serializeGameState(startRun({ companyName: "Migration Labs" }, 17)),
 		) as Record<string, unknown>;
+		const rivals = v6.rivals as {
+			items: Record<string, unknown>[];
+		};
+		for (const rival of rivals.items) {
+			delete rival.publishedNodeIds;
+			delete rival.launchedFamilyIds;
+			delete rival.eventCursor;
+		}
 		delete v6.risk;
 		const v6Meta = v6.meta as Record<string, unknown>;
 		v6Meta.schemaVersion = 6;

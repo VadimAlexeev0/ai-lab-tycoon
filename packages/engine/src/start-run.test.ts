@@ -32,6 +32,9 @@ const EXPECTED_OPENING_PROJECTS = RESEARCH_NODES.filter(
 const EXPECTED_OPENING_RIVALS = OPENING_RIVALS.map((rival, index) => ({
 	id: `rival_${String(index + 1).padStart(3, "0")}`,
 	...rival,
+	publishedNodeIds: [],
+	launchedFamilyIds: [],
+	eventCursor: 0,
 }));
 
 describe("startRun", () => {

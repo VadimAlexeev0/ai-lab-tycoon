@@ -114,6 +114,9 @@ export type VisibleRival = {
 	focus: Rival["focus"];
 	progress: number;
 	active: boolean;
+	publishedNodeIds?: string[];
+	launchedFamilyIds?: Rival["launchedFamilyIds"];
+	eventCursor?: number;
 };
 
 export type VisibleResearchNode = {
@@ -281,14 +284,24 @@ export function selectAvailableProjects(
 export function selectRivals(state: DeepReadonly<GameState>): VisibleRival[] {
 	return state.rivals.items
 		.filter((rival) => state.meta.era !== "text" || rival.active)
-		.map((rival) => ({
-			id: rival.id,
-			name: rival.name,
-			archetype: rival.archetype,
-			focus: rival.focus,
-			progress: rival.progress,
-			active: rival.active,
-		}));
+		.map((rival) => {
+			const visible: VisibleRival = {
+				id: rival.id,
+				name: rival.name,
+				archetype: rival.archetype,
+				focus: rival.focus,
+				progress: rival.progress,
+				active: rival.active,
+			};
+			if (rival.publishedNodeIds.length > 0) {
+				visible.publishedNodeIds = [...rival.publishedNodeIds];
+			}
+			if (rival.launchedFamilyIds.length > 0) {
+				visible.launchedFamilyIds = [...rival.launchedFamilyIds];
+			}
+			if (rival.eventCursor > 0) visible.eventCursor = rival.eventCursor;
+			return visible;
+		});
 }
 
 /** Project only the model facts that the player is allowed to see. */

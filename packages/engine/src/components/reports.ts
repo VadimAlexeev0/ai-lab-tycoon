@@ -1,4 +1,4 @@
-import { PRODUCT_PRESSURE_BALANCE } from "../data/balance.js";
+import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "../data/balance.js";
 import {
 	DATA_PROVENANCES,
 	getDataSourceDefinition,
@@ -7,6 +7,10 @@ import {
 	type IncidentCondition,
 	incidentDefinition,
 } from "../data/incidents.js";
+import {
+	MODEL_FAMILY_IDS,
+	type ModelFamilyId,
+} from "../data/model-families.js";
 import type { ResearchParadigmId } from "../data/research/paradigms.js";
 import {
 	assertResearchEffects,
@@ -14,6 +18,7 @@ import {
 	isResearchParadigmId,
 	type ResearchEffect,
 } from "../data/research.js";
+import { getRivalStrategyAction } from "../data/rivals.js";
 import type { KnowledgeFreshnessStatus } from "../knowledge-cutoff.js";
 import {
 	assertArray,
@@ -62,6 +67,8 @@ const FACT_KINDS = [
 	"training_starved",
 	"rival_progressed",
 	"rival_milestone",
+	"rival_published",
+	"rival_launched",
 	"funding_resolved",
 	"incident_occurred",
 	"incident_resolved",
@@ -293,6 +300,26 @@ export type Fact =
 			kind: "rival_milestone";
 			rivalId: string;
 			milestone: string;
+			week: number;
+	  }
+	| {
+			kind: "rival_published";
+			rivalId: string;
+			actionId: string;
+			nodeId: string;
+			threshold: number;
+			progress: number;
+			pressure: number;
+			week: number;
+	  }
+	| {
+			kind: "rival_launched";
+			rivalId: string;
+			actionId: string;
+			familyId: ModelFamilyId;
+			threshold: number;
+			progress: number;
+			pressure: number;
 			week: number;
 	  }
 	| {
@@ -1067,6 +1094,102 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.milestone, "Rival milestone name");
 			assertPositiveInteger(value.week, "Fact week");
 			return;
+		case "rival_published": {
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"rivalId",
+					"actionId",
+					"nodeId",
+					"threshold",
+					"progress",
+					"pressure",
+					"week",
+				],
+				"rival published fact",
+			);
+			assertIdentifier(value.rivalId, "Rival publication rival id");
+			assertIdentifier(value.actionId, "Rival publication action id");
+			assertIdentifier(value.nodeId, "Rival publication node id");
+			const action = getRivalStrategyAction(value.actionId);
+			if (action === undefined || action.kind !== "publication") {
+				throw new Error(
+					`Rival publication fact references an unknown publication action: ${value.actionId}`,
+				);
+			}
+			if (action.nodeId !== value.nodeId) {
+				throw new Error(
+					`Rival publication fact node does not match action ${action.id}`,
+				);
+			}
+			assertPositiveInteger(value.threshold, "Rival publication threshold");
+			if (value.threshold !== action.threshold) {
+				throw new Error(
+					`Rival publication fact threshold does not match action ${action.id}`,
+				);
+			}
+			assertNonNegativeInteger(value.progress, "Rival publication progress");
+			if (value.progress > 100 || value.progress < value.threshold) {
+				throw new Error(
+					"Rival publication fact progress must reach its action threshold",
+				);
+			}
+			assertPositiveInteger(value.pressure, "Rival publication pressure");
+			if (value.pressure !== BALANCE.rivalStrategy.publicationPressure) {
+				throw new Error("Rival publication fact has invalid pressure");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		}
+		case "rival_launched": {
+			assertExactObject(
+				value,
+				[
+					"kind",
+					"rivalId",
+					"actionId",
+					"familyId",
+					"threshold",
+					"progress",
+					"pressure",
+					"week",
+				],
+				"rival launched fact",
+			);
+			assertIdentifier(value.rivalId, "Rival launch rival id");
+			assertIdentifier(value.actionId, "Rival launch action id");
+			assertEnum(value.familyId, MODEL_FAMILY_IDS, "Rival launch family id");
+			const action = getRivalStrategyAction(value.actionId);
+			if (action === undefined || action.kind !== "launch") {
+				throw new Error(
+					`Rival launch fact references an unknown launch action: ${value.actionId}`,
+				);
+			}
+			if (action.familyId !== value.familyId) {
+				throw new Error(
+					`Rival launch fact family does not match action ${action.id}`,
+				);
+			}
+			assertPositiveInteger(value.threshold, "Rival launch threshold");
+			if (value.threshold !== action.threshold) {
+				throw new Error(
+					`Rival launch fact threshold does not match action ${action.id}`,
+				);
+			}
+			assertNonNegativeInteger(value.progress, "Rival launch progress");
+			if (value.progress > 100 || value.progress < value.threshold) {
+				throw new Error(
+					"Rival launch fact progress must reach its action threshold",
+				);
+			}
+			assertPositiveInteger(value.pressure, "Rival launch pressure");
+			if (value.pressure !== BALANCE.rivalStrategy.launchPressure) {
+				throw new Error("Rival launch fact has invalid pressure");
+			}
+			assertPositiveInteger(value.week, "Fact week");
+			return;
+		}
 		case "funding_resolved":
 			assertExactObject(
 				value,

@@ -9,6 +9,7 @@ import { assertProductsState } from "./components/products.js";
 import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
+import { assertRivalsState } from "./components/rivals.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
@@ -51,6 +52,7 @@ const STATE_SCHEMA_VERSION_V7 = 7 as const;
 const STATE_SCHEMA_VERSION_V8 = 8 as const;
 const STATE_SCHEMA_VERSION_V9 = 9 as const;
 const STATE_SCHEMA_VERSION_V10 = 10 as const;
+const STATE_SCHEMA_VERSION_V11 = 11 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
@@ -61,6 +63,7 @@ const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V7]: migrateV7ToV8,
 	[STATE_SCHEMA_VERSION_V8]: migrateV8ToV9,
 	[STATE_SCHEMA_VERSION_V9]: migrateV9ToV10,
+	[STATE_SCHEMA_VERSION_V10]: migrateV10ToV11,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -124,6 +127,9 @@ export function deserializeGameStateWithMetadata(
  * `legacy_v9_unified` provenance marker so current unified validation remains
  * strict for every ordinary model. Partial or future-shaped V9 fields are
  * rejected.
+ * Schema v11 adds deterministic rival strategy decks, publication/launch
+ * history, and each rival's event cursor. V10 rivals receive empty histories
+ * and a zero cursor; partial or future-shaped V10 strategy fields are rejected.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -560,6 +566,46 @@ function migrateV9ToV10(value: unknown): unknown {
 
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V10;
 	return migrated;
+}
+
+function migrateV10ToV11(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v10 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v10 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V10) {
+		throw new Error("v10 game state has an invalid schema version");
+	}
+	assertNoV11FieldsInV10(migrated);
+	const rivals = migrated.rivals;
+	assertRivalsState(rivals, { allowMissingStrategyFields: true });
+	for (const rival of rivals.items) {
+		rival.publishedNodeIds = [];
+		rival.launchedFamilyIds = [];
+		rival.eventCursor = 0;
+	}
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V11;
+	return migrated;
+}
+
+function assertNoV11FieldsInV10(state: Record<string, unknown>): void {
+	const rivals = state.rivals;
+	assertObject(rivals, "v10 rivals");
+	assertArray(rivals.items, "v10 rival items");
+	for (const item of rivals.items) {
+		assertObject(item, "v10 rival");
+		for (const field of [
+			"publishedNodeIds",
+			"launchedFamilyIds",
+			"eventCursor",
+		]) {
+			if (Object.hasOwn(item, field)) {
+				throw new Error(
+					`v10 rival contains unexpected strategy field: ${field}`,
+				);
+			}
+		}
+	}
 }
 
 function assertNoV10FieldsInV9(state: Record<string, unknown>): void {
