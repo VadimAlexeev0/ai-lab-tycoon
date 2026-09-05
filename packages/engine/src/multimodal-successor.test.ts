@@ -131,7 +131,9 @@ function multimodalState(): GameState {
 	return state;
 }
 
-function legacyV9MultimodalFixture(): Record<string, unknown> {
+function legacyV9MultimodalFixture(
+	dataMix = { general: 30, code: 20, multimodal: 50 },
+): Record<string, unknown> {
 	const designed = designModel(multimodalState(), {
 		name: "Legacy Multimodal",
 		family: "multimodal",
@@ -148,13 +150,17 @@ function legacyV9MultimodalFixture(): Record<string, unknown> {
 	const models = fixture.models as { items: Record<string, unknown>[] };
 	for (const model of models.items) {
 		if (model.family === "multimodal") {
+			model.dataMix = { ...dataMix };
 			delete model.architecturePath;
 			delete model.architectureDebt;
 		}
 	}
 	const commandLog = fixture.commandLog as Record<string, unknown>[];
 	for (const command of commandLog) {
-		if (command.kind === "design_model") delete command.architecturePath;
+		if (command.kind === "design_model") {
+			command.dataMix = { ...dataMix };
+			delete command.architecturePath;
+		}
 	}
 	(fixture.meta as Record<string, unknown>).schemaVersion = 9;
 	return fixture;
@@ -555,6 +561,44 @@ describe("multimodal successor architecture paths", () => {
 		expect(upgradeGameState(fixture)).toEqual(upgraded);
 	});
 
+	it("durably upgrades a v9 multimodal save at the exact 20% legacy minimum", () => {
+		const legacyDataMix = { general: 50, code: 30, multimodal: 20 };
+		const fixture = legacyV9MultimodalFixture(legacyDataMix);
+		const before = JSON.stringify(fixture);
+
+		const upgraded = upgradeGameState(fixture);
+		const model = upgraded.models.items.find(
+			(item) => item.family === "multimodal",
+		);
+		const command = upgraded.commandLog.find(
+			(entry) => entry.kind === "design_model",
+		);
+		if (model === undefined || command?.kind !== "design_model") {
+			throw new Error("Expected a migrated multimodal model and command");
+		}
+
+		expect(model).toMatchObject({
+			architecturePath: "unified",
+			architectureDebt: 0,
+			architectureProvenance: "legacy_v9_unified",
+			dataMix: legacyDataMix,
+		});
+		expect(command).toMatchObject({
+			architecturePath: "unified",
+			architectureProvenance: "legacy_v9_unified",
+			dataMix: legacyDataMix,
+		});
+		expect(() => assertGameState(upgraded)).not.toThrow();
+
+		const serialized = serializeGameState(upgraded);
+		const restored = deserializeGameState(serialized);
+		expect(canonicalEqual(restored, upgraded)).toBe(true);
+		expect(() => assertGameState(restored)).not.toThrow();
+		expect(serializeGameState(restored)).toBe(serialized);
+		expect(upgradeGameState(fixture)).toEqual(upgraded);
+		expect(JSON.stringify(fixture)).toBe(before);
+	});
+
 	it("recomputes architecture-derived demand while migrating active v9 training", () => {
 		const fixture = legacyV9MultimodalFixture();
 		const compute = fixture.compute as Record<string, unknown>;
@@ -631,8 +675,12 @@ describe("multimodal successor architecture paths", () => {
 		expect(model).toMatchObject({
 			architecturePath: "unified",
 			architectureDebt: 0,
+			architectureProvenance: "legacy_v9_unified",
 			dataMix: { general: 50, code: 30, multimodal: 20 },
 		});
+		expect(() => assertGameState(result.state)).not.toThrow();
+		const restored = deserializeGameState(serializeGameState(result.state));
+		expect(canonicalEqual(restored, result.state)).toBe(true);
 	});
 
 	it("does not expose a public bypass for the unified path data minimum", () => {
@@ -653,6 +701,12 @@ describe("multimodal successor architecture paths", () => {
 				{ allowLegacyArchitectureDefaults: true },
 			]),
 		).toThrow(/at least 45/);
+		expect(() =>
+			designModel(multimodalState(), {
+				...spec,
+				architectureProvenance: "legacy_v9_unified",
+			} as never),
+		).toThrow(/unexpected/i);
 	});
 
 	it("rejects a forged current multimodal model and matching command below its path minimum", () => {
@@ -715,6 +769,7 @@ describe("multimodal successor architecture paths", () => {
 				id: "command_002",
 				architecturePath: "unified",
 				architectureDebt: 0,
+				architectureProvenance: "legacy_v9_unified",
 			},
 		];
 		const before = JSON.stringify(entries);

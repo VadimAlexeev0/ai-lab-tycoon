@@ -13,6 +13,8 @@ import {
 import {
 	deriveMultimodalArchitectureDebt,
 	getMultimodalArchitecturePath,
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
 	MULTIMODAL_ARCHITECTURE_PATH_IDS,
 	type MultimodalArchitecturePath,
 } from "../data/multimodal-architectures.js";
@@ -67,6 +69,8 @@ export type Model = {
 	architecturePath?: MultimodalArchitecturePath;
 	/** Bounded technical debt owned by the selected architecture path. */
 	architectureDebt?: number;
+	/** Narrow provenance for the pre-v10 unified data contract. */
+	architectureProvenance?: typeof LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
 	status: ModelStatus;
 	projectId: string | null;
 	family?: ModelFamilyId;
@@ -180,6 +184,23 @@ export function assertModelsState(
 				item.architectureDebt,
 				`Model ${item.id} architecture debt`,
 			);
+		}
+		if (Object.hasOwn(item, "architectureProvenance")) {
+			assertEnum(
+				item.architectureProvenance,
+				[LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE],
+				"Model architecture provenance",
+			);
+			if (
+				!hasArchitecturePath ||
+				item.architecturePath !== "unified" ||
+				item.architectureDebt !== 0 ||
+				!isLegacyV9MultimodalDataMix(item.dataMix)
+			) {
+				throw new Error(
+					`Model ${item.id} has invalid legacy architecture provenance`,
+				);
+			}
 		}
 		if (Object.hasOwn(item, "parentModelId")) {
 			assertNullableString(item.parentModelId, "Model parent id");
@@ -547,6 +568,7 @@ function assertAllowedModelKeys(value: Record<string, unknown>): void {
 		"foundation",
 		"architecturePath",
 		"architectureDebt",
+		"architectureProvenance",
 		"status",
 		"projectId",
 		"family",

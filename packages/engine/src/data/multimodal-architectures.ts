@@ -29,6 +29,28 @@ export const MULTIMODAL_ARCHITECTURE_PATH_IDS = [
 export type MultimodalArchitecturePath =
 	(typeof MULTIMODAL_ARCHITECTURE_PATH_IDS)[number];
 
+/** Persisted only on v9 saves that used the former multimodal data contract. */
+export const LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE =
+	"legacy_v9_unified" as const;
+export const LEGACY_V9_MULTIMODAL_DATA_MIX = {
+	general: 50,
+	code: 30,
+	multimodal: 20,
+} as const satisfies DataMix;
+
+export function isLegacyV9MultimodalDataMix(value: unknown): value is DataMix {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		return false;
+	}
+	const dataMix = value as Record<string, unknown>;
+	return (
+		Object.keys(dataMix).length === 3 &&
+		dataMix.general === LEGACY_V9_MULTIMODAL_DATA_MIX.general &&
+		dataMix.code === LEGACY_V9_MULTIMODAL_DATA_MIX.code &&
+		dataMix.multimodal === LEGACY_V9_MULTIMODAL_DATA_MIX.multimodal
+	);
+}
+
 export const ARCHITECTURE_FOUNDATIONS = [
 	"fresh",
 	"continued",

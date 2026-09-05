@@ -13,6 +13,10 @@ import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+} from "./data/multimodal-architectures.js";
+import {
 	assertGameState,
 	type GameStateValidationOptions,
 } from "./invariants.js";
@@ -115,7 +119,11 @@ export function deserializeGameStateWithMetadata(
  * Future-shaped V8 lineage fields are rejected before defaults are applied.
  * Schema v10 adds the persisted multimodal architecture path and bounded path
  * debt. V9 multimodal models and design commands receive the deterministic
- * `unified`/zero-debt default; partial or future-shaped V9 fields are rejected.
+ * `unified`/zero-debt default; records at the exact former
+ * `{ general: 50, code: 30, multimodal: 20 }` minimum also retain the narrow
+ * `legacy_v9_unified` provenance marker so current unified validation remains
+ * strict for every ordinary model. Partial or future-shaped V9 fields are
+ * rejected.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -513,6 +521,10 @@ function migrateV9ToV10(value: unknown): unknown {
 		if (model.family === "multimodal") {
 			model.architecturePath = "unified";
 			model.architectureDebt = 0;
+			if (isLegacyV9MultimodalDataMix(model.dataMix)) {
+				model.architectureProvenance =
+					LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
+			}
 		}
 	}
 	assertModelsState(models);
@@ -523,6 +535,10 @@ function migrateV9ToV10(value: unknown): unknown {
 		assertObject(command, "v9 command log entry");
 		if (command.kind === "design_model" && command.family === "multimodal") {
 			command.architecturePath = "unified";
+			if (isLegacyV9MultimodalDataMix(command.dataMix)) {
+				command.architectureProvenance =
+					LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
+			}
 		}
 	}
 
@@ -552,7 +568,11 @@ function assertNoV10FieldsInV9(state: Record<string, unknown>): void {
 	assertArray(models.items, "v9 models items");
 	for (const item of models.items) {
 		assertObject(item, "v9 model");
-		for (const field of ["architecturePath", "architectureDebt"]) {
+		for (const field of [
+			"architecturePath",
+			"architectureDebt",
+			"architectureProvenance",
+		]) {
 			if (Object.hasOwn(item, field)) {
 				throw new Error(
 					`v9 model contains unexpected architecture field: ${field}`,
@@ -565,7 +585,11 @@ function assertNoV10FieldsInV9(state: Record<string, unknown>): void {
 	assertArray(commandLog, "v9 command log");
 	for (const command of commandLog) {
 		assertObject(command, "v9 command log entry");
-		for (const field of ["architecturePath", "architectureDebt"]) {
+		for (const field of [
+			"architecturePath",
+			"architectureDebt",
+			"architectureProvenance",
+		]) {
 			if (Object.hasOwn(command, field)) {
 				throw new Error(
 					`v9 command contains unexpected architecture field: ${field}`,

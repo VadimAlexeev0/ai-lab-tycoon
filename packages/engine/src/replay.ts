@@ -3,9 +3,12 @@ import { applyDecision } from "./apply-decision.js";
 import { canonicalEqual } from "./canonical.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
 import { buyCompute, hireTeam } from "./commands/teams.js";
+import {
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+} from "./data/multimodal-architectures.js";
 import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
-import { withLegacyReplayValidation } from "./invariants.js";
 import { designModel, designModelForLegacyReplay } from "./model-design.js";
 import {
 	applyProductResume,
@@ -76,16 +79,11 @@ export function replayCommandLog(
 	assertReplayedCommand(state.commandLog[0], first);
 
 	for (const command of entries.slice(1)) {
-		const replayStep = () =>
-			replayCommand(
-				state,
-				command,
-				normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
-			);
-		const result =
-			normalizedLog.legacyArchitectureDefaultCommandIds.size > 0
-				? withLegacyReplayValidation(replayStep)
-				: replayStep();
+		const result = replayCommand(
+			state,
+			command,
+			normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
+		);
 		const actual = result.state.commandLog.at(-1);
 		assertReplayedCommand(actual, command);
 		state = result.state;
@@ -155,7 +153,8 @@ function normalizeCommandLog(
 			? normalizeLegacyCommandEntries(rawEntries, true)
 			: {
 					entries: rawEntries,
-					legacyArchitectureDefaultCommandIds: new Set<string>(),
+					legacyArchitectureDefaultCommandIds:
+						legacyArchitectureCommandIds(rawEntries),
 				};
 	validateReplayEntries(normalized.entries);
 	return normalized;
@@ -169,7 +168,11 @@ function normalizeLegacyCommandEntries(
 	if (rejectFutureArchitectureFields) {
 		for (const entry of entries) {
 			if (entry === null || typeof entry !== "object") continue;
-			for (const field of ["architecturePath", "architectureDebt"]) {
+			for (const field of [
+				"architecturePath",
+				"architectureDebt",
+				"architectureProvenance",
+			]) {
 				if (Object.hasOwn(entry, field)) {
 					throw new Error(
 						`v9 command contains unexpected architecture field: ${field}`,
@@ -181,21 +184,48 @@ function normalizeLegacyCommandEntries(
 	let changed = false;
 	const legacyArchitectureDefaultCommandIds = new Set<string>();
 	const normalized = entries.map((entry) => {
-		if (
-			entry.kind !== "design_model" ||
-			entry.family !== "multimodal" ||
-			entry.architecturePath !== undefined
-		) {
+		if (entry.kind !== "design_model" || entry.family !== "multimodal") {
 			return entry;
 		}
+		if (
+			entry.architectureProvenance === LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE
+		) {
+			legacyArchitectureDefaultCommandIds.add(entry.id);
+			return entry;
+		}
+		if (entry.architecturePath !== undefined) return entry;
 		changed = true;
 		legacyArchitectureDefaultCommandIds.add(entry.id);
-		return { ...entry, architecturePath: "unified" as const };
+		const architectureProvenance = isLegacyV9MultimodalDataMix(entry.dataMix)
+			? LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE
+			: undefined;
+		return {
+			...entry,
+			architecturePath: "unified" as const,
+			...(architectureProvenance === undefined
+				? {}
+				: { architectureProvenance }),
+		};
 	});
 	return {
 		entries: changed ? normalized : entries,
 		legacyArchitectureDefaultCommandIds,
 	};
+}
+
+function legacyArchitectureCommandIds(
+	entries: readonly CommandLogEntry[],
+): Set<string> {
+	return new Set(
+		entries
+			.filter(
+				(entry) =>
+					entry.kind === "design_model" &&
+					entry.architectureProvenance ===
+						LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+			)
+			.map((entry) => entry.id),
+	);
 }
 
 function validateReplayEntries(entries: readonly unknown[]): void {

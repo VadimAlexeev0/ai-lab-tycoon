@@ -24,13 +24,15 @@ import {
 import {
 	deriveMultimodalArchitectureDebt,
 	getMultimodalArchitecturePath,
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
 	MULTIMODAL_ARCHITECTURE_PATH_IDS,
 	type MultimodalArchitecturePath,
 } from "./data/multimodal-architectures.js";
 import { reserveDataForMix } from "./data-inventory.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
-import { assertGameState, withLegacyReplayValidation } from "./invariants.js";
+import { assertGameState } from "./invariants.js";
 import {
 	type ActiveResearchEffects,
 	createEmptyResearchEffects,
@@ -123,9 +125,7 @@ export function designModelForLegacyReplay(
 	state: GameState,
 	spec: ModelDesignSpec,
 ): EngineResult {
-	return withLegacyReplayValidation(() =>
-		designModelInternal(state, spec, true),
-	);
+	return designModelInternal(state, spec, true);
 }
 
 function designModelInternal(
@@ -141,6 +141,12 @@ function designModelInternal(
 		normalized.architecturePath === undefined
 			? undefined
 			: getMultimodalArchitecturePath(normalized.architecturePath);
+	const architectureProvenance =
+		legacyReplay &&
+		normalized.architecturePath === "unified" &&
+		isLegacyV9MultimodalDataMix(normalized.dataMix)
+			? LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE
+			: undefined;
 	if (normalized.family === "multimodal" && architecture === undefined) {
 		throw new Error("Multimodal model architecture path is not defined");
 	}
@@ -173,7 +179,7 @@ function designModelInternal(
 	for (const dimension of DATA_MIX_DIMENSIONS) {
 		const minimum = Math.max(
 			family.dataMixRequirements[dimension],
-			legacyReplay && architecture?.id === "unified"
+			architectureProvenance !== undefined && architecture?.id === "unified"
 				? 0
 				: (architecture?.minimumDataMix[dimension] ?? 0),
 		);
@@ -270,6 +276,9 @@ function designModelInternal(
 			: {
 					architecturePath: normalized.architecturePath,
 					architectureDebt,
+					...(architectureProvenance === undefined
+						? {}
+						: { architectureProvenance }),
 				}),
 		parentModelId: normalized.parentModelId,
 		brandId,
@@ -352,7 +361,12 @@ function designModelInternal(
 				foundation: normalized.foundation,
 				...(normalized.architecturePath === undefined
 					? {}
-					: { architecturePath: normalized.architecturePath }),
+					: {
+							architecturePath: normalized.architecturePath,
+							...(architectureProvenance === undefined
+								? {}
+								: { architectureProvenance }),
+						}),
 				parentModelId: normalized.parentModelId,
 				brandId,
 				tier: normalized.tier,

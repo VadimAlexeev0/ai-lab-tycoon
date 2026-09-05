@@ -44,7 +44,10 @@ import type {
 	ModelFamilyId,
 	ModelTier,
 } from "./data/model-families.js";
-import type { MultimodalArchitecturePath } from "./data/multimodal-architectures.js";
+import type {
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+	MultimodalArchitecturePath,
+} from "./data/multimodal-architectures.js";
 import { assertGameState } from "./invariants.js";
 import {
 	assertExactObject,
@@ -133,6 +136,7 @@ export type CommandLogEntry =
 			family: ModelFamilyId;
 			foundation: ModelFoundation;
 			architecturePath?: MultimodalArchitecturePath;
+			architectureProvenance?: typeof LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
 			parentModelId: string | null;
 			brandId: string;
 			tier: ModelTier;
