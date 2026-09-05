@@ -13,6 +13,7 @@ import {
 	type ModelDimension,
 	type ModelFamilyDefinition,
 } from "./data/model-families.js";
+import { getMultimodalArchitecturePath } from "./data/multimodal-architectures.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
 import { assertGameState } from "./invariants.js";
@@ -527,7 +528,7 @@ export function effectiveProductQuality(
  * model can reduce demand even on the one-unit chat channel.
  */
 export function servingDemandForModel(
-	model: Pick<Model, "family">,
+	model: Pick<Model, "family" | "architecturePath">,
 	channel: ProductChannel,
 	users: number,
 	demandFactor = 100,
@@ -544,8 +545,21 @@ export function servingDemandForModel(
 		family.servingComputePerUserPercent,
 		`${path} family efficiency`,
 	);
+	const architecture =
+		model.architecturePath === undefined
+			? undefined
+			: getMultimodalArchitecturePath(model.architecturePath);
+	if (model.architecturePath !== undefined && architecture === undefined) {
+		throw new Error(`${path} has an unknown architecture path`);
+	}
+	const architectureDemand = safeMultiply(
+		familyDemand,
+		architecture?.servingComputePerUserPercent ?? 100,
+		`${path} architecture path`,
+	);
 	return Math.trunc(
-		safeMultiply(familyDemand, demandFactor, `${path} demand factor`) / 10_000,
+		safeMultiply(architectureDemand, demandFactor, `${path} demand factor`) /
+			1_000_000,
 	);
 }
 

@@ -13,6 +13,10 @@ import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
 import {
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+} from "./data/multimodal-architectures.js";
+import {
 	assertGameState,
 	type GameStateValidationOptions,
 } from "./invariants.js";
@@ -46,6 +50,7 @@ const STATE_SCHEMA_VERSION_V6 = 6 as const;
 const STATE_SCHEMA_VERSION_V7 = 7 as const;
 const STATE_SCHEMA_VERSION_V8 = 8 as const;
 const STATE_SCHEMA_VERSION_V9 = 9 as const;
+const STATE_SCHEMA_VERSION_V10 = 10 as const;
 const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V1]: migrateV1ToV2,
 	[STATE_SCHEMA_VERSION_V2]: migrateV2ToV3,
@@ -55,6 +60,7 @@ const STATE_MIGRATIONS: Readonly<Record<number, StateMigration>> = {
 	[STATE_SCHEMA_VERSION_V6]: migrateV6ToV7,
 	[STATE_SCHEMA_VERSION_V7]: migrateV7ToV8,
 	[STATE_SCHEMA_VERSION_V8]: migrateV8ToV9,
+	[STATE_SCHEMA_VERSION_V9]: migrateV9ToV10,
 };
 
 /** Serialize a validated GameState using the engine's stable JSON contract. */
@@ -111,6 +117,13 @@ export function deserializeGameStateWithMetadata(
  * adds explicit brand/foundation identities and bounded foundation debt/risk;
  * V8 saves receive lineage defaults and design commands receive their brand id.
  * Future-shaped V8 lineage fields are rejected before defaults are applied.
+ * Schema v10 adds the persisted multimodal architecture path and bounded path
+ * debt. V9 multimodal models and design commands receive the deterministic
+ * `unified`/zero-debt default; records at the exact former
+ * `{ general: 50, code: 30, multimodal: 20 }` minimum also retain the narrow
+ * `legacy_v9_unified` provenance marker so current unified validation remains
+ * strict for every ordinary model. Partial or future-shaped V9 fields are
+ * rejected.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -194,7 +207,7 @@ function migrateV1ToV2(value: unknown): unknown {
 	const products = migrated.products;
 	assertComputeState(compute);
 	assertProjectsState(projects);
-	assertModelsState(models);
+	assertModelsState(models, { allowMissingMultimodalArchitecture: true });
 	assertLegacyResearchState(research, "v1 game state research");
 	assertProductsState(products);
 
@@ -295,7 +308,7 @@ function migrateV5ToV6(value: unknown): unknown {
 	assertNoV6FieldsInV5(migrated);
 	// Validate all pre-v6 model fields before deriving any new values. This
 	// prevents malformed legacy data from being partially upgraded.
-	assertModelsState(models);
+	assertModelsState(models, { allowMissingMultimodalArchitecture: true });
 	for (const item of models.items) {
 		assertObject(item, "v5 model");
 		if (
@@ -384,7 +397,7 @@ function migrateV8ToV9(value: unknown): unknown {
 
 	const models = migrated.models;
 	assertObject(models, "v8 game state models");
-	assertModelsState(models);
+	assertModelsState(models, { allowMissingMultimodalArchitecture: true });
 	const modelItems = models.items as unknown as Record<string, unknown>[];
 	const modelsById = new Map<string, Record<string, unknown>>();
 	for (const item of modelItems) {
@@ -488,6 +501,102 @@ function migrateV8ToV9(value: unknown): unknown {
 
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V9;
 	return migrated;
+}
+
+function migrateV9ToV10(value: unknown): unknown {
+	const migrated = cloneJsonValue(value);
+	assertObject(migrated, "v9 game state");
+	const meta = migrated.meta;
+	assertObject(meta, "v9 game state meta");
+	if (meta.schemaVersion !== STATE_SCHEMA_VERSION_V9) {
+		throw new Error("v9 game state has an invalid schema version");
+	}
+	assertNoV10FieldsInV9(migrated);
+
+	const models = migrated.models;
+	assertObject(models, "v9 game state models");
+	assertArray(models.items, "v9 game state models items");
+	for (const model of models.items) {
+		assertObject(model, "v9 model");
+		if (model.family === "multimodal") {
+			model.architecturePath = "unified";
+			model.architectureDebt = 0;
+			if (isLegacyV9MultimodalDataMix(model.dataMix)) {
+				model.architectureProvenance =
+					LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
+			}
+		}
+	}
+	assertModelsState(models);
+
+	const commandLog = migrated.commandLog;
+	assertArray(commandLog, "v9 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v9 command log entry");
+		if (command.kind === "design_model" && command.family === "multimodal") {
+			command.architecturePath = "unified";
+			if (isLegacyV9MultimodalDataMix(command.dataMix)) {
+				command.architectureProvenance =
+					LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
+			}
+		}
+	}
+
+	const compute = migrated.compute;
+	const projects = migrated.projects;
+	const research = migrated.research;
+	const products = migrated.products;
+	assertComputeState(compute);
+	assertProjectsState(projects);
+	assertResearchState(research);
+	assertProductsState(products);
+	migrated.compute = withRecomputedCompute({
+		compute,
+		projects,
+		models,
+		research,
+		products,
+	});
+
+	meta.schemaVersion = STATE_SCHEMA_VERSION_V10;
+	return migrated;
+}
+
+function assertNoV10FieldsInV9(state: Record<string, unknown>): void {
+	const models = state.models;
+	assertObject(models, "v9 models");
+	assertArray(models.items, "v9 models items");
+	for (const item of models.items) {
+		assertObject(item, "v9 model");
+		for (const field of [
+			"architecturePath",
+			"architectureDebt",
+			"architectureProvenance",
+		]) {
+			if (Object.hasOwn(item, field)) {
+				throw new Error(
+					`v9 model contains unexpected architecture field: ${field}`,
+				);
+			}
+		}
+	}
+
+	const commandLog = state.commandLog;
+	assertArray(commandLog, "v9 command log");
+	for (const command of commandLog) {
+		assertObject(command, "v9 command log entry");
+		for (const field of [
+			"architecturePath",
+			"architectureDebt",
+			"architectureProvenance",
+		]) {
+			if (Object.hasOwn(command, field)) {
+				throw new Error(
+					`v9 command contains unexpected architecture field: ${field}`,
+				);
+			}
+		}
+	}
 }
 
 function normalizeV8DataDebt(

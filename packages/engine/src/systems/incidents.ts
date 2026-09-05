@@ -29,8 +29,10 @@ import {
 } from "../data/incidents.js";
 import {
 	DEFAULT_INCIDENT_EXPOSURE_PERCENT,
+	MAX_INCIDENT_EXPOSURE_PERCENT,
 	MODEL_FAMILIES,
 } from "../data/model-families.js";
+import { getMultimodalArchitecturePath } from "../data/multimodal-architectures.js";
 import { assertRunActive } from "../guards.js";
 import { allocateId } from "../ids.js";
 import { assertGameState } from "../invariants.js";
@@ -544,7 +546,10 @@ function incidentProbability(
 }
 
 function incidentExposureForModel(
-	models: readonly Pick<Model, "id" | "family">[],
+	models: readonly Pick<
+		Model,
+		"id" | "family" | "architecturePath" | "architectureDebt"
+	>[],
 	affectedModelId: string | null,
 ): number {
 	if (affectedModelId === null) return DEFAULT_INCIDENT_EXPOSURE_PERCENT;
@@ -553,7 +558,19 @@ function incidentExposureForModel(
 	const family = MODEL_FAMILIES.find(
 		(candidate) => candidate.id === model.family,
 	);
-	return family?.incidentExposurePercent ?? DEFAULT_INCIDENT_EXPOSURE_PERCENT;
+	const familyExposure =
+		family?.incidentExposurePercent ?? DEFAULT_INCIDENT_EXPOSURE_PERCENT;
+	const architecture =
+		model.architecturePath === undefined
+			? undefined
+			: getMultimodalArchitecturePath(model.architecturePath);
+	if (architecture === undefined) return familyExposure;
+	const pathExposure =
+		architecture.incidentExposurePercent + (model.architectureDebt ?? 0);
+	return Math.min(
+		MAX_INCIDENT_EXPOSURE_PERCENT,
+		Math.trunc((familyExposure * pathExposure) / 100),
+	);
 }
 
 function incidentEffect(

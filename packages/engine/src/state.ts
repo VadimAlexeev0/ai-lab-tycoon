@@ -44,6 +44,10 @@ import type {
 	ModelFamilyId,
 	ModelTier,
 } from "./data/model-families.js";
+import type {
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+	MultimodalArchitecturePath,
+} from "./data/multimodal-architectures.js";
 import { assertGameState } from "./invariants.js";
 import {
 	assertExactObject,
@@ -51,7 +55,7 @@ import {
 	assertUnsignedInteger,
 } from "./validation.js";
 
-export const GAME_STATE_SCHEMA_VERSION = 9 as const;
+export const GAME_STATE_SCHEMA_VERSION = 10 as const;
 
 export type MetaState = {
 	schemaVersion: typeof GAME_STATE_SCHEMA_VERSION;
@@ -131,6 +135,8 @@ export type CommandLogEntry =
 			name: string;
 			family: ModelFamilyId;
 			foundation: ModelFoundation;
+			architecturePath?: MultimodalArchitecturePath;
+			architectureProvenance?: typeof LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
 			parentModelId: string | null;
 			brandId: string;
 			tier: ModelTier;

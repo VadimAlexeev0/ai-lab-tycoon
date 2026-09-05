@@ -240,8 +240,8 @@ describe("product operating pressure", () => {
 
 		const upgraded = upgradeGameState(legacy);
 		const migrated = upgraded.products.items[0] as Record<string, unknown>;
-		expect(GAME_STATE_SCHEMA_VERSION).toBe(9);
-		expect(upgraded.meta.schemaVersion).toBe(9);
+		expect(GAME_STATE_SCHEMA_VERSION).toBe(10);
+		expect(upgraded.meta.schemaVersion).toBe(10);
 		expect(migrated.price).toBe(10);
 		expect(migrated.satisfaction).toBe(100);
 		expect(migrated.retiredUsers).toBe(0);

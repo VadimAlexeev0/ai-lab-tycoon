@@ -39,8 +39,9 @@ const MULTIMODAL_SPEC = {
 	family: "multimodal" as const,
 	foundation: "fresh" as const,
 	tier: "lean" as const,
-	dataMix: { general: 40, code: 20, multimodal: 40 },
+	dataMix: { general: 30, code: 20, multimodal: 50 },
 	emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+	architecturePath: "unified" as const,
 };
 
 function lifecycleState(status: "ready" | "launched" = "ready"): GameState {
@@ -350,6 +351,9 @@ function runGolden(seed: number): GoldenRun {
 		state = completeResearch(state, nodeId, events);
 	}
 
+	// Unified multimodal training carries an additional compute reservation.
+	// Buy capacity through the same public command path before starting it.
+	state = buyCompute(state).state;
 	state = designModel(state, MULTIMODAL_SPEC).state;
 	for (let guard = 0; guard < 30; guard += 1) {
 		if (state.terminal.frontierReached) break;

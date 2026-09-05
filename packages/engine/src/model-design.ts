@@ -21,6 +21,14 @@ import {
 	type ModelFamilyId,
 	type ModelTier,
 } from "./data/model-families.js";
+import {
+	deriveMultimodalArchitectureDebt,
+	getMultimodalArchitecturePath,
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+	type MultimodalArchitecturePath,
+} from "./data/multimodal-architectures.js";
 import { reserveDataForMix } from "./data-inventory.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
@@ -69,6 +77,8 @@ export type ModelDesignSpec = Readonly<{
 	/** Alias accepted for clients that call the field modelFamily. */
 	modelFamily?: ModelFamilyId;
 	foundation: ModelFoundation;
+	/** Required for newly designed multimodal models. */
+	architecturePath?: MultimodalArchitecturePath;
 	parentModelId?: string | null;
 	/** Explicit market identity; omitted inputs inherit a parent or start one. */
 	brandId?: string;
@@ -90,6 +100,7 @@ type NormalizedModelDesignSpec = Readonly<{
 	name: string;
 	family: ModelFamilyId;
 	foundation: ModelFoundation;
+	architecturePath?: MultimodalArchitecturePath;
 	parentModelId: string | null;
 	brandId?: string;
 	tier: ModelTier;
@@ -106,10 +117,39 @@ export function designModel(
 	state: GameState,
 	spec: ModelDesignSpec,
 ): EngineResult {
+	return designModelInternal(state, spec, false);
+}
+
+/** @internal Replay-only adapter for schema v9 design commands. */
+export function designModelForLegacyReplay(
+	state: GameState,
+	spec: ModelDesignSpec,
+): EngineResult {
+	return designModelInternal(state, spec, true);
+}
+
+function designModelInternal(
+	state: GameState,
+	spec: ModelDesignSpec,
+	legacyReplay = false,
+): EngineResult {
 	assertGameState(state);
 	assertRunActive(state);
 	const normalized = normalizeModelDesignSpec(spec);
 	const family = getFamily(normalized.family);
+	const architecture =
+		normalized.architecturePath === undefined
+			? undefined
+			: getMultimodalArchitecturePath(normalized.architecturePath);
+	const architectureProvenance =
+		legacyReplay &&
+		normalized.architecturePath === "unified" &&
+		isLegacyV9MultimodalDataMix(normalized.dataMix)
+			? LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE
+			: undefined;
+	if (normalized.family === "multimodal" && architecture === undefined) {
+		throw new Error("Multimodal model architecture path is not defined");
+	}
 	const tier = BALANCE.modelTiers[normalized.tier];
 	const researchEffects = deriveResearchEffects(state.research);
 
@@ -126,8 +166,23 @@ export function designModel(
 			`Model family ${family.id} requires completed research node ${family.unlockedByResearchNodeId}`,
 		);
 	}
+	if (architecture !== undefined) {
+		const architectureUnlock = state.research.nodes.find(
+			(node) => node.id === architecture.unlockedByResearchNodeId,
+		);
+		if (architectureUnlock?.status !== "completed") {
+			throw new Error(
+				`Architecture path ${architecture.id} requires completed research node ${architecture.unlockedByResearchNodeId}`,
+			);
+		}
+	}
 	for (const dimension of DATA_MIX_DIMENSIONS) {
-		const minimum = family.dataMixRequirements[dimension];
+		const minimum = Math.max(
+			family.dataMixRequirements[dimension],
+			architectureProvenance !== undefined && architecture?.id === "unified"
+				? 0
+				: (architecture?.minimumDataMix[dimension] ?? 0),
+		);
 		if (normalized.dataMix[dimension] < minimum) {
 			throw new Error(
 				`Data mix for ${family.id} must include at least ${minimum} ${dimension} data`,
@@ -147,8 +202,30 @@ export function designModel(
 	}
 
 	const parent = validateFoundation(state, normalized);
+	if (
+		architecture !== undefined &&
+		!architecture.allowedFoundations.includes(normalized.foundation)
+	) {
+		throw new Error(
+			`Foundation ${normalized.foundation} is incompatible with ${architecture.id} architecture`,
+		);
+	}
+	if (
+		architecture !== undefined &&
+		architecture.compatibleParentFamilies.length > 0 &&
+		(parent === undefined ||
+			parent.family === undefined ||
+			!architecture.compatibleParentFamilies.includes(parent.family))
+	) {
+		throw new Error(
+			`Architecture ${architecture.id} requires a compatible parent family`,
+		);
+	}
 	const foundationBalance = BALANCE.modelFoundations[normalized.foundation];
-	const totalCost = tier.cost + foundationBalance.cost;
+	const totalCost = boundedPositive(
+		tier.cost + foundationBalance.cost + (architecture?.costAdjustment ?? 0),
+		"Model design cost",
+	);
 	const team = selectTeam(state, normalized.teamId);
 	if (state.company.cash < totalCost) {
 		throw new Error(
@@ -177,6 +254,13 @@ export function designModel(
 		parent?.dataDebt,
 		foundationBalance.dataDebtRetentionPercent,
 	);
+	const architectureDebt =
+		architecture === undefined
+			? undefined
+			: deriveMultimodalArchitectureDebt(
+					architecture,
+					parent?.architectureDebt ?? 0,
+				);
 	allocated = allocateId(allocated.state, "project");
 	const projectId = allocated.id;
 	allocated = allocateId(allocated.state, "command");
@@ -187,6 +271,15 @@ export function designModel(
 		name: normalized.name,
 		family: normalized.family,
 		foundation: normalized.foundation,
+		...(normalized.architecturePath === undefined
+			? {}
+			: {
+					architecturePath: normalized.architecturePath,
+					architectureDebt,
+					...(architectureProvenance === undefined
+						? {}
+						: { architectureProvenance }),
+				}),
 		parentModelId: normalized.parentModelId,
 		brandId,
 		foundationId,
@@ -197,6 +290,7 @@ export function designModel(
 		scoreCeiling: clamp(
 			tier.scoreCeiling +
 				family.scoreCeilingAdjustment +
+				(architecture?.scoreCeilingAdjustment ?? 0) +
 				researchEffects.modelScoreCeilingBonus,
 			0,
 			100,
@@ -216,7 +310,12 @@ export function designModel(
 		modelId,
 		status: "active" as const,
 		progress: BALANCE.startingProjectProgress,
-		duration: tier.duration + foundationBalance.duration,
+		duration: boundedPositive(
+			tier.duration +
+				foundationBalance.duration +
+				(architecture?.durationAdjustment ?? 0),
+			"Model training duration",
+		),
 	};
 	const nextState: GameState = {
 		...allocated.state,
@@ -226,7 +325,10 @@ export function designModel(
 		},
 		compute: {
 			...allocated.state.compute,
-			trainingDemand: tier.trainingCompute,
+			trainingDemand: Math.max(
+				1,
+				tier.trainingCompute + (architecture?.trainingComputeAdjustment ?? 0),
+			),
 		},
 		teams: {
 			items: allocated.state.teams.items.map((item) =>
@@ -257,6 +359,14 @@ export function designModel(
 				name: normalized.name,
 				family: normalized.family,
 				foundation: normalized.foundation,
+				...(normalized.architecturePath === undefined
+					? {}
+					: {
+							architecturePath: normalized.architecturePath,
+							...(architectureProvenance === undefined
+								? {}
+								: { architectureProvenance }),
+						}),
 				parentModelId: normalized.parentModelId,
 				brandId,
 				tier: normalized.tier,
@@ -303,11 +413,21 @@ export function generateTrueScores(
 ): { rng: RngState; trueScores: ModelTrueScores; estimates: ModelEstimates } {
 	const family = getFamily(model.family ?? "text");
 	const tier = BALANCE.modelTiers[model.tier ?? "standard"];
+	const architecture =
+		model.architecturePath === undefined
+			? undefined
+			: getMultimodalArchitecturePath(model.architecturePath);
+	if (model.architecturePath !== undefined && architecture === undefined) {
+		throw new Error(
+			`Unknown model architecture path: ${model.architecturePath}`,
+		);
+	}
 	const scoreCeiling =
 		model.scoreCeiling ??
 		clamp(
 			tier.scoreCeiling +
 				family.scoreCeilingAdjustment +
+				(architecture?.scoreCeilingAdjustment ?? 0) +
 				researchEffects.modelScoreCeilingBonus,
 			0,
 			100,
@@ -373,6 +493,9 @@ export function generateTrueScores(
 			emphasisContribution * BALANCE.modelScore.emphasisWeight +
 			tierContribution +
 			researchEffects.modelScoreBonus[dimension] +
+			(dimension === "reliability"
+				? (architecture?.reliabilityScoreAdjustment ?? 0)
+				: 0) +
 			scoreDraw.value -
 			dataEffects.qualityPenalty;
 		const floor = foundationFloorFor(
@@ -476,6 +599,7 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		"family",
 		"modelFamily",
 		"foundation",
+		"architecturePath",
 		"parentModelId",
 		"brandId",
 		"foundationModelId",
@@ -519,6 +643,7 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		"Model family",
 		MODEL_FAMILY_IDS,
 	);
+	const architecturePath = normalizeArchitecturePath(value, family);
 	const tier = resolveEnumAlias(
 		value.tier,
 		value.computeTier,
@@ -532,6 +657,7 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		name: value.name,
 		family,
 		foundation: value.foundation,
+		...(architecturePath === undefined ? {} : { architecturePath }),
 		parentModelId,
 		...(brandId === undefined ? {} : { brandId }),
 		tier,
@@ -539,6 +665,33 @@ function normalizeModelDesignSpec(value: unknown): NormalizedModelDesignSpec {
 		emphasis,
 		...(teamId === undefined ? {} : { teamId }),
 	};
+}
+
+function normalizeArchitecturePath(
+	value: Record<string, unknown>,
+	family: ModelFamilyId,
+): MultimodalArchitecturePath | undefined {
+	const hasPath = Object.hasOwn(value, "architecturePath");
+	if (family !== "multimodal") {
+		if (hasPath) {
+			throw new Error("Architecture path is only valid for multimodal models");
+		}
+		return undefined;
+	}
+	if (!hasPath) {
+		throw new Error("Multimodal model architecture path is required");
+	}
+	assertEnum(
+		value.architecturePath,
+		MULTIMODAL_ARCHITECTURE_PATH_IDS,
+		"Multimodal architecture path",
+	);
+	if (getMultimodalArchitecturePath(value.architecturePath) === undefined) {
+		throw new Error(
+			`Multimodal architecture path has an unsupported value: ${value.architecturePath}`,
+		);
+	}
+	return value.architecturePath;
 }
 
 function normalizeDataMix(value: unknown): DataMix {
@@ -799,4 +952,11 @@ function foundationFloorFor(
 
 function clamp(value: number, lower: number, upper: number): number {
 	return Math.min(upper, Math.max(lower, value));
+}
+
+function boundedPositive(value: number, path: string): number {
+	if (!Number.isSafeInteger(value) || value < 1) {
+		throw new Error(`${path} must be a positive safe integer`);
+	}
+	return value;
 }

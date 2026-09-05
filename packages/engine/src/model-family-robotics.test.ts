@@ -805,7 +805,7 @@ describe("robotics save and replay", () => {
 		if (robotics === undefined)
 			throw new Error("Expected Robotics replay model");
 		expect(robotics.status).toBe("launched");
-		expect(live.meta.schemaVersion).toBe(9);
+		expect(live.meta.schemaVersion).toBe(10);
 		expect(live.commandLog).toContainEqual(
 			expect.objectContaining({
 				kind: "design_model",

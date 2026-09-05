@@ -40,9 +40,11 @@ function multimodalReadyState(): GameState {
 			status: "ready",
 			projectId: null,
 			family: "multimodal",
+			architecturePath: "unified",
+			architectureDebt: 0,
 			tier: "aggressive",
 			scoreCeiling: 100,
-			dataMix: { general: 40, code: 20, multimodal: 40 },
+			dataMix: { general: 40, code: 15, multimodal: 45 },
 			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 			trueScores: {
 				capability: 90,
@@ -66,16 +68,19 @@ function multimodalReadyState(): GameState {
 	if (multimodalModel === undefined) {
 		throw new Error("Expected Multimodal model");
 	}
+	const nonMultimodalModel = { ...multimodalModel };
+	delete nonMultimodalModel.architecturePath;
+	delete nonMultimodalModel.architectureDebt;
 	state.models.items.push(
 		{
-			...multimodalModel,
+			...nonMultimodalModel,
 			id: "model_002",
 			name: "Text-proof",
 			family: "text",
 			status: "launched",
 		},
 		{
-			...multimodalModel,
+			...nonMultimodalModel,
 			id: "model_003",
 			name: "Assistant-proof",
 			family: "assistant",

@@ -24,11 +24,20 @@ import { BALANCE } from "./data/balance.js";
 import { getDataSourceDefinition } from "./data/data-sources.js";
 import {
 	DATA_MIX_DIMENSIONS,
+	type DataMix,
 	MODEL_EMPHASIS_DIMENSIONS,
 	MODEL_FAMILIES,
 	MODEL_FAMILY_IDS,
 	MODEL_TIERS,
+	type ModelFamilyDefinition,
 } from "./data/model-families.js";
+import {
+	getMultimodalArchitecturePath,
+	isLegacyV9MultimodalDataMix,
+	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
+	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+	type MultimodalArchitecturePathDefinition,
+} from "./data/multimodal-architectures.js";
 import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
@@ -416,6 +425,35 @@ function assertModelRelations(state: GameState): void {
 			) {
 				throw new Error(
 					`Model ${model.id} requires completed family unlock research node ${family?.unlockedByResearchNodeId ?? "its family unlock"}`,
+				);
+			}
+		}
+		if (model.architecturePath !== undefined) {
+			const architecture = getMultimodalArchitecturePath(
+				model.architecturePath,
+			);
+			if (architecture === undefined) {
+				throw new Error(`Model ${model.id} has an unknown architecture path`);
+			}
+			const family = MODEL_FAMILIES.find(
+				(candidate) => candidate.id === model.family,
+			);
+			if (family === undefined) {
+				throw new Error(`Model ${model.id} has an unknown model family`);
+			}
+			assertArchitectureDataMix(
+				`Model ${model.id}`,
+				family,
+				architecture,
+				model.dataMix,
+				model.architectureProvenance,
+			);
+			const unlock = state.research.nodes.find(
+				(node) => node.id === architecture.unlockedByResearchNodeId,
+			);
+			if (unlock?.status !== "completed") {
+				throw new Error(
+					`Model ${model.id} architecture ${architecture.id} requires completed research node ${architecture.unlockedByResearchNodeId}`,
 				);
 			}
 		}
@@ -1034,27 +1072,30 @@ function assertCommandLog(
 				assertIdentifier(item.teamId, `${item.kind} team id`);
 				assertIdentifier(item.projectId, `${item.kind} project id`);
 				break;
-			case "design_model":
-				assertExactObject(
-					item,
-					[
-						"id",
-						"kind",
-						"week",
-						"modelId",
-						"projectId",
-						"teamId",
-						"name",
-						"family",
-						"foundation",
-						"parentModelId",
-						"brandId",
-						"tier",
-						"dataMix",
-						"emphasis",
-					],
-					"design_model command",
-				);
+			case "design_model": {
+				const designModelKeys = [
+					"id",
+					"kind",
+					"week",
+					"modelId",
+					"projectId",
+					"teamId",
+					"name",
+					"family",
+					"foundation",
+					"parentModelId",
+					"brandId",
+					"tier",
+					"dataMix",
+					"emphasis",
+				];
+				if (Object.hasOwn(item, "architecturePath")) {
+					designModelKeys.push("architecturePath");
+				}
+				if (Object.hasOwn(item, "architectureProvenance")) {
+					designModelKeys.push("architectureProvenance");
+				}
+				assertExactObject(item, designModelKeys, "design_model command");
 				assertIdentifier(item.modelId, "Design model id");
 				assertIdentifier(item.projectId, "Design project id");
 				assertIdentifier(item.teamId, "Design team id");
@@ -1063,6 +1104,37 @@ function assertCommandLog(
 					throw new Error("Design model name must not be empty");
 				}
 				assertEnum(item.family, MODEL_FAMILY_IDS, "Design model family");
+				if (item.family === "multimodal") {
+					if (!Object.hasOwn(item, "architecturePath")) {
+						throw new Error(
+							"Multimodal design command is missing architecture path",
+						);
+					}
+					assertEnum(
+						item.architecturePath,
+						MULTIMODAL_ARCHITECTURE_PATH_IDS,
+						"Design model architecture path",
+					);
+				} else if (Object.hasOwn(item, "architecturePath")) {
+					throw new Error(
+						"Architecture path is only valid for multimodal design commands",
+					);
+				}
+				if (Object.hasOwn(item, "architectureProvenance")) {
+					assertEnum(
+						item.architectureProvenance,
+						[LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE],
+						"Design model architecture provenance",
+					);
+					if (
+						item.architecturePath !== "unified" ||
+						!isLegacyV9MultimodalDataMix(item.dataMix)
+					) {
+						throw new Error(
+							"Design model architecture provenance is only valid for the exact v9 unified data contract",
+						);
+					}
+				}
 				assertEnum(
 					item.foundation,
 					MODEL_FOUNDATIONS,
@@ -1075,9 +1147,11 @@ function assertCommandLog(
 				assertIdentifier(item.brandId, "Design model brand id");
 				assertEnum(item.tier, MODEL_TIERS, "Design model compute tier");
 				assertDesignMix(item.dataMix);
+				assertDesignArchitectureDataMix(item);
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
 				break;
+			}
 			case "refresh_model":
 				assertExactObject(
 					item,
@@ -1431,6 +1505,8 @@ function assertDesignCommandReferences(
 		model.name !== command.name ||
 		model.family !== command.family ||
 		model.foundation !== command.foundation ||
+		model.architecturePath !== command.architecturePath ||
+		model.architectureProvenance !== command.architectureProvenance ||
 		model.parentModelId !== command.parentModelId ||
 		model.brandId !== command.brandId ||
 		model.tier !== command.tier ||
@@ -1441,6 +1517,38 @@ function assertDesignCommandReferences(
 			`Design model command payload does not match model ${model.id}`,
 		);
 	}
+}
+
+function assertDesignArchitectureDataMix(
+	command: Record<string, unknown>,
+): void {
+	if (command.family !== "multimodal") return;
+	const family = MODEL_FAMILIES.find(
+		(candidate) => candidate.id === command.family,
+	);
+	if (family === undefined) {
+		throw new Error(
+			`Design model command ${String(command.id)} has an unknown model family`,
+		);
+	}
+	if (typeof command.architecturePath !== "string") {
+		throw new Error(
+			`Design model command ${String(command.id)} is missing its architecture path`,
+		);
+	}
+	const architecture = getMultimodalArchitecturePath(command.architecturePath);
+	if (architecture === undefined) {
+		throw new Error(
+			`Design model command ${String(command.id)} has an unknown architecture path`,
+		);
+	}
+	assertArchitectureDataMix(
+		`Design model command ${String(command.id)}`,
+		family,
+		architecture,
+		command.dataMix as DataMix,
+		command.architectureProvenance,
+	);
 }
 
 function matchesDesignMix(
@@ -1475,6 +1583,42 @@ function matchesDesignEmphasis(
 	return MODEL_EMPHASIS_DIMENSIONS.every(
 		(dimension) => modelEmphasis[dimension] === emphasis[dimension],
 	);
+}
+
+function assertArchitectureDataMix(
+	owner: string,
+	family: ModelFamilyDefinition,
+	architecture: MultimodalArchitecturePathDefinition,
+	dataMix: DataMix | undefined,
+	architectureProvenance: unknown = undefined,
+): void {
+	if (dataMix === undefined) {
+		throw new Error(`${owner} requires a persisted data mix`);
+	}
+	const isLegacyCompatibility =
+		architectureProvenance === LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE;
+	if (architectureProvenance !== undefined && !isLegacyCompatibility) {
+		throw new Error(`${owner} has unknown architecture provenance`);
+	}
+	if (
+		isLegacyCompatibility &&
+		(architecture.id !== "unified" || !isLegacyV9MultimodalDataMix(dataMix))
+	) {
+		throw new Error(`${owner} has invalid legacy architecture provenance`);
+	}
+	for (const dimension of DATA_MIX_DIMENSIONS) {
+		const minimum = Math.max(
+			family.dataMixRequirements[dimension],
+			isLegacyCompatibility && architecture.id === "unified"
+				? 0
+				: architecture.minimumDataMix[dimension],
+		);
+		if (dataMix[dimension] < minimum) {
+			throw new Error(
+				`${owner} data mix for ${dimension} must include at least ${minimum} data for ${architecture.id} architecture`,
+			);
+		}
+	}
 }
 
 function assertRiskRelations(state: GameState): void {

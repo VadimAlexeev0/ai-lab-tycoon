@@ -540,8 +540,8 @@ describe("foundation and brand lineage", () => {
 		const migrated = upgraded.models.items[0];
 		if (migrated === undefined) throw new Error("Expected migrated model");
 
-		expect(GAME_STATE_SCHEMA_VERSION).toBe(9);
-		expect(upgraded.meta.schemaVersion).toBe(9);
+		expect(GAME_STATE_SCHEMA_VERSION).toBe(10);
+		expect(upgraded.meta.schemaVersion).toBe(10);
 		expect(migrated).toMatchObject({
 			brandId: "brand_model_001",
 			foundationId: "foundation_model_001",
