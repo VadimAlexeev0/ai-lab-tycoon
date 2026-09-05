@@ -31,6 +31,9 @@ function scoredModel(
 		status: "ready",
 		projectId: null,
 		family,
+		...(family === "multimodal"
+			? { architecturePath: "unified" as const, architectureDebt: 0 }
+			: {}),
 		tier: "standard",
 		scoreCeiling: 88,
 		dataMix: { general: 70, code: 20, multimodal: 10 },

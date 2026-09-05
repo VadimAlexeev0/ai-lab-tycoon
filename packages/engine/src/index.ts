@@ -65,6 +65,18 @@ export type {
 	ModelTier,
 } from "./data/model-families.js";
 export type {
+	ArchitectureFoundation,
+	MultimodalArchitecturePath,
+	MultimodalArchitecturePathDefinition,
+} from "./data/multimodal-architectures.js";
+export {
+	assertMultimodalArchitecturePathDefinitions,
+	deriveMultimodalArchitectureDebt,
+	getMultimodalArchitecturePath,
+	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+	MULTIMODAL_ARCHITECTURE_PATHS,
+} from "./data/multimodal-architectures.js";
+export type {
 	ResearchEffect,
 	ResearchEvaluationKind,
 	ResearchSpark,

@@ -1,4 +1,5 @@
 import { BALANCE } from "./data/balance.js";
+import { getMultimodalArchitecturePath } from "./data/multimodal-architectures.js";
 import { deriveResearchEffects } from "./research-effects.js";
 import type { GameState } from "./state.js";
 
@@ -37,13 +38,21 @@ export function computeReservations(
 		);
 		if (model?.tier === undefined) return total;
 		const baseDemand = BALANCE.modelTiers[model.tier].trainingCompute;
+		const architecture =
+			model.architecturePath === undefined
+				? undefined
+				: getMultimodalArchitecturePath(model.architecturePath);
+		if (model.architecturePath !== undefined && architecture === undefined) {
+			throw new Error(`Model ${model.id} has an unknown architecture path`);
+		}
 		return (
 			total +
 			Math.max(
 				MIN_TRAINING_COMPUTE_DEMAND,
 				baseDemand +
 					researchEffects.trainingComputeSurcharge -
-					researchEffects.trainingComputeReduction,
+					researchEffects.trainingComputeReduction +
+					(architecture?.trainingComputeAdjustment ?? 0),
 			)
 		);
 	}, 0);

@@ -240,6 +240,9 @@ function chooseModelDesign(
 			tier: "lean",
 			dataMix: { ...MODEL_DATA_MIXES[family] },
 			emphasis: { capability: 1, reliability: 1, safety: 1, efficiency: 3 },
+			...(family === "multimodal"
+				? { architecturePath: "encoder_bolt_on" as const }
+				: {}),
 		},
 	};
 }

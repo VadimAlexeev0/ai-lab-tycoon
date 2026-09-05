@@ -269,18 +269,21 @@ describe("Task 6 review regressions", () => {
 			{
 				name: "Vision-Low",
 				family: "multimodal",
-				foundation: "fresh",
+				foundation: "continued",
+				parentModelId: "model_002",
 				tier: "standard",
 				dataMix: { general: 75, code: 5, multimodal: 20 },
 				emphasis: TEXT_SPEC.emphasis,
+				architecturePath: "encoder_bolt_on",
 			},
 			{
 				name: "Vision-Mid",
 				family: "multimodal",
 				foundation: "fresh",
 				tier: "standard",
-				dataMix: { general: 40, code: 20, multimodal: 40 },
+				dataMix: { general: 55, code: 15, multimodal: 30 },
 				emphasis: TEXT_SPEC.emphasis,
+				architecturePath: "clean_rebuild",
 			},
 			{
 				name: "Vision-High",
@@ -289,6 +292,7 @@ describe("Task 6 review regressions", () => {
 				tier: "standard",
 				dataMix: { general: 20, code: 5, multimodal: 75 },
 				emphasis: TEXT_SPEC.emphasis,
+				architecturePath: "unified",
 			},
 		];
 		const multimodalScores = multimodalSpecs.map((spec) => {

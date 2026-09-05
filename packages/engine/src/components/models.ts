@@ -11,6 +11,12 @@ import {
 	type ModelTier,
 } from "../data/model-families.js";
 import {
+	deriveMultimodalArchitectureDebt,
+	getMultimodalArchitecturePath,
+	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+	type MultimodalArchitecturePath,
+} from "../data/multimodal-architectures.js";
+import {
 	assertArray,
 	assertEnum,
 	assertExactObject,
@@ -57,6 +63,10 @@ export type Model = {
 	id: string;
 	name: string;
 	foundation: ModelFoundation;
+	/** Persisted Era 3 architecture choice; only multimodal models use it. */
+	architecturePath?: MultimodalArchitecturePath;
+	/** Bounded technical debt owned by the selected architecture path. */
+	architectureDebt?: number;
 	status: ModelStatus;
 	projectId: string | null;
 	family?: ModelFamilyId;
@@ -91,6 +101,11 @@ export type ModelsState = {
 	activeModelId: string | null;
 };
 
+export type ModelStateValidationOptions = Readonly<{
+	/** Allow pre-v10 records to omit the multimodal architecture tuple. */
+	allowMissingMultimodalArchitecture?: boolean;
+}>;
+
 export function createModelsState(
 	items: Model[] = [],
 	activeModelId: string | null = null,
@@ -103,6 +118,7 @@ export function createModelsState(
 
 export function assertModelsState(
 	value: unknown,
+	options: ModelStateValidationOptions = {},
 ): asserts value is ModelsState {
 	assertExactObject(value, ["items", "activeModelId"], "models");
 	assertArray(value.items, "Models items");
@@ -132,6 +148,38 @@ export function assertModelsState(
 
 		if (Object.hasOwn(item, "family")) {
 			assertEnum(item.family, MODEL_FAMILY_IDS, "Model family");
+		}
+		const hasArchitecturePath = Object.hasOwn(item, "architecturePath");
+		const hasArchitectureDebt = Object.hasOwn(item, "architectureDebt");
+		if (hasArchitecturePath !== hasArchitectureDebt) {
+			throw new Error(
+				`Model ${item.id} architecture path and debt must be recorded together`,
+			);
+		}
+		if (
+			item.family === "multimodal" &&
+			!hasArchitecturePath &&
+			options.allowMissingMultimodalArchitecture !== true
+		) {
+			throw new Error(
+				`Multimodal model ${item.id} is missing its persisted architecture path`,
+			);
+		}
+		if (hasArchitecturePath) {
+			assertEnum(
+				item.architecturePath,
+				MULTIMODAL_ARCHITECTURE_PATH_IDS,
+				"Model architecture path",
+			);
+			if (item.family !== "multimodal") {
+				throw new Error(
+					`Model ${item.id} architecture path is only valid for multimodal models`,
+				);
+			}
+			assertBoundedInteger(
+				item.architectureDebt,
+				`Model ${item.id} architecture debt`,
+			);
 		}
 		if (Object.hasOwn(item, "parentModelId")) {
 			assertNullableString(item.parentModelId, "Model parent id");
@@ -190,6 +238,7 @@ export function assertModelsState(
 	}
 
 	assertFoundationParentReferences(value.items as Model[]);
+	assertArchitectureRelations(value.items as Model[]);
 
 	if (value.activeModelId !== null) {
 		assertIdentifier(value.activeModelId, "Active model id");
@@ -399,6 +448,61 @@ function assertFoundationParentReferences(items: readonly Model[]): void {
 	}
 }
 
+function assertArchitectureRelations(items: readonly Model[]): void {
+	const byId = new Map(items.map((model) => [model.id, model]));
+	for (const model of items) {
+		const hasPath = model.architecturePath !== undefined;
+		const hasDebt = model.architectureDebt !== undefined;
+		if (hasPath !== hasDebt) {
+			throw new Error(
+				`Model ${model.id} architecture path and debt must be recorded together`,
+			);
+		}
+		if (!hasPath) continue;
+		const architecturePath = model.architecturePath;
+		if (architecturePath === undefined) {
+			throw new Error(`Model ${model.id} is missing its architecture path`);
+		}
+		if (model.family !== "multimodal") {
+			throw new Error(
+				`Model ${model.id} architecture path is only valid for multimodal models`,
+			);
+		}
+		const path = getMultimodalArchitecturePath(architecturePath);
+		if (path === undefined) {
+			throw new Error(`Model ${model.id} has an unknown architecture path`);
+		}
+		if (!path.allowedFoundations.includes(model.foundation)) {
+			throw new Error(
+				`Model ${model.id} foundation ${model.foundation} is incompatible with ${path.id} architecture`,
+			);
+		}
+		const parent =
+			model.parentModelId === undefined || model.parentModelId === null
+				? undefined
+				: byId.get(model.parentModelId);
+		if (
+			path.compatibleParentFamilies.length > 0 &&
+			(parent === undefined ||
+				parent.family === undefined ||
+				!path.compatibleParentFamilies.includes(parent.family))
+		) {
+			throw new Error(
+				`Model ${model.id} architecture ${path.id} requires a compatible parent family`,
+			);
+		}
+		const expectedDebt = deriveMultimodalArchitectureDebt(
+			path,
+			parent?.architectureDebt ?? 0,
+		);
+		if (model.architectureDebt !== expectedDebt) {
+			throw new Error(
+				`Model ${model.id} architecture debt does not match its ${path.id} inheritance rule`,
+			);
+		}
+	}
+}
+
 function cloneModel(model: Model): Model {
 	return {
 		...model,
@@ -441,6 +545,8 @@ function assertAllowedModelKeys(value: Record<string, unknown>): void {
 		"id",
 		"name",
 		"foundation",
+		"architecturePath",
+		"architectureDebt",
 		"status",
 		"projectId",
 		"family",

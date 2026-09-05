@@ -57,7 +57,8 @@ export function replayCommandLog(
 	commandLog: ReplayCommandLogInput,
 	options: ReplayCommandLogOptions = {},
 ): GameState {
-	const entries = normalizeCommandLog(commandLog);
+	const normalizedLog = normalizeCommandLog(commandLog);
+	const entries = normalizedLog.entries;
 	const first = entries[0];
 	if (first === undefined || first.kind !== "start_run") {
 		throw new Error("Replay requires a command log beginning with start_run");
@@ -74,7 +75,11 @@ export function replayCommandLog(
 	assertReplayedCommand(state.commandLog[0], first);
 
 	for (const command of entries.slice(1)) {
-		const result = replayCommand(state, command);
+		const result = replayCommand(
+			state,
+			command,
+			normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
+		);
 		const actual = result.state.commandLog.at(-1);
 		assertReplayedCommand(actual, command);
 		state = result.state;
@@ -94,18 +99,27 @@ export function replayCommandLog(
 /** Alias with a verb that reads naturally for callers holding a state log. */
 export const replay = replayCommandLog;
 
+type NormalizedCommandLog = Readonly<{
+	entries: readonly CommandLogEntry[];
+	legacyArchitectureDefaultCommandIds: ReadonlySet<string>;
+}>;
+
 function normalizeCommandLog(
 	input: ReplayCommandLogInput,
-): readonly CommandLogEntry[] {
+): NormalizedCommandLog {
 	if (Array.isArray(input)) {
-		validateReplayEntries(input);
-		return input;
+		const normalized = normalizeLegacyCommandEntries(input);
+		validateReplayEntries(normalized.entries);
+		return normalized;
 	}
 
 	assertObject(input, "command log envelope");
 	const envelope = input as Record<string, unknown>;
 	assertSafeInteger(envelope.schemaVersion, "Command log schema version");
-	if (envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION) {
+	if (
+		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION &&
+		envelope.schemaVersion !== GAME_STATE_SCHEMA_VERSION - 1
+	) {
 		throw new Error(
 			`Unsupported command log schema version: ${String(envelope.schemaVersion)}`,
 		);
@@ -129,9 +143,40 @@ function normalizeCommandLog(
 		"command log envelope",
 	);
 	assertArray(envelope[payloadKey], "Command log envelope commands");
-	const entries = envelope[payloadKey] as unknown as CommandLogEntry[];
-	validateReplayEntries(entries);
-	return entries;
+	const rawEntries = envelope[payloadKey] as unknown as CommandLogEntry[];
+	const normalized =
+		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 1
+			? normalizeLegacyCommandEntries(rawEntries)
+			: {
+					entries: rawEntries,
+					legacyArchitectureDefaultCommandIds: new Set<string>(),
+				};
+	validateReplayEntries(normalized.entries);
+	return normalized;
+}
+
+/** Add only the v10 default needed to replay a legacy v9 design command. */
+function normalizeLegacyCommandEntries(
+	entries: readonly CommandLogEntry[],
+): NormalizedCommandLog {
+	let changed = false;
+	const legacyArchitectureDefaultCommandIds = new Set<string>();
+	const normalized = entries.map((entry) => {
+		if (
+			entry.kind !== "design_model" ||
+			entry.family !== "multimodal" ||
+			entry.architecturePath !== undefined
+		) {
+			return entry;
+		}
+		changed = true;
+		legacyArchitectureDefaultCommandIds.add(entry.id);
+		return { ...entry, architecturePath: "unified" as const };
+	});
+	return {
+		entries: changed ? normalized : entries,
+		legacyArchitectureDefaultCommandIds,
+	};
 }
 
 function validateReplayEntries(entries: readonly unknown[]): void {
@@ -165,6 +210,7 @@ function validateReplayEntries(entries: readonly unknown[]): void {
 function replayCommand(
 	state: GameState,
 	command: CommandLogEntry,
+	allowLegacyArchitectureDefaults = false,
 ): EngineResult {
 	switch (command.kind) {
 		case "start_run":
@@ -187,17 +233,26 @@ function replayCommand(
 		case "cancel_project":
 			return cancelProject(state, command.teamId, command.projectId);
 		case "design_model":
-			return designModel(state, {
-				name: command.name,
-				family: command.family,
-				foundation: command.foundation,
-				parentModelId: command.parentModelId,
-				brandId: command.brandId,
-				tier: command.tier,
-				dataMix: command.dataMix,
-				emphasis: command.emphasis,
-				teamId: command.teamId,
-			});
+			return designModel(
+				state,
+				{
+					name: command.name,
+					family: command.family,
+					foundation: command.foundation,
+					...(command.architecturePath === undefined
+						? {}
+						: { architecturePath: command.architecturePath }),
+					parentModelId: command.parentModelId,
+					brandId: command.brandId,
+					tier: command.tier,
+					dataMix: command.dataMix,
+					emphasis: command.emphasis,
+					teamId: command.teamId,
+				},
+				allowLegacyArchitectureDefaults
+					? { allowLegacyArchitectureDefaults: true }
+					: undefined,
+			);
 		case "refresh_model":
 			return refreshModel(state, {
 				modelId: command.modelId,

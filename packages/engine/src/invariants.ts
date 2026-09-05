@@ -30,6 +30,10 @@ import {
 	MODEL_TIERS,
 } from "./data/model-families.js";
 import {
+	getMultimodalArchitecturePath,
+	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+} from "./data/multimodal-architectures.js";
+import {
 	ASSISTANT_ERA,
 	ASSISTANT_MODELS_KEYSTONE_ID,
 	MULTIMODAL_ERA,
@@ -416,6 +420,22 @@ function assertModelRelations(state: GameState): void {
 			) {
 				throw new Error(
 					`Model ${model.id} requires completed family unlock research node ${family?.unlockedByResearchNodeId ?? "its family unlock"}`,
+				);
+			}
+		}
+		if (model.architecturePath !== undefined) {
+			const architecture = getMultimodalArchitecturePath(
+				model.architecturePath,
+			);
+			if (architecture === undefined) {
+				throw new Error(`Model ${model.id} has an unknown architecture path`);
+			}
+			const unlock = state.research.nodes.find(
+				(node) => node.id === architecture.unlockedByResearchNodeId,
+			);
+			if (unlock?.status !== "completed") {
+				throw new Error(
+					`Model ${model.id} architecture ${architecture.id} requires completed research node ${architecture.unlockedByResearchNodeId}`,
 				);
 			}
 		}
@@ -1034,27 +1054,27 @@ function assertCommandLog(
 				assertIdentifier(item.teamId, `${item.kind} team id`);
 				assertIdentifier(item.projectId, `${item.kind} project id`);
 				break;
-			case "design_model":
-				assertExactObject(
-					item,
-					[
-						"id",
-						"kind",
-						"week",
-						"modelId",
-						"projectId",
-						"teamId",
-						"name",
-						"family",
-						"foundation",
-						"parentModelId",
-						"brandId",
-						"tier",
-						"dataMix",
-						"emphasis",
-					],
-					"design_model command",
-				);
+			case "design_model": {
+				const designModelKeys = [
+					"id",
+					"kind",
+					"week",
+					"modelId",
+					"projectId",
+					"teamId",
+					"name",
+					"family",
+					"foundation",
+					"parentModelId",
+					"brandId",
+					"tier",
+					"dataMix",
+					"emphasis",
+				];
+				if (Object.hasOwn(item, "architecturePath")) {
+					designModelKeys.push("architecturePath");
+				}
+				assertExactObject(item, designModelKeys, "design_model command");
 				assertIdentifier(item.modelId, "Design model id");
 				assertIdentifier(item.projectId, "Design project id");
 				assertIdentifier(item.teamId, "Design team id");
@@ -1063,6 +1083,22 @@ function assertCommandLog(
 					throw new Error("Design model name must not be empty");
 				}
 				assertEnum(item.family, MODEL_FAMILY_IDS, "Design model family");
+				if (item.family === "multimodal") {
+					if (!Object.hasOwn(item, "architecturePath")) {
+						throw new Error(
+							"Multimodal design command is missing architecture path",
+						);
+					}
+					assertEnum(
+						item.architecturePath,
+						MULTIMODAL_ARCHITECTURE_PATH_IDS,
+						"Design model architecture path",
+					);
+				} else if (Object.hasOwn(item, "architecturePath")) {
+					throw new Error(
+						"Architecture path is only valid for multimodal design commands",
+					);
+				}
 				assertEnum(
 					item.foundation,
 					MODEL_FOUNDATIONS,
@@ -1078,6 +1114,7 @@ function assertCommandLog(
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
 				break;
+			}
 			case "refresh_model":
 				assertExactObject(
 					item,
@@ -1431,6 +1468,7 @@ function assertDesignCommandReferences(
 		model.name !== command.name ||
 		model.family !== command.family ||
 		model.foundation !== command.foundation ||
+		model.architecturePath !== command.architecturePath ||
 		model.parentModelId !== command.parentModelId ||
 		model.brandId !== command.brandId ||
 		model.tier !== command.tier ||
