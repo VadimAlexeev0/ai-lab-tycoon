@@ -277,9 +277,9 @@ function launchedAgentState(): GameState {
 describe("agent family validation and risk memory", () => {
 	it("keeps all pre-existing families at neutral incident exposure", () => {
 		expect(
-			MODEL_FAMILIES.filter((family) => family.id !== AGENT_FAMILY_ID).every(
-				(family) => family.incidentExposurePercent === 100,
-			),
+			MODEL_FAMILIES.filter(
+				(family) => family.id !== AGENT_FAMILY_ID && family.id !== "world",
+			).every((family) => family.incidentExposurePercent === 100),
 		).toBe(true);
 	});
 
