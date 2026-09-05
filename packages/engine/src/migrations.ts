@@ -9,7 +9,6 @@ import { assertProductsState } from "./components/products.js";
 import { assertProjectsState } from "./components/projects.js";
 import type { ResearchState } from "./components/research.js";
 import { assertResearchState } from "./components/research.js";
-import { assertRivalsState } from "./components/rivals.js";
 import { withRecomputedCompute } from "./compute-reservations.js";
 import { BALANCE, PRODUCT_PRESSURE_BALANCE } from "./data/balance.js";
 import { STARTING_DATA_INVENTORY } from "./data/data-sources.js";
@@ -17,16 +16,21 @@ import {
 	isLegacyV9MultimodalDataMix,
 	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
 } from "./data/multimodal-architectures.js";
+import { getRivalStrategyActions } from "./data/rivals.js";
 import {
 	assertGameState,
 	type GameStateValidationOptions,
 } from "./invariants.js";
+import { LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH } from "./replay-compatibility.js";
 import { GAME_STATE_SCHEMA_VERSION, type GameState } from "./state.js";
 import {
 	assertArray,
+	assertBoolean,
+	assertEnum,
 	assertExactObject,
 	assertIdentifier,
 	assertJsonCompatible,
+	assertNonNegativeInteger,
 	assertObject,
 	assertPositiveInteger,
 	assertSafeInteger,
@@ -130,6 +134,8 @@ export function deserializeGameStateWithMetadata(
  * Schema v11 adds deterministic rival strategy decks, publication/launch
  * history, and each rival's event cursor. V10 rivals receive empty histories
  * and a zero cursor; partial or future-shaped V10 strategy fields are rejected.
+ * The migration also records an internal command-log boundary so a migrated
+ * raw log replays legacy rival semantics only through its v10 source commands.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -578,14 +584,113 @@ function migrateV10ToV11(value: unknown): unknown {
 	}
 	assertNoV11FieldsInV10(migrated);
 	const rivals = migrated.rivals;
-	assertRivalsState(rivals, { allowMissingStrategyFields: true });
+	assertLegacyV10RivalsState(rivals);
 	for (const rival of rivals.items) {
-		rival.publishedNodeIds = [];
-		rival.launchedFamilyIds = [];
-		rival.eventCursor = 0;
+		const migratedRival = rival as unknown as Record<string, unknown>;
+		migratedRival.publishedNodeIds = [];
+		migratedRival.launchedFamilyIds = [];
+		migratedRival.eventCursor = 0;
+	}
+	const commandLog = migrated.commandLog;
+	assertArray(commandLog, "v10 command log");
+	if (commandLog.length === 0) {
+		throw new Error("v10 command log must be non-empty");
+	}
+	const firstCommand = commandLog[0];
+	const lastCommand = commandLog.at(-1);
+	assertObject(firstCommand, "v10 start command");
+	assertObject(lastCommand, "v10 final command");
+	assertIdentifier(lastCommand.id, "v10 final command id");
+	if (Object.hasOwn(firstCommand, LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH)) {
+		throw new Error(
+			"v10 start command contains an unexpected replay compatibility marker",
+		);
+	}
+	if (shouldPersistLegacyV10RivalBoundary(meta.era, rivals)) {
+		firstCommand[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH] = lastCommand.id;
 	}
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V11;
 	return migrated;
+}
+
+type LegacyV10Rival = {
+	id: string;
+	name: string;
+	archetype: "research_lab" | "platform" | "efficiency";
+	focus: "capability" | "reliability" | "distribution";
+	progress: number;
+	active: boolean;
+};
+
+type LegacyV10RivalsState = {
+	items: LegacyV10Rival[];
+};
+
+const LEGACY_V10_RIVAL_ARCHETYPES = [
+	"research_lab",
+	"platform",
+	"efficiency",
+] as const;
+const LEGACY_V10_RIVAL_FOCUSES = [
+	"capability",
+	"reliability",
+	"distribution",
+] as const;
+
+function shouldPersistLegacyV10RivalBoundary(
+	era: unknown,
+	rivals: LegacyV10RivalsState,
+): boolean {
+	return rivals.items.some((rival) => {
+		const active = era === "text" ? rival.active : true;
+		const firstAction = getRivalStrategyActions(rival.archetype)[0];
+		return (
+			active &&
+			firstAction !== undefined &&
+			rival.progress >= firstAction.threshold
+		);
+	});
+}
+
+/** Validate only the pre-v11 rival shape while executing its migration. */
+function assertLegacyV10RivalsState(
+	value: unknown,
+): asserts value is LegacyV10RivalsState {
+	assertExactObject(value, ["items"], "v10 rivals");
+	assertArray(value.items, "v10 rival items");
+	if (value.items.length > 3) {
+		throw new Error("V10 rivals must contain at most three rivals");
+	}
+
+	const ids = new Set<string>();
+	for (const item of value.items) {
+		assertExactObject(
+			item,
+			["id", "name", "archetype", "focus", "progress", "active"],
+			"v10 rival",
+		);
+		assertIdentifier(item.id, "V10 rival id");
+		if (ids.has(item.id)) {
+			throw new Error(`Duplicate v10 rival id: ${item.id}`);
+		}
+		ids.add(item.id);
+
+		assertString(item.name, `V10 rival ${item.id} name`);
+		if (item.name.trim().length === 0) {
+			throw new Error(`V10 rival ${item.id} must have a name`);
+		}
+		assertEnum(
+			item.archetype,
+			LEGACY_V10_RIVAL_ARCHETYPES,
+			"V10 rival archetype",
+		);
+		assertEnum(item.focus, LEGACY_V10_RIVAL_FOCUSES, "V10 rival focus");
+		assertNonNegativeInteger(item.progress, `V10 rival ${item.id} progress`);
+		if (item.progress > 100) {
+			throw new Error(`V10 rival ${item.id} progress must be at most 100`);
+		}
+		assertBoolean(item.active, `V10 rival ${item.id} active`);
+	}
 }
 
 function assertNoV11FieldsInV10(state: Record<string, unknown>): void {

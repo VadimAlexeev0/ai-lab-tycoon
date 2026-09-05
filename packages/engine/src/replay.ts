@@ -1,4 +1,8 @@
-import { type AdvanceWeekOptions, advanceWeek } from "./advance-week.js";
+import {
+	type AdvanceWeekOptions,
+	advanceWeek,
+	advanceWeekForLegacyV10Replay,
+} from "./advance-week.js";
 import { applyDecision } from "./apply-decision.js";
 import { canonicalEqual } from "./canonical.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
@@ -7,6 +11,7 @@ import {
 	isLegacyV9MultimodalDataMix,
 	LEGACY_V9_UNIFIED_ARCHITECTURE_PROVENANCE,
 } from "./data/multimodal-architectures.js";
+import { getRivalStrategyActions } from "./data/rivals.js";
 import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
 import { designModel, designModelForLegacyReplay } from "./model-design.js";
@@ -16,6 +21,7 @@ import {
 	retireProduct,
 } from "./products.js";
 import { refreshModel } from "./refresh-model.js";
+import { LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH } from "./replay-compatibility.js";
 import { startRun } from "./start-run.js";
 import type { CommandLogEntry, EngineResult, GameState } from "./state.js";
 import { GAME_STATE_SCHEMA_VERSION } from "./state.js";
@@ -56,6 +62,9 @@ export type ReplayCommandLogOptions = Readonly<{
  * Replay a complete command log through the same public state transitions used
  * by a live run. The generated command entry is compared structurally after
  * every step so key insertion order cannot hide a malformed or drifted log.
+ * Versioned v9/v10 envelopes and migrated raw logs scope their legacy rival
+ * semantics to the source-command boundary; later v11 commands use current
+ * rival strategy behavior.
  */
 export function replayCommandLog(
 	commandLog: ReplayCommandLogInput,
@@ -76,17 +85,56 @@ export function replayCommandLog(
 			company: { ...state.company, cash: options.initialCash },
 		};
 	}
-	assertReplayedCommand(state.commandLog[0], first);
+	const replayedStartCommand = state.commandLog[0];
+	if (replayedStartCommand === undefined) {
+		throw new Error("Replay generated state without a start command");
+	}
+	assertReplayedCommand(
+		withoutLegacyV10RivalStrategyMarker(replayedStartCommand),
+		withoutLegacyV10RivalStrategyMarker(first),
+	);
 
 	for (const command of entries.slice(1)) {
 		const result = replayCommand(
 			state,
 			command,
 			normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
+			normalizedLog.legacyV10RivalStrategyCommandIds.has(command.id),
 		);
 		const actual = result.state.commandLog.at(-1);
 		assertReplayedCommand(actual, command);
 		state = result.state;
+	}
+
+	const expectedStateHasLegacyBoundary =
+		options.expectedState !== undefined &&
+		options.expectedState.commandLog[0] !== undefined &&
+		Object.hasOwn(
+			options.expectedState.commandLog[0],
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH,
+		);
+	const shouldPersistLegacyBoundary =
+		normalizedLog.persistLegacyV10RivalStrategyBoundary ||
+		expectedStateHasLegacyBoundary ||
+		(normalizedLog.legacyV10RivalStrategyCommandIds.size > 0 &&
+			shouldPersistLegacyV10RivalBoundary(state));
+	if (
+		normalizedLog.legacyV10RivalStrategyBoundaryCommandId !== undefined &&
+		shouldPersistLegacyBoundary
+	) {
+		const generatedStartCommand = state.commandLog[0];
+		if (generatedStartCommand === undefined) {
+			throw new Error("Replay generated state without a start command");
+		}
+		const markedStartCommand = {
+			...generatedStartCommand,
+			[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH]:
+				normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
+		} as unknown as CommandLogEntry;
+		state = {
+			...state,
+			commandLog: [markedStartCommand, ...state.commandLog.slice(1)],
+		};
 	}
 
 	if (
@@ -106,6 +154,9 @@ export const replay = replayCommandLog;
 type NormalizedCommandLog = Readonly<{
 	entries: readonly CommandLogEntry[];
 	legacyArchitectureDefaultCommandIds: ReadonlySet<string>;
+	legacyV10RivalStrategyCommandIds: ReadonlySet<string>;
+	legacyV10RivalStrategyBoundaryCommandId?: string;
+	persistLegacyV10RivalStrategyBoundary: boolean;
 }>;
 
 function normalizeCommandLog(
@@ -114,7 +165,18 @@ function normalizeCommandLog(
 	if (Array.isArray(input)) {
 		const normalized = normalizeLegacyCommandEntries(input);
 		validateReplayEntries(normalized.entries);
-		return normalized;
+		const boundaryCommandId = readLegacyV10RivalStrategyBoundary(
+			normalized.entries,
+		);
+		return {
+			...normalized,
+			legacyV10RivalStrategyCommandIds: legacyV10RivalStrategyCommandIds(
+				normalized.entries,
+				boundaryCommandId,
+			),
+			legacyV10RivalStrategyBoundaryCommandId: boundaryCommandId,
+			persistLegacyV10RivalStrategyBoundary: boundaryCommandId !== undefined,
+		};
 	}
 
 	assertObject(input, "command log envelope");
@@ -156,9 +218,27 @@ function normalizeCommandLog(
 					entries: rawEntries,
 					legacyArchitectureDefaultCommandIds:
 						legacyArchitectureCommandIds(rawEntries),
+					legacyV10RivalStrategyCommandIds: new Set<string>(),
 				};
 	validateReplayEntries(normalized.entries);
-	return normalized;
+	const persistedBoundaryCommandId = readLegacyV10RivalStrategyBoundary(
+		normalized.entries,
+	);
+	const boundaryCommandId =
+		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 1 ||
+		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 2
+			? normalized.entries.at(-1)?.id
+			: persistedBoundaryCommandId;
+	return {
+		...normalized,
+		legacyV10RivalStrategyCommandIds: legacyV10RivalStrategyCommandIds(
+			normalized.entries,
+			boundaryCommandId,
+		),
+		legacyV10RivalStrategyBoundaryCommandId: boundaryCommandId,
+		persistLegacyV10RivalStrategyBoundary:
+			persistedBoundaryCommandId !== undefined,
+	};
 }
 
 /** Add only the v10 default needed to replay a legacy v9 design command. */
@@ -211,6 +291,8 @@ function normalizeLegacyCommandEntries(
 	return {
 		entries: changed ? normalized : entries,
 		legacyArchitectureDefaultCommandIds,
+		legacyV10RivalStrategyCommandIds: new Set<string>(),
+		persistLegacyV10RivalStrategyBoundary: false,
 	};
 }
 
@@ -227,6 +309,53 @@ function legacyArchitectureCommandIds(
 			)
 			.map((entry) => entry.id),
 	);
+}
+
+function readLegacyV10RivalStrategyBoundary(
+	entries: readonly CommandLogEntry[],
+): string | undefined {
+	const first = entries[0];
+	if (first === undefined || first.kind !== "start_run") return undefined;
+	const marker = (first as unknown as Record<string, unknown>)[
+		LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH
+	];
+	if (marker === undefined) return undefined;
+	assertIdentifier(marker, "Legacy rival replay boundary command id");
+	return marker;
+}
+
+function legacyV10RivalStrategyCommandIds(
+	entries: readonly CommandLogEntry[],
+	boundaryCommandId: string | undefined,
+): Set<string> {
+	if (boundaryCommandId === undefined) return new Set<string>();
+	const boundaryIndex = entries.findIndex(
+		(entry) => entry.id === boundaryCommandId,
+	);
+	if (boundaryIndex < 0) {
+		throw new Error("Legacy rival replay marker references an unknown command");
+	}
+	return new Set(entries.slice(0, boundaryIndex + 1).map((entry) => entry.id));
+}
+
+function shouldPersistLegacyV10RivalBoundary(state: GameState): boolean {
+	return state.rivals.items.some((rival) => {
+		const active = state.meta.era === "text" ? rival.active : true;
+		const firstAction = getRivalStrategyActions(rival.archetype)[0];
+		return (
+			active &&
+			firstAction !== undefined &&
+			rival.progress >= firstAction.threshold
+		);
+	});
+}
+
+function withoutLegacyV10RivalStrategyMarker(
+	entry: CommandLogEntry,
+): CommandLogEntry {
+	const copy = { ...(entry as unknown as Record<string, unknown>) };
+	delete copy[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH];
+	return copy as unknown as CommandLogEntry;
 }
 
 function validateReplayEntries(entries: readonly unknown[]): void {
@@ -260,7 +389,8 @@ function validateReplayEntries(entries: readonly unknown[]): void {
 function replayCommand(
 	state: GameState,
 	command: CommandLogEntry,
-	legacyReplay = false,
+	legacyArchitectureReplay = false,
+	legacyV10RivalStrategyReplay = false,
 ): EngineResult {
 	switch (command.kind) {
 		case "start_run":
@@ -274,7 +404,9 @@ function replayCommand(
 					? {}
 					: { incidentRoll: command.incidentRoll }),
 			};
-			return advanceWeek(state, options);
+			return legacyV10RivalStrategyReplay
+				? advanceWeekForLegacyV10Replay(state, options)
+				: advanceWeek(state, options);
 		}
 		case "apply_decision":
 			return applyDecision(state, command.choice);
@@ -297,7 +429,7 @@ function replayCommand(
 				emphasis: command.emphasis,
 				teamId: command.teamId,
 			};
-			return legacyReplay
+			return legacyArchitectureReplay
 				? designModelForLegacyReplay(state, spec)
 				: designModel(state, spec);
 		}

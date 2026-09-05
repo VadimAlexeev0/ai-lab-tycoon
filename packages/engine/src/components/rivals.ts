@@ -49,7 +49,6 @@ export function createRivalsState(items: Rival[] = []): RivalsState {
 
 export function assertRivalsState(
 	value: unknown,
-	options: RivalsStateValidationOptions = {},
 ): asserts value is RivalsState {
 	assertExactObject(value, ["items"], "rivals");
 	assertArray(value.items, "Rivals items");
@@ -68,29 +67,22 @@ export function assertRivalsState(
 		const strategyFieldCount = strategyFields.filter((field) =>
 			Object.hasOwn(item, field),
 		).length;
-		const allowMissingStrategyFields =
-			options.allowMissingStrategyFields === true && strategyFieldCount === 0;
-		if (
-			!allowMissingStrategyFields &&
-			strategyFieldCount !== strategyFields.length
-		) {
+		if (strategyFieldCount !== strategyFields.length) {
 			throw new Error(
 				`Rival ${String(item.id ?? "unknown")} must contain all strategy fields`,
 			);
 		}
 		assertExactObject(
 			item,
-			allowMissingStrategyFields
-				? ["id", "name", "archetype", "focus", "progress", "active"]
-				: [
-						"id",
-						"name",
-						"archetype",
-						"focus",
-						"progress",
-						"active",
-						...strategyFields,
-					],
+			[
+				"id",
+				"name",
+				"archetype",
+				"focus",
+				"progress",
+				"active",
+				...strategyFields,
+			],
 			"rival",
 		);
 		assertIdentifier(item.id, "Rival id");
@@ -110,8 +102,6 @@ export function assertRivalsState(
 			throw new Error(`Rival ${item.id} progress must be at most 100`);
 		}
 		assertBoolean(item.active, `Rival ${item.id} active`);
-		if (allowMissingStrategyFields) continue;
-
 		assertArray(item.publishedNodeIds, `Rival ${item.id} published nodes`);
 		assertArray(item.launchedFamilyIds, `Rival ${item.id} launched families`);
 		const publishedNodeIdsInState = item.publishedNodeIds as string[];
@@ -187,11 +177,6 @@ export function assertRivalsState(
 		}
 	}
 }
-
-export type RivalsStateValidationOptions = Readonly<{
-	/** Only migrations may accept schema-v10 rivals without strategy fields. */
-	allowMissingStrategyFields?: boolean;
-}>;
 
 function sameIds(left: readonly string[], right: readonly string[]): boolean {
 	return (

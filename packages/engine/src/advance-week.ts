@@ -9,10 +9,17 @@ import { productsSystem } from "./systems/products.js";
 import { projectsSystem } from "./systems/projects.js";
 import { reportingSystem } from "./systems/reporting.js";
 import { discoverResearchSparks, researchSystem } from "./systems/research.js";
-import { rivalsSystem } from "./systems/rivals.js";
+import {
+	rivalsSystem,
+	rivalsSystemForLegacyV10Replay,
+} from "./systems/rivals.js";
 import { terminalSystem } from "./systems/terminal.js";
 import { trainingSystem } from "./systems/training.js";
-import type { RegisteredSystem, SystemPhase } from "./systems/types.js";
+import type {
+	GameSystem,
+	RegisteredSystem,
+	SystemPhase,
+} from "./systems/types.js";
 import { upkeepSystem } from "./systems/upkeep.js";
 
 export type AdvanceWeekOptions = Readonly<{
@@ -139,6 +146,22 @@ export function advanceWeek(
 	state: GameState,
 	options: AdvanceWeekOptions = {},
 ): EngineResult {
+	return advanceWeekInternal(state, options, rivalsSystem);
+}
+
+/** @internal Replay-only v10 semantics; not part of the package root API. */
+export function advanceWeekForLegacyV10Replay(
+	state: GameState,
+	options: AdvanceWeekOptions = {},
+): EngineResult {
+	return advanceWeekInternal(state, options, rivalsSystemForLegacyV10Replay);
+}
+
+function advanceWeekInternal(
+	state: GameState,
+	options: AdvanceWeekOptions,
+	rivalSystem: GameSystem,
+): EngineResult {
 	assertGameState(state);
 	assertRunActive(state);
 	if (state.decisions.pending.some((decision) => decision.blocking)) {
@@ -156,7 +179,8 @@ export function advanceWeek(
 			nextState = discovery.state;
 			facts.push(...discovery.facts);
 		}
-		const result = system(nextState, {
+		const phaseSystem = phase === "rivals" ? rivalSystem : system;
+		const result = phaseSystem(nextState, {
 			phase,
 			week,
 			facts: [...facts],

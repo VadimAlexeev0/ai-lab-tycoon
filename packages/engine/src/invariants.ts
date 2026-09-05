@@ -53,6 +53,7 @@ import {
 	hasCompletedModelFamilyUnlock,
 	hasRequiredShippedModelProof,
 } from "./era-proof.js";
+import { LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH } from "./replay-compatibility.js";
 import { deriveResearchEffects } from "./research-effects.js";
 import {
 	assertRunSetup,
@@ -1029,7 +1030,7 @@ function assertCommandLog(
 		previousWeek = item.week;
 
 		switch (item.kind) {
-			case "start_run":
+			case "start_run": {
 				if (startRunSeen) {
 					throw new Error("Only one start_run command is allowed");
 				}
@@ -1040,11 +1041,11 @@ function assertCommandLog(
 					throw new Error("start_run command must be from week 1");
 				}
 				startRunSeen = true;
-				assertExactObject(
-					item,
-					["id", "kind", "week", "setup", "seed"],
-					"start_run command",
-				);
+				const startRunKeys = ["id", "kind", "week", "setup", "seed"];
+				if (Object.hasOwn(item, LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH)) {
+					startRunKeys.push(LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH);
+				}
+				assertExactObject(item, startRunKeys, "start_run command");
 				assertRunSetup(item.setup);
 				assertUnsignedInteger(item.seed, "Start command seed");
 				if (item.seed !== state.rng.seed) {
@@ -1055,7 +1056,28 @@ function assertCommandLog(
 						"Start command setup company name must match the company name",
 					);
 				}
+				if (Object.hasOwn(item, LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH)) {
+					assertIdentifier(
+						item[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH],
+						"Legacy rival replay boundary command id",
+					);
+					const boundaryCommandId =
+						item[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH];
+					if (
+						!value.some(
+							(candidate) =>
+								candidate !== null &&
+								typeof candidate === "object" &&
+								(candidate as Record<string, unknown>).id === boundaryCommandId,
+						)
+					) {
+						throw new Error(
+							"Legacy rival replay marker references an unknown command",
+						);
+					}
+				}
 				break;
+			}
 			case "apply_decision":
 				assertExactObject(
 					item,
