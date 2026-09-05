@@ -5,7 +5,8 @@ import { assignProject, cancelProject } from "./commands/projects.js";
 import { buyCompute, hireTeam } from "./commands/teams.js";
 import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
-import { designModel } from "./model-design.js";
+import { withLegacyReplayValidation } from "./invariants.js";
+import { designModel, designModelForLegacyReplay } from "./model-design.js";
 import {
 	applyProductResume,
 	launchProduct,
@@ -75,11 +76,16 @@ export function replayCommandLog(
 	assertReplayedCommand(state.commandLog[0], first);
 
 	for (const command of entries.slice(1)) {
-		const result = replayCommand(
-			state,
-			command,
-			normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
-		);
+		const replayStep = () =>
+			replayCommand(
+				state,
+				command,
+				normalizedLog.legacyArchitectureDefaultCommandIds.has(command.id),
+			);
+		const result =
+			normalizedLog.legacyArchitectureDefaultCommandIds.size > 0
+				? withLegacyReplayValidation(replayStep)
+				: replayStep();
 		const actual = result.state.commandLog.at(-1);
 		assertReplayedCommand(actual, command);
 		state = result.state;
@@ -146,7 +152,7 @@ function normalizeCommandLog(
 	const rawEntries = envelope[payloadKey] as unknown as CommandLogEntry[];
 	const normalized =
 		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 1
-			? normalizeLegacyCommandEntries(rawEntries)
+			? normalizeLegacyCommandEntries(rawEntries, true)
 			: {
 					entries: rawEntries,
 					legacyArchitectureDefaultCommandIds: new Set<string>(),
@@ -158,7 +164,20 @@ function normalizeCommandLog(
 /** Add only the v10 default needed to replay a legacy v9 design command. */
 function normalizeLegacyCommandEntries(
 	entries: readonly CommandLogEntry[],
+	rejectFutureArchitectureFields = false,
 ): NormalizedCommandLog {
+	if (rejectFutureArchitectureFields) {
+		for (const entry of entries) {
+			if (entry === null || typeof entry !== "object") continue;
+			for (const field of ["architecturePath", "architectureDebt"]) {
+				if (Object.hasOwn(entry, field)) {
+					throw new Error(
+						`v9 command contains unexpected architecture field: ${field}`,
+					);
+				}
+			}
+		}
+	}
 	let changed = false;
 	const legacyArchitectureDefaultCommandIds = new Set<string>();
 	const normalized = entries.map((entry) => {
@@ -210,7 +229,7 @@ function validateReplayEntries(entries: readonly unknown[]): void {
 function replayCommand(
 	state: GameState,
 	command: CommandLogEntry,
-	allowLegacyArchitectureDefaults = false,
+	legacyReplay = false,
 ): EngineResult {
 	switch (command.kind) {
 		case "start_run":
@@ -232,27 +251,25 @@ function replayCommand(
 			return assignProject(state, command.teamId, command.projectId);
 		case "cancel_project":
 			return cancelProject(state, command.teamId, command.projectId);
-		case "design_model":
-			return designModel(
-				state,
-				{
-					name: command.name,
-					family: command.family,
-					foundation: command.foundation,
-					...(command.architecturePath === undefined
-						? {}
-						: { architecturePath: command.architecturePath }),
-					parentModelId: command.parentModelId,
-					brandId: command.brandId,
-					tier: command.tier,
-					dataMix: command.dataMix,
-					emphasis: command.emphasis,
-					teamId: command.teamId,
-				},
-				allowLegacyArchitectureDefaults
-					? { allowLegacyArchitectureDefaults: true }
-					: undefined,
-			);
+		case "design_model": {
+			const spec = {
+				name: command.name,
+				family: command.family,
+				foundation: command.foundation,
+				...(command.architecturePath === undefined
+					? {}
+					: { architecturePath: command.architecturePath }),
+				parentModelId: command.parentModelId,
+				brandId: command.brandId,
+				tier: command.tier,
+				dataMix: command.dataMix,
+				emphasis: command.emphasis,
+				teamId: command.teamId,
+			};
+			return legacyReplay
+				? designModelForLegacyReplay(state, spec)
+				: designModel(state, spec);
+		}
 		case "refresh_model":
 			return refreshModel(state, {
 				modelId: command.modelId,

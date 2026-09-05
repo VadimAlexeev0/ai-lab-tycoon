@@ -44,7 +44,7 @@ function multimodalReadyState(): GameState {
 			architectureDebt: 0,
 			tier: "aggressive",
 			scoreCeiling: 100,
-			dataMix: { general: 40, code: 20, multimodal: 40 },
+			dataMix: { general: 40, code: 15, multimodal: 45 },
 			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 			trueScores: {
 				capability: 90,

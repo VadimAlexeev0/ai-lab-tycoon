@@ -24,14 +24,17 @@ import { BALANCE } from "./data/balance.js";
 import { getDataSourceDefinition } from "./data/data-sources.js";
 import {
 	DATA_MIX_DIMENSIONS,
+	type DataMix,
 	MODEL_EMPHASIS_DIMENSIONS,
 	MODEL_FAMILIES,
 	MODEL_FAMILY_IDS,
 	MODEL_TIERS,
+	type ModelFamilyDefinition,
 } from "./data/model-families.js";
 import {
 	getMultimodalArchitecturePath,
 	MULTIMODAL_ARCHITECTURE_PATH_IDS,
+	type MultimodalArchitecturePathDefinition,
 } from "./data/multimodal-architectures.js";
 import {
 	ASSISTANT_ERA,
@@ -129,6 +132,17 @@ export type GameStateValidationOptions = Readonly<{
 
 /** Toggle expensive invariant checks for trusted high-volume simulations. */
 export let assertionsEnabled = true;
+let legacyReplayValidationDepth = 0;
+
+/** @internal Validate synchronous legacy replay transitions without weakening public validation. */
+export function withLegacyReplayValidation<T>(operation: () => T): T {
+	legacyReplayValidationDepth += 1;
+	try {
+		return operation();
+	} finally {
+		legacyReplayValidationDepth -= 1;
+	}
+}
 
 export function setAssertionsEnabled(enabled: boolean): void {
 	assertionsEnabled = enabled;
@@ -430,6 +444,18 @@ function assertModelRelations(state: GameState): void {
 			if (architecture === undefined) {
 				throw new Error(`Model ${model.id} has an unknown architecture path`);
 			}
+			const family = MODEL_FAMILIES.find(
+				(candidate) => candidate.id === model.family,
+			);
+			if (family === undefined) {
+				throw new Error(`Model ${model.id} has an unknown model family`);
+			}
+			assertArchitectureDataMix(
+				`Model ${model.id}`,
+				family,
+				architecture,
+				model.dataMix,
+			);
 			const unlock = state.research.nodes.find(
 				(node) => node.id === architecture.unlockedByResearchNodeId,
 			);
@@ -1111,6 +1137,7 @@ function assertCommandLog(
 				assertIdentifier(item.brandId, "Design model brand id");
 				assertEnum(item.tier, MODEL_TIERS, "Design model compute tier");
 				assertDesignMix(item.dataMix);
+				assertDesignArchitectureDataMix(item);
 				assertDesignEmphasis(item.emphasis);
 				assertDesignCommandReferences(item, state);
 				break;
@@ -1481,6 +1508,37 @@ function assertDesignCommandReferences(
 	}
 }
 
+function assertDesignArchitectureDataMix(
+	command: Record<string, unknown>,
+): void {
+	if (command.family !== "multimodal") return;
+	const family = MODEL_FAMILIES.find(
+		(candidate) => candidate.id === command.family,
+	);
+	if (family === undefined) {
+		throw new Error(
+			`Design model command ${String(command.id)} has an unknown model family`,
+		);
+	}
+	if (typeof command.architecturePath !== "string") {
+		throw new Error(
+			`Design model command ${String(command.id)} is missing its architecture path`,
+		);
+	}
+	const architecture = getMultimodalArchitecturePath(command.architecturePath);
+	if (architecture === undefined) {
+		throw new Error(
+			`Design model command ${String(command.id)} has an unknown architecture path`,
+		);
+	}
+	assertArchitectureDataMix(
+		`Design model command ${String(command.id)}`,
+		family,
+		architecture,
+		command.dataMix as DataMix,
+	);
+}
+
 function matchesDesignMix(
 	modelMix: GameState["models"]["items"][number]["dataMix"],
 	commandMix: unknown,
@@ -1513,6 +1571,30 @@ function matchesDesignEmphasis(
 	return MODEL_EMPHASIS_DIMENSIONS.every(
 		(dimension) => modelEmphasis[dimension] === emphasis[dimension],
 	);
+}
+
+function assertArchitectureDataMix(
+	owner: string,
+	family: ModelFamilyDefinition,
+	architecture: MultimodalArchitecturePathDefinition,
+	dataMix: DataMix | undefined,
+): void {
+	if (dataMix === undefined) {
+		throw new Error(`${owner} requires a persisted data mix`);
+	}
+	for (const dimension of DATA_MIX_DIMENSIONS) {
+		const minimum = Math.max(
+			family.dataMixRequirements[dimension],
+			legacyReplayValidationDepth > 0 && architecture.id === "unified"
+				? 0
+				: architecture.minimumDataMix[dimension],
+		);
+		if (dataMix[dimension] < minimum) {
+			throw new Error(
+				`${owner} data mix for ${dimension} must include at least ${minimum} data for ${architecture.id} architecture`,
+			);
+		}
+	}
 }
 
 function assertRiskRelations(state: GameState): void {

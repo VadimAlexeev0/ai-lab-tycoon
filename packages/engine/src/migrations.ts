@@ -526,6 +526,22 @@ function migrateV9ToV10(value: unknown): unknown {
 		}
 	}
 
+	const compute = migrated.compute;
+	const projects = migrated.projects;
+	const research = migrated.research;
+	const products = migrated.products;
+	assertComputeState(compute);
+	assertProjectsState(projects);
+	assertResearchState(research);
+	assertProductsState(products);
+	migrated.compute = withRecomputedCompute({
+		compute,
+		projects,
+		models,
+		research,
+		products,
+	});
+
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V10;
 	return migrated;
 }

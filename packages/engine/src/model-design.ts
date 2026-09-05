@@ -30,7 +30,7 @@ import {
 import { reserveDataForMix } from "./data-inventory.js";
 import { assertRunActive } from "./guards.js";
 import { allocateId } from "./ids.js";
-import { assertGameState } from "./invariants.js";
+import { assertGameState, withLegacyReplayValidation } from "./invariants.js";
 import {
 	type ActiveResearchEffects,
 	createEmptyResearchEffects,
@@ -114,7 +114,24 @@ type NormalizedModelDesignSpec = Readonly<{
 export function designModel(
 	state: GameState,
 	spec: ModelDesignSpec,
-	options: Readonly<{ allowLegacyArchitectureDefaults?: boolean }> = {},
+): EngineResult {
+	return designModelInternal(state, spec, false);
+}
+
+/** @internal Replay-only adapter for schema v9 design commands. */
+export function designModelForLegacyReplay(
+	state: GameState,
+	spec: ModelDesignSpec,
+): EngineResult {
+	return withLegacyReplayValidation(() =>
+		designModelInternal(state, spec, true),
+	);
+}
+
+function designModelInternal(
+	state: GameState,
+	spec: ModelDesignSpec,
+	legacyReplay = false,
 ): EngineResult {
 	assertGameState(state);
 	assertRunActive(state);
@@ -153,13 +170,10 @@ export function designModel(
 			);
 		}
 	}
-	const allowLegacyArchitectureDefaults =
-		options.allowLegacyArchitectureDefaults === true &&
-		architecture?.id === "unified";
 	for (const dimension of DATA_MIX_DIMENSIONS) {
 		const minimum = Math.max(
 			family.dataMixRequirements[dimension],
-			allowLegacyArchitectureDefaults
+			legacyReplay && architecture?.id === "unified"
 				? 0
 				: (architecture?.minimumDataMix[dimension] ?? 0),
 		);

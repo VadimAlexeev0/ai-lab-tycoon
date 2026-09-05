@@ -16,10 +16,15 @@ import {
 	deserializeGameState,
 	GAME_STATE_SCHEMA_VERSION,
 	launchProduct,
+	designModel as publicDesignModel,
 	serializeGameState,
 	upgradeGameState,
 } from "./index.js";
-import { designModel, generateTrueScores } from "./model-design.js";
+import {
+	designModel,
+	designModelForLegacyReplay,
+	generateTrueScores,
+} from "./model-design.js";
 import { applyProductResume, servingDemandForModel } from "./products.js";
 import { replayCommandLog } from "./replay.js";
 import { selectVisibleModels } from "./selectors.js";
@@ -550,6 +555,21 @@ describe("multimodal successor architecture paths", () => {
 		expect(upgradeGameState(fixture)).toEqual(upgraded);
 	});
 
+	it("recomputes architecture-derived demand while migrating active v9 training", () => {
+		const fixture = legacyV9MultimodalFixture();
+		const compute = fixture.compute as Record<string, unknown>;
+		compute.trainingDemand = 4;
+		compute.allocated = 4;
+		const before = JSON.stringify(fixture);
+
+		const upgraded = upgradeGameState(fixture);
+
+		expect(upgraded.compute.trainingDemand).toBe(7);
+		expect(upgraded.compute.allocated).toBe(27);
+		expect(JSON.stringify(fixture)).toBe(before);
+		expect(upgradeGameState(fixture)).toEqual(upgraded);
+	});
+
 	it("rejects partial or future-shaped v9 architecture fields before applying defaults", () => {
 		const fixture = legacyV9MultimodalFixture();
 		const models = fixture.models as { items: Record<string, unknown>[] };
@@ -595,7 +615,27 @@ describe("multimodal successor architecture paths", () => {
 		expect(replayed).toEqual(state);
 	});
 
-	it("keeps the v9 unified default compatible with legacy multimodal data", () => {
+	it("keeps schema v9 unified defaults inside the private replay adapter", () => {
+		const result = designModelForLegacyReplay(multimodalState(), {
+			name: "Legacy Adapter Data Mix",
+			family: "multimodal",
+			foundation: "fresh",
+			tier: "standard",
+			dataMix: { general: 50, code: 30, multimodal: 20 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			architecturePath: "unified",
+		});
+		const model = result.state.models.items.at(-1);
+		if (model === undefined) throw new Error("Expected a legacy adapter model");
+
+		expect(model).toMatchObject({
+			architecturePath: "unified",
+			architectureDebt: 0,
+			dataMix: { general: 50, code: 30, multimodal: 20 },
+		});
+	});
+
+	it("does not expose a public bypass for the unified path data minimum", () => {
 		const spec = {
 			name: "Legacy Data Mix",
 			family: "multimodal" as const,
@@ -607,10 +647,85 @@ describe("multimodal successor architecture paths", () => {
 		};
 		expect(() => designModel(multimodalState(), spec)).toThrow(/at least 45/);
 		expect(() =>
-			designModel(multimodalState(), spec, {
-				allowLegacyArchitectureDefaults: true,
+			Reflect.apply(publicDesignModel, undefined, [
+				multimodalState(),
+				spec,
+				{ allowLegacyArchitectureDefaults: true },
+			]),
+		).toThrow(/at least 45/);
+	});
+
+	it("rejects a forged current multimodal model and matching command below its path minimum", () => {
+		const state = designModel(multimodalState(), {
+			name: "Forged Minimum",
+			family: "multimodal",
+			foundation: "fresh",
+			tier: "standard",
+			dataMix: { general: 30, code: 20, multimodal: 50 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			architecturePath: "unified",
+		}).state;
+		const model = state.models.items.at(-1);
+		const command = state.commandLog.at(-1);
+		if (model === undefined || command?.kind !== "design_model") {
+			throw new Error("Expected a multimodal design and command");
+		}
+		const forgedMix = { general: 50, code: 30, multimodal: 20 };
+		model.dataMix = forgedMix;
+		command.dataMix = forgedMix;
+
+		expect(() => assertGameState(state)).toThrow(
+			/architecture.*data|data.*minimum|at least/i,
+		);
+	});
+
+	it("rejects a current design command below its path minimum even when the model differs", () => {
+		const state = designModel(multimodalState(), {
+			name: "Forged Command Minimum",
+			family: "multimodal",
+			foundation: "fresh",
+			tier: "standard",
+			dataMix: { general: 30, code: 20, multimodal: 50 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			architecturePath: "unified",
+		}).state;
+		const command = state.commandLog.at(-1);
+		if (command?.kind !== "design_model") {
+			throw new Error("Expected a design command");
+		}
+		command.dataMix = { general: 50, code: 30, multimodal: 20 };
+
+		expect(() => assertGameState(state)).toThrow(
+			/architecture.*data|data.*minimum|at least/i,
+		);
+	});
+
+	it("rejects v9 replay envelopes containing future architecture fields", () => {
+		const fixture = legacyV9MultimodalFixture();
+		const commandLog = fixture.commandLog as Record<string, unknown>[];
+		const start = commandLog[0];
+		const design = commandLog.find((entry) => entry.kind === "design_model");
+		if (start === undefined || design === undefined) {
+			throw new Error("Expected a legacy start and design command");
+		}
+		const entries = [
+			{ ...start, id: "command_001" },
+			{
+				...design,
+				id: "command_002",
+				architecturePath: "unified",
+				architectureDebt: 0,
+			},
+		];
+		const before = JSON.stringify(entries);
+
+		expect(() =>
+			replayCommandLog({
+				schemaVersion: 9,
+				commands: entries as never,
 			}),
-		).not.toThrow();
+		).toThrow(/future-shaped|unexpected.*architecture|v9.*architecture/i);
+		expect(JSON.stringify(entries)).toBe(before);
 	});
 
 	it("consumes architecture compute and serving tradeoffs through launch, resume, and weekly demand", () => {

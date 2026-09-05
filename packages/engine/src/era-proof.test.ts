@@ -36,7 +36,7 @@ function scoredModel(
 			: {}),
 		tier: "standard",
 		scoreCeiling: 88,
-		dataMix: { general: 70, code: 20, multimodal: 10 },
+		dataMix: { general: 50, code: 5, multimodal: 45 },
 		emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
 		trueScores: {
 			capability: 100,
