@@ -16,6 +16,7 @@ import {
 	MULTIMODAL_MODELS_FUSION_ID,
 	RESEARCH_ERAS,
 	VIDEO_WORLD_MODELS_ID,
+	WORLD_SIMULATION_ID,
 } from "./research.js";
 
 export const MODEL_DIMENSIONS = [
@@ -46,6 +47,7 @@ export const MODEL_FAMILY_IDS = [
 	"local_edge",
 	"video",
 	"agent",
+	"world",
 ] as const;
 export type ModelFamilyId = (typeof MODEL_FAMILY_IDS)[number];
 
@@ -194,6 +196,27 @@ export const MODEL_FAMILIES = [
 		scoreCeilingAdjustment: -4,
 		incidentExposurePercent: 200,
 		unlockedByResearchNodeId: AGENT_RUNTIME_ID,
+	},
+	// ponytail: World reuses the broad chat, developer API, and enterprise
+	// channels in this bounded slice. Upgrade path: add a dedicated world
+	// simulation channel with its own launch, pricing, and capacity contract.
+	{
+		id: "world",
+		displayName: "World Model",
+		allowedEras: ["multimodal"],
+		baseScoreProfile: {
+			capability: 6,
+			coding: 1,
+			reliability: 2,
+			safety: 2,
+			efficiency: 1,
+			multimodal: 10,
+		},
+		dataMixRequirements: { general: 15, code: 5, multimodal: 60 },
+		servingComputePerUserPercent: 400,
+		scoreCeilingAdjustment: -15,
+		incidentExposurePercent: 250,
+		unlockedByResearchNodeId: WORLD_SIMULATION_ID,
 	},
 ] as const satisfies readonly ModelFamilyDefinition[];
 

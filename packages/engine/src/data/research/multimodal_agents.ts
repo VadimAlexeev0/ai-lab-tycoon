@@ -7,6 +7,7 @@ import {
 	RESEARCH_CATEGORY_LABELS,
 	type ResearchDefinition,
 	VIDEO_WORLD_MODELS_ID,
+	WORLD_SIMULATION_ID,
 } from "./types.js";
 
 const ERA_LABEL = RESEARCH_CATEGORY_LABELS.multimodal_agents;
@@ -158,5 +159,22 @@ export const MULTIMODAL_AGENTS_NODES = [
 		],
 		description:
 			"The model learns motion and continuity, turning licensed visual sequences into a costly but coherent world forecast.",
+	},
+	{
+		id: WORLD_SIMULATION_ID,
+		label: "World simulation",
+		era: "multimodal" as const,
+		eraLabel: ERA_LABEL,
+		category: "multimodal_agents",
+		branch: MODELS_BRANCH,
+		status: "locked",
+		insightCost: 2,
+		prerequisites: [
+			ASSISTANT_MODELS_KEYSTONE_ID,
+			VIDEO_WORLD_MODELS_ID,
+			AGENT_RUNTIME_ID,
+		],
+		description:
+			"A grounded simulator predicts how scenes, tools, and agents change together, making planning more coherent and compute-intensive.",
 	},
 ] as const satisfies readonly ResearchDefinition[];

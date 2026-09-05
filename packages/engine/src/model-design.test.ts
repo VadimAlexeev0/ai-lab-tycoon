@@ -62,6 +62,7 @@ describe("model family data", () => {
 			"local_edge",
 			"video",
 			"agent",
+			"world",
 		]);
 		for (const family of MODEL_FAMILIES) {
 			expect(family.displayName.length).toBeGreaterThan(0);
