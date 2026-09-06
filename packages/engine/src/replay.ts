@@ -146,20 +146,16 @@ export function replayCommandLog(
 			throw new Error("Replay generated state without a start command");
 		}
 		const boundaryState = legacyBoundaryState;
-		const shouldAttachProof =
-			normalizedLog.legacyV10RivalStrategyProof !== undefined ||
-			!normalizedLog.persistLegacyV10RivalStrategyBoundary;
-		const proof = !shouldAttachProof
-			? undefined
-			: (normalizedLog.legacyV10RivalStrategyProof ??
-				(boundaryState === undefined
-					? undefined
-					: createLegacyV10RivalReplayProof(
-							entries,
-							normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
-							boundaryState,
-						)));
-		if (shouldAttachProof && proof === undefined) {
+		const proof =
+			normalizedLog.legacyV10RivalStrategyProof ??
+			(boundaryState === undefined
+				? undefined
+				: createLegacyV10RivalReplayProof(
+						entries,
+						normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
+						boundaryState,
+					));
+		if (proof === undefined) {
 			throw new Error(
 				"Legacy rival replay boundary proof cannot be reconstructed",
 			);
@@ -169,9 +165,7 @@ export function replayCommandLog(
 			...generatedStartCommand,
 			[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH]:
 				normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
-			...(proof === undefined
-				? {}
-				: { [LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF]: proof }),
+			[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF]: proof,
 		} as unknown as CommandLogEntry;
 		state = {
 			...state,
@@ -423,9 +417,9 @@ function assertLegacyV10RivalMarkerInput(
 			"Legacy rival replay marker must identify a migration boundary after start_run",
 		);
 	}
-	if (proof === undefined && boundaryIndex !== entries.length - 1) {
+	if (proof === undefined) {
 		throw new Error(
-			"Legacy rival replay marker requires an authenticated migration proof before current commands",
+			"Legacy rival replay marker requires an authenticated proof",
 		);
 	}
 }

@@ -271,19 +271,18 @@ describe("rival migration replay correction", () => {
 		expect(serializeGameState(migrated)).toBe(serializeGameState(replayedRaw));
 	});
 
-	it("replays a prior marker-only migrated raw save without changing it", () => {
+	it("rejects a marker-only migrated raw save", () => {
 		const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
 		const start = migrated.commandLog[0];
-		if (start === undefined) throw new Error("Expected migrated start command");
+		if (start === undefined) throw new Error("Expected the start command");
 		delete (start as unknown as Record<string, unknown>)[
 			LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
 		];
 
-		expect(() => assertGameState(migrated)).not.toThrow();
-		const replayed = replayCommandLog(migrated.commandLog, {
-			expectedState: migrated,
-		});
-		expect(serializeGameState(replayed)).toBe(serializeGameState(migrated));
+		expect(() => assertGameState(migrated)).toThrow(/proof|boundary/i);
+		expect(() => replayCommandLog(migrated.commandLog)).toThrow(
+			/proof|boundary/i,
+		);
 	});
 
 	it("keeps the migrated replay boundary after current v11 commands", () => {
@@ -442,7 +441,7 @@ describe("rival migration replay correction", () => {
 
 		expect(() =>
 			replayCommandLog(state.commandLog, { expectedState: state }),
-		).toThrow(/migration|provenance|boundary|mismatch/i);
+		).toThrow(/migration|provenance|boundary|mismatch|proof|authenticated/i);
 	});
 
 	it("rejects an existing threshold command forged onto current strategy history", () => {
@@ -466,9 +465,9 @@ describe("rival migration replay correction", () => {
 
 		expect(() =>
 			replayCommandLog(state.commandLog, { expectedState: state }),
-		).toThrow(/migration|provenance|boundary|mismatch/i);
+		).toThrow(/migration|provenance|boundary|mismatch|proof|authenticated/i);
 		expect(() => replayCommandLog(state.commandLog)).toThrow(
-			/migration|provenance|boundary|mismatch/i,
+			/migration|provenance|boundary|mismatch|proof|authenticated/i,
 		);
 	});
 
@@ -485,7 +484,7 @@ describe("rival migration replay correction", () => {
 		);
 		expect(() =>
 			replayCommandLog(state.commandLog, { expectedState: state }),
-		).toThrow(/migration|provenance|boundary|mismatch/i);
+		).toThrow(/migration|provenance|boundary|mismatch|proof|authenticated/i);
 	});
 
 	it("rejects a marker after the current command suffix", () => {
@@ -501,7 +500,95 @@ describe("rival migration replay correction", () => {
 		);
 		expect(() =>
 			replayCommandLog(state.commandLog, { expectedState: state }),
-		).toThrow(/migration|provenance|boundary|mismatch/i);
+		).toThrow(/migration|provenance|boundary|mismatch|proof|authenticated/i);
+	});
+
+	it("rejects marker-only provenance on a current v11 state", () => {
+		const state = advanceWeek(
+			startRun({ companyName: "Current v11 Labs" }, 42),
+		).state;
+		const rival = state.rivals.items[0];
+		if (rival === undefined) throw new Error("Expected rival");
+		// A current v11 save can otherwise look like a legacy boundary if its
+		// progress is edited without adding strategy history or reports.
+		rival.progress = 25;
+		setLegacyReplayMarker(state, "command_002");
+
+		expect(() => assertGameState(state)).toThrow(
+			/proof|authenticated|boundary/i,
+		);
+		expect(() => serializeGameState(state)).toThrow(
+			/proof|authenticated|boundary/i,
+		);
+	});
+
+	it("binds rival strategy facts to their exact advance command", () => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		const rival = state.rivals.items[0];
+		if (rival === undefined) throw new Error("Expected rival");
+		rival.progress = 24;
+
+		const advanced = advanceWeek(state).state;
+		const command = advanced.commandLog.at(-1);
+		if (command === undefined || command.kind !== "advance_week") {
+			throw new Error("Expected an advance_week command");
+		}
+		const strategyReport = advanced.reports.items.find(
+			(report) => report.fact.kind === "rival_published",
+		);
+		if (strategyReport?.fact.kind !== "rival_published") {
+			throw new Error("Expected a rival publication report");
+		}
+
+		expect(
+			(strategyReport.fact as unknown as Record<string, unknown>).commandId,
+		).toBe(command.id);
+		expect(strategyReport.fact.week).toBe(command.week);
+
+		const forged = JSON.parse(JSON.stringify(advanced)) as GameState;
+		const forgedReport = forged.reports.items.find(
+			(report) => report.fact.kind === "rival_published",
+		);
+		if (forgedReport?.fact.kind !== "rival_published") {
+			throw new Error("Expected a rival publication report in the clone");
+		}
+		(forgedReport.fact as unknown as Record<string, unknown>).commandId =
+			"command_001";
+
+		expect(() => assertGameState(forged)).toThrow(/advance|command|position/i);
+	});
+
+	it("rejects strategy facts whose command position is before a migration boundary", () => {
+		const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+		const advanced = advanceWeek(migrated).state;
+		const start = advanced.commandLog[0];
+		if (start === undefined) throw new Error("Expected migrated start command");
+		const proof = asRecord(
+			(start as unknown as Record<string, unknown>)[
+				LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+			],
+		);
+		if (typeof proof.boundaryCommandId !== "string") {
+			throw new Error("Expected a migrated boundary command id");
+		}
+		const forged = JSON.parse(JSON.stringify(advanced)) as GameState;
+		const strategyReport = forged.reports.items.find(
+			(report) =>
+				report.fact.kind === "rival_published" ||
+				report.fact.kind === "rival_launched",
+		);
+		if (
+			strategyReport?.fact.kind !== "rival_published" &&
+			strategyReport?.fact.kind !== "rival_launched"
+		) {
+			throw new Error("Expected a post-migration rival strategy report");
+		}
+		(strategyReport.fact as unknown as Record<string, unknown>).commandId =
+			proof.boundaryCommandId;
+
+		expect(() => assertGameState(forged)).toThrow(
+			/before|boundary|command|position/i,
+		);
 	});
 
 	it.each([

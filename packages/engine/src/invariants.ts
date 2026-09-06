@@ -1063,6 +1063,11 @@ function assertCommandLog(
 						"Legacy rival replay proof is missing its boundary marker",
 					);
 				}
+				if (hasLegacyBoundary && !hasLegacyProof) {
+					throw new Error(
+						"Legacy rival replay boundary requires an authenticated proof",
+					);
+				}
 				const startRunKeys = ["id", "kind", "week", "setup", "seed"];
 				if (hasLegacyBoundary)
 					startRunKeys.push(LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH);
@@ -1412,15 +1417,11 @@ function assertLegacyV10RivalStrategyProvenance(state: GameState): void {
 			"Legacy rival replay marker must identify a migration boundary command after start_run",
 		);
 	}
-	const boundaryCommand = state.commandLog[boundaryIndex];
-	if (boundaryCommand === undefined) {
-		throw new Error("Legacy rival replay marker references an unknown command");
-	}
-
 	const proofValue = commandRecord[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF];
 	if (proofValue === undefined) {
-		assertLegacyV10RivalMarkerOnlyState(state, boundaryIndex, boundaryCommand);
-		return;
+		throw new Error(
+			"Legacy rival replay boundary requires an authenticated proof",
+		);
 	}
 	assertLegacyV10RivalReplayProof(proofValue);
 	if (proofValue.boundaryCommandId !== marker) {
@@ -1509,24 +1510,6 @@ function assertLegacyV10RivalStrategyProvenance(state: GameState): void {
 		if (state.meta.era !== proofValue.era) {
 			throw new Error(
 				"Legacy rival replay proof era does not match the migrated state",
-			);
-		}
-	}
-
-	for (const report of state.reports.items) {
-		const fact = report.fact;
-		if (fact.kind !== "rival_published" && fact.kind !== "rival_launched") {
-			continue;
-		}
-		const hasLaterAdvance = state.commandLog.some(
-			(command, index) =>
-				index > boundaryIndex &&
-				command.kind === "advance_week" &&
-				command.week === fact.week,
-		);
-		if (!hasLaterAdvance && fact.week <= boundaryCommand.week) {
-			throw new Error(
-				`Legacy rival replay marker places strategy fact ${fact.actionId} before its migration boundary`,
 			);
 		}
 	}
@@ -1627,49 +1610,6 @@ function assertLegacyV10RivalReplayPrefix(
 	);
 }
 
-function assertLegacyV10RivalMarkerOnlyState(
-	state: GameState,
-	boundaryIndex: number,
-	boundaryCommand: GameState["commandLog"][number],
-): void {
-	if (boundaryIndex !== state.commandLog.length - 1) {
-		throw new Error(
-			"Legacy rival replay marker requires an authenticated migration proof before current commands",
-		);
-	}
-	const hasCrossedLegacyThreshold = state.rivals.items.some((rival) => {
-		const firstAction = getRivalStrategyActions(rival.archetype)[0];
-		const active = state.meta.era === "text" ? rival.active : true;
-		return (
-			active &&
-			firstAction !== undefined &&
-			rival.progress >= firstAction.threshold
-		);
-	});
-	if (!hasCrossedLegacyThreshold) {
-		throw new Error(
-			"Legacy rival replay marker requires a crossed v10 strategy threshold at its boundary",
-		);
-	}
-	if (
-		state.rivals.items.some(
-			(rival) =>
-				rival.eventCursor !== 0 ||
-				rival.publishedNodeIds.length !== 0 ||
-				rival.launchedFamilyIds.length !== 0,
-		) ||
-		state.reports.items.some(
-			(report) =>
-				report.fact.kind === "rival_published" ||
-				report.fact.kind === "rival_launched",
-		)
-	) {
-		throw new Error(
-			`Legacy rival replay marker ${boundaryCommand.id} is not a v10 migration boundary`,
-		);
-	}
-}
-
 function withoutLegacyV10RivalReplayMetadata(
 	command: CommandLogEntry,
 ): CommandLogEntry {
@@ -1733,6 +1673,17 @@ function assertPublicationHistory(state: GameState): void {
 
 function assertRivalStrategyHistory(state: GameState): void {
 	const reportedActions = new Set<string>();
+	const firstCommand = state.commandLog[0];
+	const marker =
+		firstCommand === undefined || firstCommand.kind !== "start_run"
+			? undefined
+			: (firstCommand as unknown as Record<string, unknown>)[
+					LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH
+				];
+	const boundaryIndex =
+		typeof marker === "string"
+			? state.commandLog.findIndex((command) => command.id === marker)
+			: -1;
 	for (const report of state.reports.items) {
 		const fact = report.fact;
 		if (fact.kind !== "rival_published" && fact.kind !== "rival_launched") {
@@ -1744,6 +1695,30 @@ function assertRivalStrategyHistory(state: GameState): void {
 		if (rival === undefined) {
 			throw new Error(
 				`Rival strategy fact references an unknown rival: ${fact.rivalId}`,
+			);
+		}
+		const commandIndex = state.commandLog.findIndex(
+			(command) => command.id === fact.commandId,
+		);
+		if (commandIndex < 0) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} references an unknown command: ${fact.commandId}`,
+			);
+		}
+		const command = state.commandLog[commandIndex];
+		if (command === undefined || command.kind !== "advance_week") {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} must be bound to an advance_week command`,
+			);
+		}
+		if (command.week !== fact.week) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} week does not match command ${fact.commandId}`,
+			);
+		}
+		if (boundaryIndex >= 0 && commandIndex <= boundaryIndex) {
+			throw new Error(
+				`Legacy rival replay boundary places strategy fact ${fact.actionId} before its migration boundary`,
 			);
 		}
 		const action = getRivalStrategyAction(fact.actionId);

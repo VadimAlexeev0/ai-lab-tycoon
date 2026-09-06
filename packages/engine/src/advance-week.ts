@@ -169,7 +169,22 @@ function advanceWeekInternal(
 	}
 
 	const week = state.meta.week;
-	let nextState = state;
+	const commandAllocation = allocateId(state, "command");
+	const advanceCommand = {
+		id: commandAllocation.id,
+		kind: "advance_week" as const,
+		week,
+		...(options.incidentRolls === undefined
+			? {}
+			: { incidentRolls: [...options.incidentRolls] }),
+		...(options.incidentRoll === undefined
+			? {}
+			: { incidentRoll: options.incidentRoll }),
+	};
+	let nextState: GameState = {
+		...commandAllocation.state,
+		commandLog: [...commandAllocation.state.commandLog, advanceCommand],
+	};
 	const facts: import("./components/reports.js").Fact[] = [];
 	const pending = state.decisions.pending.map((decision) => ({ ...decision }));
 
@@ -185,6 +200,7 @@ function advanceWeekInternal(
 			week,
 			facts: [...facts],
 			...options,
+			commandId: advanceCommand.id,
 		});
 		nextState = result.state;
 		facts.push(...result.facts);
@@ -206,22 +222,9 @@ function advanceWeekInternal(
 		};
 	}
 
-	const commandAllocation = allocateId(nextState, "command");
-	const advanceCommand = {
-		id: commandAllocation.id,
-		kind: "advance_week" as const,
-		week,
-		...(options.incidentRolls === undefined
-			? {}
-			: { incidentRolls: [...options.incidentRolls] }),
-		...(options.incidentRoll === undefined
-			? {}
-			: { incidentRoll: options.incidentRoll }),
-	};
 	nextState = {
-		...commandAllocation.state,
-		meta: { ...commandAllocation.state.meta, week: week + 1 },
-		commandLog: [...commandAllocation.state.commandLog, advanceCommand],
+		...nextState,
+		meta: { ...nextState.meta, week: week + 1 },
 	};
 	assertGameState(
 		nextState,

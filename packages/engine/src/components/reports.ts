@@ -307,6 +307,7 @@ export type Fact =
 			rivalId: string;
 			actionId: string;
 			nodeId: string;
+			commandId: string;
 			threshold: number;
 			progress: number;
 			pressure: number;
@@ -317,6 +318,7 @@ export type Fact =
 			rivalId: string;
 			actionId: string;
 			familyId: ModelFamilyId;
+			commandId: string;
 			threshold: number;
 			progress: number;
 			pressure: number;
@@ -1102,6 +1104,7 @@ export function assertFact(value: unknown): asserts value is Fact {
 					"rivalId",
 					"actionId",
 					"nodeId",
+					"commandId",
 					"threshold",
 					"progress",
 					"pressure",
@@ -1112,6 +1115,7 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.rivalId, "Rival publication rival id");
 			assertIdentifier(value.actionId, "Rival publication action id");
 			assertIdentifier(value.nodeId, "Rival publication node id");
+			assertIdentifier(value.commandId, "Rival publication command id");
 			const action = getRivalStrategyAction(value.actionId);
 			if (action === undefined || action.kind !== "publication") {
 				throw new Error(
@@ -1150,6 +1154,7 @@ export function assertFact(value: unknown): asserts value is Fact {
 					"rivalId",
 					"actionId",
 					"familyId",
+					"commandId",
 					"threshold",
 					"progress",
 					"pressure",
@@ -1160,6 +1165,7 @@ export function assertFact(value: unknown): asserts value is Fact {
 			assertIdentifier(value.rivalId, "Rival launch rival id");
 			assertIdentifier(value.actionId, "Rival launch action id");
 			assertEnum(value.familyId, MODEL_FAMILY_IDS, "Rival launch family id");
+			assertIdentifier(value.commandId, "Rival launch command id");
 			const action = getRivalStrategyAction(value.actionId);
 			if (action === undefined || action.kind !== "launch") {
 				throw new Error(

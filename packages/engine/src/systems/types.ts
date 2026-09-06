@@ -28,6 +28,8 @@ export type SystemPhase =
 export type SystemContext = {
 	readonly phase: SystemPhase;
 	readonly week: number;
+	/** Exact command position owning facts emitted during this transition. */
+	readonly commandId?: string;
 	readonly facts?: readonly Fact[];
 	/** Optional deterministic incident rolls used by fixtures and replays. */
 	readonly incidentRolls?: readonly number[];

@@ -17,6 +17,9 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 	return (state, context) => {
 		assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 		const facts: Fact[] = [];
+		const commandId =
+			context.commandId ??
+			`command_${String(state.counters.command).padStart(3, "0")}`;
 		const nextRivals = state.rivals.items.map((rival) => {
 			const active = state.meta.era === "text" ? rival.active : true;
 			if (!active) return cloneRival(rival, false);
@@ -71,6 +74,7 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 						rivalId: rival.id,
 						actionId: action.id,
 						nodeId: action.nodeId,
+						commandId,
 						threshold: action.threshold,
 						progress: nextProgress,
 						pressure,
@@ -83,6 +87,7 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 						rivalId: rival.id,
 						actionId: action.id,
 						familyId: action.familyId,
+						commandId,
 						threshold: action.threshold,
 						progress: nextProgress,
 						pressure,
