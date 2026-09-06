@@ -530,6 +530,7 @@ describe("foundation and brand lineage", () => {
 			delete rival.publishedNodeIds;
 			delete rival.launchedFamilyIds;
 			delete rival.eventCursor;
+			delete rival.strategyCommandIds;
 		}
 		delete model.brandId;
 		delete model.foundationId;
@@ -581,6 +582,7 @@ describe("foundation and brand lineage", () => {
 			delete rival.publishedNodeIds;
 			delete rival.launchedFamilyIds;
 			delete rival.eventCursor;
+			delete rival.strategyCommandIds;
 		}
 		for (const model of models.items) {
 			delete model.brandId;

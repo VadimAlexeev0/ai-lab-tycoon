@@ -136,8 +136,11 @@ export function deserializeGameStateWithMetadata(
  * strict for every ordinary model. Partial or future-shaped V9 fields are
  * rejected.
  * Schema v11 adds deterministic rival strategy decks, publication/launch
- * history, and each rival's event cursor. V10 rivals receive empty histories
- * and a zero cursor; partial or future-shaped V10 strategy fields are rejected.
+ * history, each rival's event cursor, and command positions for its authored
+ * strategy prefix. V10 rivals receive empty histories, a zero cursor, and an
+ * empty command-position history; partial or future-shaped V10 strategy fields
+ * are rejected. The command-position field remains part of v11 because v11 has
+ * not been released; it does not require a v12-only bump.
  * Migrated logs with a crossed old rival threshold retain a private command
  * marker and an exact source-prefix proof so only the authenticated legacy
  * prefix uses v10 rival semantics.
@@ -595,6 +598,7 @@ function migrateV10ToV11(value: unknown): unknown {
 		migratedRival.publishedNodeIds = [];
 		migratedRival.launchedFamilyIds = [];
 		migratedRival.eventCursor = 0;
+		migratedRival.strategyCommandIds = [];
 	}
 	const commandLog = migrated.commandLog;
 	assertArray(commandLog, "v10 command log");
@@ -735,6 +739,7 @@ function assertNoV11FieldsInV10(state: Record<string, unknown>): void {
 			"publishedNodeIds",
 			"launchedFamilyIds",
 			"eventCursor",
+			"strategyCommandIds",
 		]) {
 			if (Object.hasOwn(item, field)) {
 				throw new Error(

@@ -276,6 +276,7 @@ describe("hardened component contract", () => {
 							publishedNodeIds: [],
 							launchedFamilyIds: [],
 							eventCursor: 0,
+							strategyCommandIds: [],
 						},
 					];
 				},
@@ -295,6 +296,7 @@ describe("hardened component contract", () => {
 							publishedNodeIds: [],
 							launchedFamilyIds: [],
 							eventCursor: 0,
+							strategyCommandIds: [],
 						},
 					];
 				},
@@ -314,6 +316,7 @@ describe("hardened component contract", () => {
 							publishedNodeIds: [],
 							launchedFamilyIds: [],
 							eventCursor: 0,
+							strategyCommandIds: [],
 						},
 					];
 				},

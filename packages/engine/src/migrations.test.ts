@@ -55,6 +55,7 @@ function stripV11RivalStrategyFields(state: Record<string, unknown>): void {
 		delete rival.publishedNodeIds;
 		delete rival.launchedFamilyIds;
 		delete rival.eventCursor;
+		delete rival.strategyCommandIds;
 	}
 }
 

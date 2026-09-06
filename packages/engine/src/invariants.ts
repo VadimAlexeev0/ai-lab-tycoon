@@ -1485,7 +1485,8 @@ function assertLegacyV10RivalStrategyProvenance(state: GameState): void {
 		(rival) =>
 			rival.eventCursor !== 0 ||
 			rival.publishedNodeIds.length !== 0 ||
-			rival.launchedFamilyIds.length !== 0,
+			rival.launchedFamilyIds.length !== 0 ||
+			rival.strategyCommandIds.length !== 0,
 	);
 	const hasStrategyReports = state.reports.items.some(
 		(report) =>
@@ -1684,6 +1685,44 @@ function assertRivalStrategyHistory(state: GameState): void {
 		typeof marker === "string"
 			? state.commandLog.findIndex((command) => command.id === marker)
 			: -1;
+	const commandIndexById = new Map(
+		state.commandLog.map((command, index) => [command.id, index]),
+	);
+	for (const rival of state.rivals.items) {
+		let previousCommandIndex = -1;
+		let previousCommandWeek = 0;
+		for (const [actionIndex, commandId] of rival.strategyCommandIds.entries()) {
+			const commandIndex = commandIndexById.get(commandId);
+			if (commandIndex === undefined) {
+				throw new Error(
+					`Rival ${rival.id} strategy action ${actionIndex} references an unknown command: ${commandId}`,
+				);
+			}
+			const command = state.commandLog[commandIndex];
+			if (command === undefined || command.kind !== "advance_week") {
+				throw new Error(
+					`Rival ${rival.id} strategy action ${actionIndex} must reference an advance_week command`,
+				);
+			}
+			if (commandIndex < previousCommandIndex) {
+				throw new Error(
+					`Rival ${rival.id} strategy command positions must be in action order`,
+				);
+			}
+			if (command.week < previousCommandWeek) {
+				throw new Error(
+					`Rival ${rival.id} strategy command weeks must be non-decreasing`,
+				);
+			}
+			if (boundaryIndex >= 0 && commandIndex <= boundaryIndex) {
+				throw new Error(
+					`Legacy rival replay boundary places rival ${rival.id} strategy action ${actionIndex} before its migration boundary`,
+				);
+			}
+			previousCommandIndex = commandIndex;
+			previousCommandWeek = command.week;
+		}
+	}
 	for (const report of state.reports.items) {
 		const fact = report.fact;
 		if (fact.kind !== "rival_published" && fact.kind !== "rival_launched") {
@@ -1733,6 +1772,11 @@ function assertRivalStrategyHistory(state: GameState): void {
 		if (actionIndex < 0 || actionIndex >= rival.eventCursor) {
 			throw new Error(
 				`Rival strategy fact ${fact.actionId} is not backed by the rival event cursor`,
+			);
+		}
+		if (rival.strategyCommandIds[actionIndex] !== fact.commandId) {
+			throw new Error(
+				`Rival strategy fact ${fact.actionId} does not match its persisted command position`,
 			);
 		}
 		if (fact.progress > rival.progress || fact.week > state.meta.week) {

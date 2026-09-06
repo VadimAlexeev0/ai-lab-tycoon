@@ -96,6 +96,7 @@ export function startRun(setup: RunSetup, seed: number): GameState {
 						publishedNodeIds: [],
 						launchedFamilyIds: [],
 						eventCursor: 0,
+						strategyCommandIds: [],
 					},
 				],
 			},

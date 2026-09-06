@@ -752,6 +752,7 @@ describe("persistent incident risk memory", () => {
 			delete rival.publishedNodeIds;
 			delete rival.launchedFamilyIds;
 			delete rival.eventCursor;
+			delete rival.strategyCommandIds;
 		}
 		delete v6.risk;
 		const v6Meta = v6.meta as Record<string, unknown>;

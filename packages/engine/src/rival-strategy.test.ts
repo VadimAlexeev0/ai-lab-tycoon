@@ -27,16 +27,35 @@ import { appendFactsAsReports } from "./systems/reporting.js";
 import { rivalsSystem } from "./systems/rivals.js";
 import { terminalSystem } from "./systems/terminal.js";
 
+function appendDirectRivalsAdvanceCommand(
+	state: ReturnType<typeof startRun>,
+): string {
+	const commandNumber = state.counters.command;
+	const commandId = `command_${String(commandNumber).padStart(3, "0")}`;
+	state.commandLog.push({
+		id: commandId,
+		kind: "advance_week",
+		week: state.meta.week,
+	});
+	state.counters.command = commandNumber + 1;
+	return commandId;
+}
+
 describe("deterministic rival strategy pressure", () => {
 	it("publishes research, launches a model family, and raises the launch gate once", () => {
 		const state = startRun({ companyName: "Strategy Labs" }, 42);
 		const rival = state.rivals.items[0];
 		if (rival === undefined) throw new Error("Expected opening rival");
 		rival.progress = 100;
+		const commandId = appendDirectRivalsAdvanceCommand(state);
 		const baseMinimumHype = BALANCE.productChannels.chat.minimumHype;
 		const beforePressure = rivalLaunchPressure(state, baseMinimumHype);
 
-		const result = rivalsSystem(state, { phase: "rivals", week: 1 });
+		const result = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId,
+		});
 
 		expect(result.facts).toEqual(
 			expect.arrayContaining([
@@ -73,8 +92,13 @@ describe("deterministic rival strategy pressure", () => {
 		}
 		northstar.progress = 24;
 		marketSpring.progress = 59;
+		const commandId = appendDirectRivalsAdvanceCommand(state);
 
-		const result = rivalsSystem(state, { phase: "rivals", week: 1 });
+		const result = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId,
+		});
 		const strategyFacts = result.facts.filter(
 			(fact) =>
 				fact.kind === "rival_published" || fact.kind === "rival_launched",
@@ -88,7 +112,11 @@ describe("deterministic rival strategy pressure", () => {
 		expect(result.state.rivals.items[0]?.eventCursor).toBe(1);
 		expect(result.state.rivals.items[1]?.eventCursor).toBe(2);
 
-		const repeat = rivalsSystem(result.state, { phase: "rivals", week: 2 });
+		const repeat = rivalsSystem(result.state, {
+			phase: "rivals",
+			week: 2,
+			commandId,
+		});
 		expect(
 			repeat.facts.filter(
 				(fact) =>
@@ -99,7 +127,12 @@ describe("deterministic rival strategy pressure", () => {
 
 	it("keeps all three rival clocks and family action decks deterministic in Assistant", () => {
 		const state = assistantState();
-		const opening = rivalsSystem(state, { phase: "rivals", week: 1 });
+		const openingCommandId = appendDirectRivalsAdvanceCommand(state);
+		const opening = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId: openingCommandId,
+		});
 		expect(opening.state.rivals.items.map((rival) => rival.progress)).toEqual([
 			7, 9, 6,
 		]);
@@ -111,9 +144,11 @@ describe("deterministic rival strategy pressure", () => {
 		).toEqual([]);
 
 		for (const rival of opening.state.rivals.items) rival.progress = 100;
+		const jumpedCommandId = appendDirectRivalsAdvanceCommand(opening.state);
 		const jumped = rivalsSystem(opening.state, {
 			phase: "rivals",
 			week: 2,
+			commandId: jumpedCommandId,
 		});
 		expect(
 			jumped.facts
@@ -202,6 +237,7 @@ describe("deterministic rival strategy pressure", () => {
 		impossibleRival.progress = 0;
 		impossibleRival.eventCursor = 1;
 		impossibleRival.publishedNodeIds = ["text_infrastructure_compute"];
+		impossibleRival.strategyCommandIds = ["command_002"];
 		expect(() => assertRivalsState(impossibleState.rivals)).toThrow(
 			/before.*threshold/i,
 		);
@@ -213,6 +249,7 @@ describe("deterministic rival strategy pressure", () => {
 		inactiveRival.progress = 25;
 		inactiveRival.eventCursor = 1;
 		inactiveRival.publishedNodeIds = ["text_infrastructure_compute"];
+		inactiveRival.strategyCommandIds = ["command_002"];
 		expect(() => assertGameState(inactiveState)).toThrow(
 			/inactive.*completed/i,
 		);
@@ -341,9 +378,14 @@ describe("deterministic rival strategy pressure", () => {
 		if (rival === undefined) throw new Error("Expected opening rival");
 		rival.progress = 100;
 		state.company.hype = 9;
+		const commandId = appendDirectRivalsAdvanceCommand(state);
 
 		expect(isProductLaunchEligible(state, "model_001", "chat")).toBe(true);
-		const result = rivalsSystem(state, { phase: "rivals", week: 1 });
+		const result = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId,
+		});
 		expect(rivalLaunchPressure(result.state, 5)).toBe(10);
 		expect(isProductLaunchEligible(result.state, "model_001", "chat")).toBe(
 			false,
@@ -416,6 +458,7 @@ function v10Fixture(): V10Fixture {
 		delete rival.publishedNodeIds;
 		delete rival.launchedFamilyIds;
 		delete rival.eventCursor;
+		delete rival.strategyCommandIds;
 	}
 	fixture.meta.schemaVersion = 10;
 	return fixture;

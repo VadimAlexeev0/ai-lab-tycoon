@@ -163,6 +163,7 @@ function legacyV9MultimodalFixture(
 		delete rival.publishedNodeIds;
 		delete rival.launchedFamilyIds;
 		delete rival.eventCursor;
+		delete rival.strategyCommandIds;
 	}
 	for (const command of commandLog) {
 		if (command.kind === "design_model") {

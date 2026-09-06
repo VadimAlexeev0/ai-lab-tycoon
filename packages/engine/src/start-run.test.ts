@@ -35,6 +35,7 @@ const EXPECTED_OPENING_RIVALS = OPENING_RIVALS.map((rival, index) => ({
 	publishedNodeIds: [],
 	launchedFamilyIds: [],
 	eventCursor: 0,
+	strategyCommandIds: [],
 }));
 
 describe("startRun", () => {

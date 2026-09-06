@@ -310,6 +310,7 @@ describe("research publication decisions", () => {
 						publishedNodeIds: [],
 						launchedFamilyIds: [],
 						eventCursor: 0,
+						strategyCommandIds: [],
 					},
 					{
 						id: "rival_002",
@@ -321,6 +322,7 @@ describe("research publication decisions", () => {
 						publishedNodeIds: [],
 						launchedFamilyIds: [],
 						eventCursor: 0,
+						strategyCommandIds: [],
 					},
 				],
 			},
@@ -380,6 +382,7 @@ describe("research publication decisions", () => {
 						publishedNodeIds: [],
 						launchedFamilyIds: [],
 						eventCursor: 0,
+						strategyCommandIds: [],
 					},
 				],
 			},

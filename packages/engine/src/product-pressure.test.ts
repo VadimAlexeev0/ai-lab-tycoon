@@ -243,6 +243,7 @@ describe("product operating pressure", () => {
 			delete rival.publishedNodeIds;
 			delete rival.launchedFamilyIds;
 			delete rival.eventCursor;
+			delete rival.strategyCommandIds;
 		}
 		(legacy.meta as Record<string, unknown>).schemaVersion = 7;
 

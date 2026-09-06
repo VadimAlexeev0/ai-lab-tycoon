@@ -31,6 +31,8 @@ export type Rival = {
 	publishedNodeIds: string[];
 	launchedFamilyIds: ModelFamilyId[];
 	eventCursor: number;
+	/** Command positions that emitted the authored strategy action prefix. */
+	strategyCommandIds: string[];
 };
 
 export type RivalsState = {
@@ -43,6 +45,7 @@ export function createRivalsState(items: Rival[] = []): RivalsState {
 			...rival,
 			publishedNodeIds: [...rival.publishedNodeIds],
 			launchedFamilyIds: [...rival.launchedFamilyIds],
+			strategyCommandIds: [...rival.strategyCommandIds],
 		})),
 	};
 }
@@ -63,6 +66,7 @@ export function assertRivalsState(
 			"publishedNodeIds",
 			"launchedFamilyIds",
 			"eventCursor",
+			"strategyCommandIds",
 		] as const;
 		const strategyFieldCount = strategyFields.filter((field) =>
 			Object.hasOwn(item, field),
@@ -104,9 +108,22 @@ export function assertRivalsState(
 		assertBoolean(item.active, `Rival ${item.id} active`);
 		assertArray(item.publishedNodeIds, `Rival ${item.id} published nodes`);
 		assertArray(item.launchedFamilyIds, `Rival ${item.id} launched families`);
+		assertArray(
+			item.strategyCommandIds,
+			`Rival ${item.id} strategy command ids`,
+		);
 		const publishedNodeIdsInState = item.publishedNodeIds as string[];
 		const launchedFamilyIdsInState = item.launchedFamilyIds as ModelFamilyId[];
+		const strategyCommandIdsInState = item.strategyCommandIds as string[];
 		assertNonNegativeInteger(item.eventCursor, `Rival ${item.id} event cursor`);
+		if (strategyCommandIdsInState.length !== item.eventCursor) {
+			throw new Error(
+				`Rival ${item.id} strategy command ids must align with its event cursor`,
+			);
+		}
+		for (const commandId of strategyCommandIdsInState) {
+			assertIdentifier(commandId, `Rival ${item.id} strategy command id`);
+		}
 		const actions = getRivalStrategyActions(item.archetype);
 		if (item.eventCursor > actions.length) {
 			throw new Error(

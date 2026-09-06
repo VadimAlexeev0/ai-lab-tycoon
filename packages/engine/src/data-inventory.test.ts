@@ -388,6 +388,7 @@ describe("strategic data inventory", () => {
 			delete rival.publishedNodeIds;
 			delete rival.launchedFamilyIds;
 			delete rival.eventCursor;
+			delete rival.strategyCommandIds;
 		}
 		delete fixture.dataInventory;
 		delete fixture.risk;

@@ -60,6 +60,7 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 			let eventCursor = rival.eventCursor;
 			const publishedNodeIds = [...rival.publishedNodeIds];
 			const launchedFamilyIds = [...rival.launchedFamilyIds];
+			const strategyCommandIds = [...rival.strategyCommandIds];
 			while (true) {
 				const action = actions[eventCursor];
 				if (action === undefined || action.threshold > nextProgress) break;
@@ -94,6 +95,7 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 						week: context.week,
 					});
 				}
+				strategyCommandIds.push(commandId);
 				eventCursor += 1;
 			}
 
@@ -104,6 +106,7 @@ function createRivalsSystem(legacyV10Replay = false): GameSystem {
 				publishedNodeIds,
 				launchedFamilyIds,
 				eventCursor,
+				strategyCommandIds,
 			};
 		});
 
@@ -124,5 +127,6 @@ function cloneRival(rival: Rival, active: boolean): Rival {
 		active,
 		publishedNodeIds: [...rival.publishedNodeIds],
 		launchedFamilyIds: [...rival.launchedFamilyIds],
+		strategyCommandIds: [...rival.strategyCommandIds],
 	};
 }

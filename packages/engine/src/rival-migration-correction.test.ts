@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { canonicalSerialize } from "./canonical.js";
 import type { Model } from "./components/models.js";
 import { assertRivalsState } from "./components/rivals.js";
 import {
@@ -143,6 +144,7 @@ function v10FixtureFromState(state: GameState): V10Fixture {
 		delete rival.publishedNodeIds;
 		delete rival.launchedFamilyIds;
 		delete rival.eventCursor;
+		delete rival.strategyCommandIds;
 	}
 	fixture.meta.schemaVersion = 10;
 	return fixture;
@@ -175,6 +177,64 @@ function currentV11AfterFiveAdvances(): GameState {
 		}).state;
 	}
 	return state;
+}
+
+function appendDirectRivalsAdvanceCommand(state: GameState): string {
+	const commandNumber = state.counters.command;
+	const commandId = `command_${String(commandNumber).padStart(3, "0")}`;
+	state.commandLog.push({
+		id: commandId,
+		kind: "advance_week",
+		week: state.meta.week,
+	});
+	state.counters.command = commandNumber + 1;
+	return commandId;
+}
+
+function currentV11PastReportRetention(): GameState {
+	let state = startRun({ companyName: "Current v11 Labs" }, 42);
+	// Keep the otherwise idle run alive while exercising report retention.
+	state.company.cash = 1_000_000;
+	for (let index = 0; index < 121; index += 1) {
+		state = advanceWeek(state).state;
+		state = resolveBlockingDecisions(state);
+	}
+	return state;
+}
+
+function injectForgedLegacyReplayBoundary(state: GameState): void {
+	const start = state.commandLog[0];
+	const boundary = state.commandLog.at(-1);
+	if (start === undefined || start.kind !== "start_run") {
+		throw new Error("Expected current start command");
+	}
+	if (boundary === undefined || boundary.kind !== "advance_week") {
+		throw new Error("Expected a current advance boundary");
+	}
+	const proofRivals = state.rivals.items.map(
+		({ id, name, archetype, focus, progress, active }) =>
+			({
+				id,
+				name,
+				archetype,
+				focus,
+				progress,
+				active,
+			}) as const,
+	);
+	const proof = {
+		sourceSchemaVersion: 10 as const,
+		boundaryCommandId: boundary.id,
+		commandLogPrefix: canonicalSerialize({
+			commands: state.commandLog,
+			rivals: proofRivals,
+		}),
+		era: state.meta.era,
+		rivals: proofRivals,
+	};
+	const startRecord = start as unknown as Record<string, unknown>;
+	startRecord[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH] = boundary.id;
+	startRecord[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF] = proof;
 }
 
 function assistantV10ReplayFixture(): V10Fixture {
@@ -406,9 +466,18 @@ describe("rival migration replay correction", () => {
 		const rival = state.rivals.items[0];
 		if (rival === undefined) throw new Error("Expected rival");
 		rival.progress = 24;
+		const commandId = appendDirectRivalsAdvanceCommand(state);
 
-		const first = rivalsSystem(state, { phase: "rivals", week: 1 });
-		const second = rivalsSystem(state, { phase: "rivals", week: 1 });
+		const first = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId,
+		});
+		const second = rivalsSystem(state, {
+			phase: "rivals",
+			week: 1,
+			commandId,
+		});
 
 		expect(second).toEqual(first);
 		expect(first.state.rivals.items[0]?.eventCursor).toBe(1);
@@ -520,6 +589,34 @@ describe("rival migration replay correction", () => {
 		expect(() => serializeGameState(state)).toThrow(
 			/proof|authenticated|boundary/i,
 		);
+	});
+
+	it("rejects forged migration provenance after strategy reports age out", () => {
+		const state = currentV11PastReportRetention();
+		expect(state.meta.week).toBeGreaterThan(100);
+		expect(state.reports.totalCount).toBeGreaterThan(200);
+		expect(
+			state.reports.items.filter(
+				(report) =>
+					report.fact.kind === "rival_published" ||
+					report.fact.kind === "rival_launched",
+			),
+		).toHaveLength(0);
+		expect(state.rivals.items.map((rival) => rival.eventCursor)).toEqual([
+			2, 3, 0,
+		]);
+
+		injectForgedLegacyReplayBoundary(state);
+
+		expect(() => assertGameState(state)).toThrow(
+			/migration|provenance|boundary|command|position/i,
+		);
+		expect(() => serializeGameState(state)).toThrow(
+			/migration|provenance|boundary|command|position/i,
+		);
+		expect(() =>
+			replayCommandLog(state.commandLog, { expectedState: state }),
+		).toThrow(/migration|provenance|boundary|command|position|mismatch/i);
 	});
 
 	it("binds rival strategy facts to their exact advance command", () => {
