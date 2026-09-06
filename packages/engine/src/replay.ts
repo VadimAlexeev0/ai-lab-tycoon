@@ -4,7 +4,7 @@ import {
 	advanceWeekForLegacyV10Replay,
 } from "./advance-week.js";
 import { applyDecision } from "./apply-decision.js";
-import { canonicalEqual } from "./canonical.js";
+import { canonicalEqual, canonicalSerialize } from "./canonical.js";
 import { assignProject, cancelProject } from "./commands/projects.js";
 import { buyCompute, hireTeam } from "./commands/teams.js";
 import {
@@ -14,6 +14,7 @@ import {
 import { getRivalStrategyActions } from "./data/rivals.js";
 import { acquireData } from "./data-inventory.js";
 import { runEvaluation } from "./evaluations.js";
+import { assertGameState } from "./invariants.js";
 import { designModel, designModelForLegacyReplay } from "./model-design.js";
 import {
 	applyProductResume,
@@ -21,7 +22,12 @@ import {
 	retireProduct,
 } from "./products.js";
 import { refreshModel } from "./refresh-model.js";
-import { LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH } from "./replay-compatibility.js";
+import {
+	assertLegacyV10RivalReplayProof,
+	LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF,
+	LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH,
+	type LegacyV10RivalReplayProof,
+} from "./replay-compatibility.js";
 import { startRun } from "./start-run.js";
 import type { CommandLogEntry, EngineResult, GameState } from "./state.js";
 import { GAME_STATE_SCHEMA_VERSION } from "./state.js";
@@ -63,13 +69,19 @@ export type ReplayCommandLogOptions = Readonly<{
  * by a live run. The generated command entry is compared structurally after
  * every step so key insertion order cannot hide a malformed or drifted log.
  * Versioned v9/v10 envelopes and migrated raw logs scope their legacy rival
- * semantics to the source-command boundary; later v11 commands use current
- * rival strategy behavior.
+ * semantics to the source-command boundary; persisted migrated boundaries
+ * carry an exact source-prefix proof, and later v11 commands use current rival
+ * strategy behavior.
  */
 export function replayCommandLog(
 	commandLog: ReplayCommandLogInput,
 	options: ReplayCommandLogOptions = {},
 ): GameState {
+	if (options.expectedState !== undefined) {
+		assertGameState(options.expectedState, {
+			allowNegativeCash: options.expectedState.company.cash < 0,
+		});
+	}
 	const normalizedLog = normalizeCommandLog(commandLog);
 	const entries = normalizedLog.entries;
 	const first = entries[0];
@@ -94,6 +106,10 @@ export function replayCommandLog(
 		withoutLegacyV10RivalStrategyMarker(first),
 	);
 
+	let legacyBoundaryState =
+		normalizedLog.legacyV10RivalStrategyBoundaryCommandId === first.id
+			? state
+			: undefined;
 	for (const command of entries.slice(1)) {
 		const result = replayCommand(
 			state,
@@ -104,6 +120,9 @@ export function replayCommandLog(
 		const actual = result.state.commandLog.at(-1);
 		assertReplayedCommand(actual, command);
 		state = result.state;
+		if (command.id === normalizedLog.legacyV10RivalStrategyBoundaryCommandId) {
+			legacyBoundaryState = state;
+		}
 	}
 
 	const expectedStateHasLegacyBoundary =
@@ -126,16 +145,40 @@ export function replayCommandLog(
 		if (generatedStartCommand === undefined) {
 			throw new Error("Replay generated state without a start command");
 		}
+		const boundaryState = legacyBoundaryState;
+		const shouldAttachProof =
+			normalizedLog.legacyV10RivalStrategyProof !== undefined ||
+			!normalizedLog.persistLegacyV10RivalStrategyBoundary;
+		const proof = !shouldAttachProof
+			? undefined
+			: (normalizedLog.legacyV10RivalStrategyProof ??
+				(boundaryState === undefined
+					? undefined
+					: createLegacyV10RivalReplayProof(
+							entries,
+							normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
+							boundaryState,
+						)));
+		if (shouldAttachProof && proof === undefined) {
+			throw new Error(
+				"Legacy rival replay boundary proof cannot be reconstructed",
+			);
+		}
+		if (proof !== undefined) assertLegacyV10RivalReplayProof(proof);
 		const markedStartCommand = {
 			...generatedStartCommand,
 			[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH]:
 				normalizedLog.legacyV10RivalStrategyBoundaryCommandId,
+			...(proof === undefined
+				? {}
+				: { [LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF]: proof }),
 		} as unknown as CommandLogEntry;
 		state = {
 			...state,
 			commandLog: [markedStartCommand, ...state.commandLog.slice(1)],
 		};
 	}
+	assertGameState(state, { allowNegativeCash: state.company.cash < 0 });
 
 	if (
 		options.expectedState !== undefined &&
@@ -156,6 +199,7 @@ type NormalizedCommandLog = Readonly<{
 	legacyArchitectureDefaultCommandIds: ReadonlySet<string>;
 	legacyV10RivalStrategyCommandIds: ReadonlySet<string>;
 	legacyV10RivalStrategyBoundaryCommandId?: string;
+	legacyV10RivalStrategyProof?: LegacyV10RivalReplayProof;
 	persistLegacyV10RivalStrategyBoundary: boolean;
 }>;
 
@@ -168,6 +212,13 @@ function normalizeCommandLog(
 		const boundaryCommandId = readLegacyV10RivalStrategyBoundary(
 			normalized.entries,
 		);
+		const proof = readLegacyV10RivalStrategyProof(normalized.entries);
+		assertLegacyV10RivalMarkerInput(
+			normalized.entries,
+			boundaryCommandId,
+			proof,
+			boundaryCommandId !== undefined,
+		);
 		return {
 			...normalized,
 			legacyV10RivalStrategyCommandIds: legacyV10RivalStrategyCommandIds(
@@ -175,6 +226,7 @@ function normalizeCommandLog(
 				boundaryCommandId,
 			),
 			legacyV10RivalStrategyBoundaryCommandId: boundaryCommandId,
+			legacyV10RivalStrategyProof: proof,
 			persistLegacyV10RivalStrategyBoundary: boundaryCommandId !== undefined,
 		};
 	}
@@ -224,11 +276,18 @@ function normalizeCommandLog(
 	const persistedBoundaryCommandId = readLegacyV10RivalStrategyBoundary(
 		normalized.entries,
 	);
+	const proof = readLegacyV10RivalStrategyProof(normalized.entries);
 	const boundaryCommandId =
 		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 1 ||
 		envelope.schemaVersion === GAME_STATE_SCHEMA_VERSION - 2
 			? normalized.entries.at(-1)?.id
 			: persistedBoundaryCommandId;
+	assertLegacyV10RivalMarkerInput(
+		normalized.entries,
+		boundaryCommandId,
+		proof,
+		persistedBoundaryCommandId !== undefined,
+	);
 	return {
 		...normalized,
 		legacyV10RivalStrategyCommandIds: legacyV10RivalStrategyCommandIds(
@@ -236,6 +295,7 @@ function normalizeCommandLog(
 			boundaryCommandId,
 		),
 		legacyV10RivalStrategyBoundaryCommandId: boundaryCommandId,
+		legacyV10RivalStrategyProof: proof,
 		persistLegacyV10RivalStrategyBoundary:
 			persistedBoundaryCommandId !== undefined,
 	};
@@ -324,6 +384,52 @@ function readLegacyV10RivalStrategyBoundary(
 	return marker;
 }
 
+function readLegacyV10RivalStrategyProof(
+	entries: readonly CommandLogEntry[],
+): LegacyV10RivalReplayProof | undefined {
+	const first = entries[0];
+	if (first === undefined || first.kind !== "start_run") return undefined;
+	const record = first as unknown as Record<string, unknown>;
+	const marker = record[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH];
+	const proof = record[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF];
+	if (proof === undefined) return undefined;
+	if (marker === undefined) {
+		throw new Error("Legacy rival replay proof is missing its boundary marker");
+	}
+	assertLegacyV10RivalReplayProof(proof);
+	if (proof.boundaryCommandId !== marker) {
+		throw new Error(
+			"Legacy rival replay proof does not match its boundary marker",
+		);
+	}
+	return proof;
+}
+
+function assertLegacyV10RivalMarkerInput(
+	entries: readonly CommandLogEntry[],
+	boundaryCommandId: string | undefined,
+	proof: LegacyV10RivalReplayProof | undefined,
+	hasPersistedBoundary: boolean,
+): void {
+	if (!hasPersistedBoundary) return;
+	if (boundaryCommandId === undefined) {
+		throw new Error("Legacy rival replay marker is missing its boundary id");
+	}
+	const boundaryIndex = entries.findIndex(
+		(entry) => entry.id === boundaryCommandId,
+	);
+	if (boundaryIndex < 1) {
+		throw new Error(
+			"Legacy rival replay marker must identify a migration boundary after start_run",
+		);
+	}
+	if (proof === undefined && boundaryIndex !== entries.length - 1) {
+		throw new Error(
+			"Legacy rival replay marker requires an authenticated migration proof before current commands",
+		);
+	}
+}
+
 function legacyV10RivalStrategyCommandIds(
 	entries: readonly CommandLogEntry[],
 	boundaryCommandId: string | undefined,
@@ -355,7 +461,46 @@ function withoutLegacyV10RivalStrategyMarker(
 ): CommandLogEntry {
 	const copy = { ...(entry as unknown as Record<string, unknown>) };
 	delete copy[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH];
+	delete copy[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF];
 	return copy as unknown as CommandLogEntry;
+}
+
+function createLegacyV10RivalReplayProof(
+	entries: readonly CommandLogEntry[],
+	boundaryCommandId: string,
+	boundaryState: GameState,
+): LegacyV10RivalReplayProof {
+	const boundaryIndex = entries.findIndex(
+		(entry) => entry.id === boundaryCommandId,
+	);
+	if (boundaryIndex < 0) {
+		throw new Error(
+			"Legacy rival replay proof boundary is not in the command log",
+		);
+	}
+	const commandPrefix = entries
+		.slice(0, boundaryIndex + 1)
+		.map(withoutLegacyV10RivalStrategyMarker);
+	const proofRivals = boundaryState.rivals.items.map(
+		({ id, name, archetype, focus, progress, active }) => ({
+			id,
+			name,
+			archetype,
+			focus,
+			progress,
+			active,
+		}),
+	);
+	return {
+		sourceSchemaVersion: 10,
+		boundaryCommandId,
+		commandLogPrefix: canonicalSerialize({
+			commands: commandPrefix,
+			rivals: proofRivals,
+		}),
+		era: boundaryState.meta.era,
+		rivals: proofRivals,
+	};
 }
 
 function validateReplayEntries(entries: readonly unknown[]): void {

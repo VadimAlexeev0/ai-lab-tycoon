@@ -21,7 +21,11 @@ import {
 	assertGameState,
 	type GameStateValidationOptions,
 } from "./invariants.js";
-import { LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH } from "./replay-compatibility.js";
+import {
+	assertLegacyV10RivalReplayProof,
+	LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF,
+	LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH,
+} from "./replay-compatibility.js";
 import { GAME_STATE_SCHEMA_VERSION, type GameState } from "./state.js";
 import {
 	assertArray,
@@ -134,8 +138,9 @@ export function deserializeGameStateWithMetadata(
  * Schema v11 adds deterministic rival strategy decks, publication/launch
  * history, and each rival's event cursor. V10 rivals receive empty histories
  * and a zero cursor; partial or future-shaped V10 strategy fields are rejected.
- * The migration also records an internal command-log boundary so a migrated
- * raw log replays legacy rival semantics only through its v10 source commands.
+ * Migrated logs with a crossed old rival threshold retain a private command
+ * marker and an exact source-prefix proof so only the authenticated legacy
+ * prefix uses v10 rival semantics.
  *
  * The returned value is a JSON clone, so migrations never mutate their input.
  * When another structural schema version is introduced, add a real migration
@@ -606,8 +611,35 @@ function migrateV10ToV11(value: unknown): unknown {
 			"v10 start command contains an unexpected replay compatibility marker",
 		);
 	}
+	if (Object.hasOwn(firstCommand, LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF)) {
+		throw new Error(
+			"v10 start command contains an unexpected replay compatibility proof",
+		);
+	}
 	if (shouldPersistLegacyV10RivalBoundary(meta.era, rivals)) {
+		const proofRivals = rivals.items.map(
+			({ id, name, archetype, focus, progress, active }) => ({
+				id,
+				name,
+				archetype,
+				focus,
+				progress,
+				active,
+			}),
+		);
+		const proof = {
+			sourceSchemaVersion: STATE_SCHEMA_VERSION_V10,
+			boundaryCommandId: lastCommand.id,
+			commandLogPrefix: canonicalSerialize({
+				commands: commandLog,
+				rivals: proofRivals,
+			}),
+			era: meta.era,
+			rivals: proofRivals,
+		};
+		assertLegacyV10RivalReplayProof(proof);
 		firstCommand[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH] = lastCommand.id;
+		firstCommand[LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF] = proof;
 	}
 	meta.schemaVersion = STATE_SCHEMA_VERSION_V11;
 	return migrated;

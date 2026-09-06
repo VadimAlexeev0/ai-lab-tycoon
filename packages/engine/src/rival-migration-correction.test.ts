@@ -1,14 +1,26 @@
 import { describe, expect, it } from "vitest";
+import type { Model } from "./components/models.js";
 import { assertRivalsState } from "./components/rivals.js";
-import { advanceWeek, applyDecision, startRun } from "./index.js";
+import {
+	advanceWeek,
+	applyDecision,
+	GAME_STATE_SCHEMA_VERSION,
+	launchProduct,
+	startRun,
+} from "./index.js";
 import { assertGameState } from "./invariants.js";
 import {
 	serializeGameState,
 	upgradeGameStateWithMetadata,
 } from "./migrations.js";
 import { replayCommandLog } from "./replay.js";
-import type { CommandLogEntry } from "./state.js";
+import type { CommandLogEntry, GameState } from "./state.js";
 import { rivalsSystem } from "./systems/rivals.js";
+
+const LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH =
+	"legacyV10RivalStrategyReplayThroughCommandId";
+const LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF =
+	"legacyV10RivalStrategyReplayProof";
 
 type V10Fixture = Record<string, unknown> & {
 	meta: { schemaVersion: number };
@@ -29,23 +41,65 @@ function fixtureRival(fixture: V10Fixture): Record<string, unknown> {
 	return rival;
 }
 
-function v10ReplayFixture(): V10Fixture {
+function v10ReplayFixture(advanceCount = 5): V10Fixture {
 	let state = startRun({ companyName: "Legacy Replay Labs" }, 42);
-	for (let index = 0; index < 5; index += 1) {
+	for (let index = 0; index < advanceCount; index += 1) {
 		state = advanceWeek(state).state;
-		const blocking = state.decisions.pending.find(
-			(decision) => decision.blocking,
-		);
-		if (blocking?.kind !== "paradigm") continue;
-		const paradigmId = blocking.choices[0];
-		if (paradigmId === undefined) throw new Error("Expected a paradigm choice");
-		state = applyDecision(state, {
-			kind: "paradigm",
-			decisionId: blocking.id,
-			paradigmId,
-		}).state;
+		state = resolveBlockingDecisions(state);
 	}
+	return v10FixtureFromState(state);
+}
 
+function resolveBlockingDecisions(state: GameState): GameState {
+	let current = state;
+	for (let guard = 0; guard < 32; guard += 1) {
+		const decision = current.decisions.pending.find(
+			(candidate) => candidate.blocking,
+		);
+		if (decision === undefined) return current;
+		if (decision.kind === "paradigm") {
+			const paradigmId = decision.choices[0];
+			if (paradigmId === undefined)
+				throw new Error("Expected a paradigm choice");
+			current = applyDecision(current, {
+				kind: "paradigm",
+				decisionId: decision.id,
+				paradigmId,
+			}).state;
+			continue;
+		}
+		if (decision.kind === "publication") {
+			current = applyDecision(current, {
+				kind: "publication",
+				decisionId: decision.id,
+				nodeId: decision.nodeId,
+				outcome: "hoard",
+			}).state;
+			continue;
+		}
+		if (decision.kind === "incident") {
+			current = applyDecision(current, {
+				kind: "incident",
+				decisionId: decision.id,
+				response: "repair",
+			}).state;
+			continue;
+		}
+		if (decision.kind === "crisis") {
+			current = applyDecision(current, {
+				kind: "crisis",
+				decisionId: decision.id,
+				crisisId: decision.crisisId,
+				choice: "contain",
+			}).state;
+			continue;
+		}
+		throw new Error(`Unexpected blocking decision: ${decision.kind}`);
+	}
+	throw new Error("Blocking decision resolver exceeded its guard");
+}
+
+function v10FixtureFromState(state: GameState): V10Fixture {
 	const fixture = JSON.parse(serializeGameState(state)) as V10Fixture;
 	const reports = asRecord(fixture.reports);
 	const reportItems = reports.items;
@@ -94,6 +148,86 @@ function v10ReplayFixture(): V10Fixture {
 	return fixture;
 }
 
+function setLegacyReplayMarker(state: GameState, value: unknown): void {
+	const first = state.commandLog[0];
+	if (first === undefined || first.kind !== "start_run") {
+		throw new Error("Expected the start command");
+	}
+	(first as unknown as Record<string, unknown>)[
+		LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH
+	] = value;
+}
+
+function currentV11AfterFiveAdvances(): GameState {
+	let state = startRun({ companyName: "Current v11 Labs" }, 42);
+	for (let index = 0; index < 5; index += 1) {
+		state = advanceWeek(state).state;
+		const blocking = state.decisions.pending.find(
+			(decision) => decision.blocking,
+		);
+		if (blocking?.kind !== "paradigm") continue;
+		const paradigmId = blocking.choices[0];
+		if (paradigmId === undefined) throw new Error("Expected a paradigm choice");
+		state = applyDecision(state, {
+			kind: "paradigm",
+			decisionId: blocking.id,
+			paradigmId,
+		}).state;
+	}
+	return state;
+}
+
+function assistantV10ReplayFixture(): V10Fixture {
+	let state = assistantState();
+	for (let index = 0; index < 7; index += 1) {
+		state = advanceWeek(state).state;
+		state = resolveBlockingDecisions(state);
+	}
+	return v10FixtureFromState(state);
+}
+
+function assistantState(): GameState {
+	const state = startRun({ companyName: "Assistant Era Labs" }, 42);
+	for (const node of state.research.nodes) {
+		if (node.era === "text") node.status = "completed";
+	}
+	state.models.items = [
+		{
+			id: "model_001",
+			name: "Aurora-1",
+			foundation: "fresh",
+			status: "ready",
+			projectId: null,
+			family: "text",
+			tier: "standard",
+			scoreCeiling: 88,
+			dataMix: { general: 70, code: 20, multimodal: 10 },
+			emphasis: { capability: 2, reliability: 2, safety: 1, efficiency: 1 },
+			trueScores: {
+				capability: 100,
+				coding: 100,
+				reliability: 100,
+				safety: 100,
+				efficiency: 100,
+				multimodal: 0,
+			},
+			estimates: {
+				capability: { estimate: 100, lower: 80, upper: 100 },
+				coding: { estimate: 100, lower: 80, upper: 100 },
+				reliability: { estimate: 100, lower: 80, upper: 100 },
+				safety: { estimate: 100, lower: 80, upper: 100 },
+				efficiency: { estimate: 100, lower: 80, upper: 100 },
+				multimodal: { estimate: 0, lower: 0, upper: 20 },
+			},
+		} satisfies Model,
+	];
+	state.company.hype = 10;
+	const launched = launchProduct(state, "model_001", "chat").state;
+	launched.meta.era = "assistant";
+	launched.research.currentEra = "assistant";
+	return launched;
+}
+
 describe("rival migration replay correction", () => {
 	it("does not let ordinary rival validation opt into legacy v10 fields", () => {
 		const fixture = v10ReplayFixture();
@@ -117,6 +251,12 @@ describe("rival migration replay correction", () => {
 		const before = JSON.stringify(fixture);
 
 		const migrated = upgradeGameStateWithMetadata(fixture).state;
+		const migratedStart = migrated.commandLog[0];
+		if (migratedStart === undefined)
+			throw new Error("Expected migrated start command");
+		expect(migratedStart).toHaveProperty(
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF,
+		);
 		const replayed = replayCommandLog({
 			schemaVersion: 10,
 			commands: fixture.commandLog,
@@ -131,6 +271,21 @@ describe("rival migration replay correction", () => {
 		expect(serializeGameState(migrated)).toBe(serializeGameState(replayedRaw));
 	});
 
+	it("replays a prior marker-only migrated raw save without changing it", () => {
+		const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+		const start = migrated.commandLog[0];
+		if (start === undefined) throw new Error("Expected migrated start command");
+		delete (start as unknown as Record<string, unknown>)[
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+		];
+
+		expect(() => assertGameState(migrated)).not.toThrow();
+		const replayed = replayCommandLog(migrated.commandLog, {
+			expectedState: migrated,
+		});
+		expect(serializeGameState(replayed)).toBe(serializeGameState(migrated));
+	});
+
 	it("keeps the migrated replay boundary after current v11 commands", () => {
 		const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
 		const advanced = advanceWeek(migrated).state;
@@ -141,6 +296,9 @@ describe("rival migration replay correction", () => {
 		expect(advanced.rivals.items.map((rival) => rival.eventCursor)).toEqual([
 			1, 1, 0,
 		]);
+		expect(advanced.commandLog[0]).toHaveProperty(
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF,
+		);
 		expect(
 			advanced.reports.items.filter(
 				(report) =>
@@ -258,5 +416,269 @@ describe("rival migration replay correction", () => {
 		expect(
 			first.facts.filter((fact) => fact.kind === "rival_published"),
 		).toHaveLength(1);
+	});
+
+	it("rejects migration provenance injected into a fresh current v11 state", () => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		setLegacyReplayMarker(state, "command_001");
+
+		expect(() => assertGameState(state)).toThrow(
+			/migration|provenance|boundary/i,
+		);
+	});
+
+	it("rejects serialization of migration provenance injected into a fresh state", () => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		setLegacyReplayMarker(state, "command_001");
+
+		expect(() => serializeGameState(state)).toThrow(
+			/migration|provenance|boundary/i,
+		);
+	});
+
+	it("rejects replay against a fresh current state carrying a forged boundary", () => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		setLegacyReplayMarker(state, "command_001");
+
+		expect(() =>
+			replayCommandLog(state.commandLog, { expectedState: state }),
+		).toThrow(/migration|provenance|boundary|mismatch/i);
+	});
+
+	it("rejects an existing threshold command forged onto current strategy history", () => {
+		const state = currentV11AfterFiveAdvances();
+		if (!state.commandLog.some((command) => command.id === "command_006")) {
+			throw new Error("Expected command_006 in the current v11 log");
+		}
+		if (state.rivals.items.every((rival) => rival.eventCursor === 0)) {
+			throw new Error("Expected crossed current rival strategy history");
+		}
+		setLegacyReplayMarker(state, "command_006");
+
+		expect(() => assertGameState(state)).toThrow(
+			/migration|provenance|boundary/i,
+		);
+	});
+
+	it("rejects replay against current strategy history with a forged threshold boundary", () => {
+		const state = currentV11AfterFiveAdvances();
+		setLegacyReplayMarker(state, "command_006");
+
+		expect(() =>
+			replayCommandLog(state.commandLog, { expectedState: state }),
+		).toThrow(/migration|provenance|boundary|mismatch/i);
+		expect(() => replayCommandLog(state.commandLog)).toThrow(
+			/migration|provenance|boundary|mismatch/i,
+		);
+	});
+
+	it.each([
+		{ name: "the start command", boundary: "command_001" },
+		{ name: "a non-advance command", boundary: "command_003" },
+		{ name: "a middle advance command", boundary: "command_004" },
+	])("rejects a marker at $name", ({ boundary }) => {
+		const state = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+		setLegacyReplayMarker(state, boundary);
+
+		expect(() => assertGameState(state)).toThrow(
+			/migration|provenance|boundary/i,
+		);
+		expect(() =>
+			replayCommandLog(state.commandLog, { expectedState: state }),
+		).toThrow(/migration|provenance|boundary|mismatch/i);
+	});
+
+	it("rejects a marker after the current command suffix", () => {
+		const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+		const state = advanceWeek(migrated).state;
+		const currentCommand = state.commandLog.at(-1);
+		if (currentCommand === undefined)
+			throw new Error("Expected current command");
+		setLegacyReplayMarker(state, currentCommand.id);
+
+		expect(() => assertGameState(state)).toThrow(
+			/migration|provenance|boundary/i,
+		);
+		expect(() =>
+			replayCommandLog(state.commandLog, { expectedState: state }),
+		).toThrow(/migration|provenance|boundary|mismatch/i);
+	});
+
+	it.each([
+		{ name: "null", value: null },
+		{ name: "a number", value: 42 },
+		{ name: "an object", value: {} },
+		{ name: "a future command id", value: "command_999" },
+	])("rejects a malformed or future marker ($name)", ({ value }) => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		setLegacyReplayMarker(state, value);
+
+		expect(() => assertGameState(state)).toThrow(
+			/identifier|migration|provenance|boundary|unknown/i,
+		);
+	});
+
+	it.each([
+		{
+			field: "progress",
+			mutate: (rival: Record<string, unknown>) => {
+				rival.progress = 36;
+			},
+		},
+		{
+			field: "active",
+			mutate: (rival: Record<string, unknown>) => {
+				rival.active = false;
+			},
+		},
+	])(
+		"rejects a migrated proof with tampered rival $field after current commands",
+		({ mutate }) => {
+			const migrated = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+			const state = advanceWeek(migrated).state;
+			const start = state.commandLog[0];
+			if (start === undefined)
+				throw new Error("Expected migrated start command");
+			const proof = asRecord(
+				(start as unknown as Record<string, unknown>)[
+					LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+				],
+			);
+			const rivals = proof.rivals;
+			if (!Array.isArray(rivals)) throw new Error("Expected proof rivals");
+			const firstRival = asRecord(rivals[0]);
+			mutate(firstRival);
+
+			expect(() => assertGameState(state)).toThrow(/proof|prefix|boundary/i);
+			expect(() =>
+				replayCommandLog(state.commandLog, { expectedState: state }),
+			).toThrow(/proof|prefix|boundary|mismatch/i);
+			expect(() => replayCommandLog(state.commandLog)).toThrow(
+				/proof|prefix|boundary|mismatch/i,
+			);
+		},
+	);
+
+	it("preserves exact capped and dormant rival provenance through migration", () => {
+		const fixture = v10ReplayFixture(14);
+		const migrated = upgradeGameStateWithMetadata(fixture).state;
+		const start = migrated.commandLog[0];
+		if (start === undefined) throw new Error("Expected migrated start command");
+		const proof = asRecord(
+			(start as unknown as Record<string, unknown>)[
+				LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+			],
+		);
+		const proofRivals = proof.rivals;
+		if (!Array.isArray(proofRivals)) throw new Error("Expected proof rivals");
+
+		expect(migrated.rivals.items.map((rival) => rival.progress)).toEqual([
+			98, 100, 0,
+		]);
+		expect(migrated.rivals.items.map((rival) => rival.active)).toEqual([
+			true,
+			true,
+			false,
+		]);
+		expect(proofRivals.map((rival) => asRecord(rival).progress)).toEqual([
+			98, 100, 0,
+		]);
+		expect(proofRivals.map((rival) => asRecord(rival).active)).toEqual([
+			true,
+			true,
+			false,
+		]);
+		expect(() => assertGameState(migrated)).not.toThrow();
+		expect(serializeGameState(migrated)).toBe(
+			serializeGameState(
+				replayCommandLog({ schemaVersion: 10, commands: fixture.commandLog }),
+			),
+		);
+	});
+
+	it("rejects a migrated proof with tampered source era", () => {
+		const state = upgradeGameStateWithMetadata(v10ReplayFixture()).state;
+		const start = state.commandLog[0];
+		if (start === undefined) throw new Error("Expected migrated start command");
+		const proof = asRecord(
+			(start as unknown as Record<string, unknown>)[
+				LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+			],
+		);
+		proof.era = "assistant";
+
+		expect(() => assertGameState(state)).toThrow(/proof|era|boundary/i);
+		expect(() => replayCommandLog(state.commandLog)).toThrow(
+			/proof|era|boundary|mismatch/i,
+		);
+	});
+
+	it("preserves assistant-era active rival provenance through current advances", () => {
+		const fixture = assistantV10ReplayFixture();
+		const migrated = upgradeGameStateWithMetadata(fixture).state;
+		const start = migrated.commandLog[0];
+		if (start === undefined) throw new Error("Expected migrated start command");
+		const proof = asRecord(
+			(start as unknown as Record<string, unknown>)[
+				LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF
+			],
+		);
+
+		expect(migrated.meta.era).toBe("assistant");
+		expect(proof.era).toBe("assistant");
+		expect(migrated.rivals.items.map((rival) => rival.active)).toEqual([
+			true,
+			true,
+			true,
+		]);
+		expect(() => assertGameState(migrated)).not.toThrow();
+
+		const advanced = advanceWeek(migrated).state;
+		expect(advanced.rivals.items.map((rival) => rival.active)).toEqual([
+			true,
+			true,
+			true,
+		]);
+		expect(() => assertGameState(advanced)).not.toThrow();
+	});
+
+	it("keeps a current v11 state and envelope marker-free", () => {
+		const state = currentV11AfterFiveAdvances();
+		const start = state.commandLog[0];
+		if (start === undefined) throw new Error("Expected current start command");
+		expect(start).not.toHaveProperty(LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH);
+		expect(start).not.toHaveProperty(LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF);
+
+		const replayed = replayCommandLog(
+			{
+				schemaVersion: GAME_STATE_SCHEMA_VERSION,
+				commands: state.commandLog,
+			},
+			{ expectedState: state },
+		);
+		const replayedStart = replayed.commandLog[0];
+		if (replayedStart === undefined) {
+			throw new Error("Expected replayed current start command");
+		}
+		expect(replayedStart).not.toHaveProperty(
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH,
+		);
+		expect(replayedStart).not.toHaveProperty(
+			LEGACY_V10_RIVAL_STRATEGY_REPLAY_PROOF,
+		);
+		expect(serializeGameState(replayed)).toBe(serializeGameState(state));
+	});
+
+	it("rejects a marker misplaced on a non-start command", () => {
+		const state = startRun({ companyName: "Current v11 Labs" }, 42);
+		state.commandLog.push({
+			id: "command_002",
+			kind: "advance_week",
+			week: 1,
+			[LEGACY_V10_RIVAL_STRATEGY_REPLAY_THROUGH]: "command_001",
+		} as unknown as CommandLogEntry);
+
+		expect(() => assertGameState(state)).toThrow(/unexpected|marker|field/i);
+		expect(() => replayCommandLog(state.commandLog)).toThrow(/mismatch|field/i);
 	});
 });
